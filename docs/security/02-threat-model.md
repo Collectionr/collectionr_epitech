@@ -107,10 +107,9 @@ Les éléments suivants ne sont pas couverts par ce threat model :
 ---
 
 ## 2. Menaces identifiées
-Cette section identifie les principales menaces pesant sur les actifs critiques de la plateforme.
-L'analyse couvre à a fois les menaces techniques et les abus métier liés à l'usage de la plateforme.
+>Cette section identifie les principales menaces pesant sur les actifs critiques de la plateforme.
+>L'analyse couvre à a fois les menaces techniques et les abus métier liés à l'usage de la plateforme.
 
----
 ### 2.1 Menaces techniques
 
 Les menaces techniques suivantes ont été identifiées :
@@ -149,7 +148,40 @@ Les flux inter-composants présentent également des risques spécifiques :
 ---
 
 ## 3. Mesures de mitigation
-*(Ticket S2.3)*
+>Cette section présente les mesures de sécurité permettant de réduire
+>les risques identifiés lors de l’analyse des menaces. Ces mesures sont
+>définies au niveau de l’architecture et des principes de sécurité,
+>sans détailler les implémentations techniques.
+
+### 3.1 Mitigations des menaces techniques
+
+| Menace | Mesures de mitigation |
+|------|-----------------------|
+| Usurpation d’identité | Authentification forte, gestion sécurisée des tokens |
+| Altération des données | Contrôles d’accès, validation des entrées |
+| Absence de traçabilité | Journalisation des actions sensibles |
+| Fuite de données | Chiffrement des données, contrôle des accès |
+| Déni de service | Rate limiting, quotas, protection anti-abus |
+| Élévation de privilèges | Gestion stricte des rôles et permissions |
+
+---
+### 3.2 Mitigations des abus métier
+
+Les abus métier identifiés sont atténués par les mesures suivantes :
+- limitation du nombre d’appels API et des quotas d’utilisation,
+- contrôles sur les flux d’upload (taille, fréquence),
+- isolation des données par utilisateur,
+- surveillance des usages anormaux.
+
+---
+
+### 3.3 Mitigations liées aux flux
+
+Les flux inter-composants sont sécurisés par :
+- une segmentation réseau claire entre les composants,
+- l’absence d’exposition directe des services internes,
+- des contrôles d’accès inter-services,
+- une gestion sécurisée des secrets.
 
 ---
 
