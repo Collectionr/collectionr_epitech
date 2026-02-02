@@ -186,7 +186,32 @@ Les flux inter-composants sont sécurisés par :
 ---
 
 ## 4. Hypothèses et alignement architecture
-*(Ticket S2.4)*
+>Le présent threat model repose sur les hypothèses d’architecture suivantes :
+>- l’API est exposée uniquement via le backend applicatif,
+>- les services de traitement internes ne sont pas exposés publiquement,
+>- la base de données est isolée dans une zone réseau privée,
+>- les accès sont contrôlés via des rôles et permissions,
+>- les traitements lourds sont exécutés de manière asynchrone.
+
+### 4.1 Dépendances et liens avec l’architecture
+
+Le threat model est étroitement lié aux éléments suivants :
+- architecture logique de la plateforme,
+- définition des flux techniques,
+- politique de sécurité des APIs,
+- configuration réseau et IAM,
+- pipeline CI/CD et contrôles qualité.
+
+Toute évolution majeure de ces éléments devra entraîner une révision
+du threat model.
+
+---
+
+### 4.2 Validation croisée
+
+Le threat model fait l’objet d’une relecture croisée avec les responsables
+Cloud et Backend afin de garantir la cohérence entre les hypothèses de
+sécurité et les choix d’architecture.
 
 ---
 
