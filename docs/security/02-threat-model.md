@@ -32,9 +32,7 @@ L’analyse s’appuie sur :
 - l’analyse des menaces techniques (inspirée de STRIDE),
 - l’identification des abus métier,
 - la définition de **mesures de mitigation** adaptées à l’architecture cloud.
-
 ---
-
 ### Logique de l’analyse de sécurité
 
 Le threat model est structuré selon la logique suivante :
@@ -46,6 +44,27 @@ Le threat model est structuré selon la logique suivante :
 
 Cette approche permet de garantir une analyse progressive, cohérente
 et directement exploitable par les équipes d’architecture et de sécurité.
+
+---
+### Référentiel d’analyse des menaces (STRIDE)
+
+Pour structurer l’identification des menaces, le threat model s’appuie
+sur le référentiel **STRIDE**, couramment utilisé en architecture et
+en cybersécurité.
+
+STRIDE permet de classifier les menaces selon six grandes catégories :
+
+- **Spoofing** : usurpation d’identité ou contournement de l’authentification
+- **Tampering** : modification non autorisée des données ou des flux
+- **Repudiation** : impossibilité de tracer ou d’attribuer une action
+- **Information Disclosure** : exposition ou fuite d’informations sensibles
+- **Denial of Service** : indisponibilité ou dégradation du service
+- **Elevation of Privilege** : obtention de privilèges supérieurs aux droits accordés
+
+Ce référentiel est utilisé comme une **grille de lecture** afin de garantir
+une couverture complète des menaces techniques, sans imposer de solutions
+techniques spécifiques.
+
 
 ---
 
@@ -88,7 +107,44 @@ Les éléments suivants ne sont pas couverts par ce threat model :
 ---
 
 ## 2. Menaces identifiées
-*(Ticket S2.2)*
+Cette section identifie les principales menaces pesant sur les actifs critiques de la plateforme.
+L'analyse couvre à a fois les menaces techniques et les abus métier liés à l'usage de la plateforme.
+
+---
+### 2.1 Menaces techniques
+
+Les menaces techniques suivantes ont été identifiées :
+
+| Catégorie | Menace | Actifs concernés |
+|----------|--------|------------------|
+| Spoofing | Usurpation d’identité via vol de token | Comptes, API |
+| Tampering | Modification non autorisée des données | Données de collection |
+| Repudiation | Actions non traçables ou non auditées | Logs, audit |
+| Information Disclosure | Fuite de données sensibles | Données personnelles |
+| Denial of Service | Saturation API ou services IA | API, traitements |
+| Elevation of Privilege | Contournement des rôles et permissions | Comptes, données |
+
+---
+### 2.2 Abus métier
+
+Au-delà des attaques techniques, plusieurs scénarios d’abus métier
+ont été identifiés :
+
+- Scraping massif de données via appels API répétés
+- Upload abusif de fichiers volumineux pour saturer le stockage
+- Contournement des limites d’utilisation (quotas, fréquence)
+- Tentatives d’accès aux collections d’autres utilisateurs
+- Exploitation des traitements automatisés à des fins non prévues
+
+---
+### 2.3 Menaces liées aux flux
+
+Les flux inter-composants présentent également des risques spécifiques :
+- interception ou altération des flux entre services internes,
+- appels non autorisés aux services internes,
+- exposition involontaire de composants non destinés au public,
+- mauvaise isolation entre environnements.
+
 
 ---
 
