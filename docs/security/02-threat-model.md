@@ -35,28 +35,55 @@ L’analyse s’appuie sur :
 
 ---
 
+### Logique de l’analyse de sécurité
+
+Le threat model est structuré selon la logique suivante :
+
+1. Identifier les **actifs critiques** de la plateforme  
+2. Analyser les **menaces** pesant sur ces actifs
+3. Définir des **mesures de mitigation** adaptées  
+4. Vérifier l’**alignement avec l’architecture cloud et backend**
+
+Cette approche permet de garantir une analyse progressive, cohérente
+et directement exploitable par les équipes d’architecture et de sécurité.
+
+---
+
 ## 1. Actifs critiques et périmètre de sécurité
-*(Ticket S2.1)*
 
 > Cette section identifie ce qui doit être protégé et définit les frontières
 > de l’analyse de sécurité.
 
 ### 1.1 Actifs critiques
-
+| Actif | Description | Niveau de sensibilité |
+|------|------------|----------------------|
+| Comptes utilisateurs | Identité et informations des utilisateurs | Élevé |
+| Données de collection | Cartes possédées et métadonnées | Élevé |
+| Images uploadées | Photos des cartes envoyées par les utilisateurs | Élevé |
+| Tokens d’authentification | Jetons d’accès aux APIs | Critique |
+| Résultats de traitement | Résultats de pré-analyse et de scoring | Moyen |
+| Logs et audit | Traces d’accès et d’actions sensibles | Élevé |
 
 
 ---
 
 ### 1.2 Flux et composants couverts
-- 
-- 
-- 
+Le threat model couvre notamment :
+- les appels API effectués par les clients web et mobile,
+- les flux d’authentification et de gestion des sessions,
+- les flux d’upload de fichiers et leur traitement,
+- les traitements asynchrones internes,
+- les accès à la base de données,
+- les interactions entre services internes.
 
 ---
 
 ### 1.3 Éléments hors périmètre
-- 
-- 
+Les éléments suivants ne sont pas couverts par ce threat model :
+- les choix d’interface utilisateur (UX/UI),
+- les détails internes des algorithmes de traitement,
+- les optimisations de performance purement applicatives.
+
 
 ---
 
