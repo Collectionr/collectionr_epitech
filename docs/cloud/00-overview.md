@@ -20,7 +20,7 @@ L'architecture repose sur un écosystème **découplé** où le Cloud sert de hu
 | Couche | Technologie | Responsabilités principales |
 | :--- | :--- | :--- |
 | **Frontend** | React / React Native | Interface utilisateur (Web/Mobile), capture d'image, affichage des prix. |
-| **Backend Core** | Node.js + Prisma | **Owner de la donnée**. Gestion des APIs, authentification et logique métier. |
+| **Backend Core** | Node.js + Prisma | **Service maître du cycle de vie des données**. Exposition des APIs, authentification et logique métier. |
 | **Data / IA Service** | Python (FastAPI) | Computer Vision (Authentification), Prédiction de prix (Data Science). |
 | **Persistance** | PostgreSQL | Stockage des métadonnées, utilisateurs et catalogues de prix. |
 | **Infrastructure** | Docker / K8s | Conteneurisation, orchestration et isolation des environnements. |
@@ -56,9 +56,34 @@ Le projet est conçu pour être déployé sur **AWS, GCP ou Azure** sans modific
 
 ---
 
-## 7. Contraintes & Estimations
-* **Sécurité & RGPD :** Chiffrement des données, isolation des secrets (Secret Management) et gestion stricte des images stockées.
-* **Volume de données (Prévisions) :**
-    * *Estimation :* ~10 000 utilisateurs / 100 cartes par collection.
-    * *Stockage :* Prévision de **1 To** pour la persistance des images (originaux + versions optimisées).
-* **Budget :** Stratégie de "**Scale-to-zero**" pour les ressources IA gourmandes hors des périodes d'activité.
+## 7. Contraintes & Hypothèses Structurantes
+
+### Sécurité & Données
+- Chiffrement des données en transit et au repos.
+- Gestion centralisée des secrets.
+- Les images de cartes ne sont pas considérées comme des données métier persistantes mais comme des artefacts techniques temporaires.
+
+### Gestion des images & Flux IA
+- Les images capturées sont transmises au service IA via API.
+- Le stockage des images est **temporaire** (durée courte, lifecycle contrôlé) et principalement destiné :
+  - au traitement IA,
+  - à des besoins de debug ou d’audit ponctuels.
+- Aucune volumétrie long terme n’est engagée à ce stade pour les images.
+
+### Contraintes API & Rate Limiting
+- Les services IA sont soumis à des **quotas et limites de taux** imposés par les fournisseurs.
+- L’architecture intègre un mécanisme de **file d’attente et de régulation** afin :
+  - d’absorber les pics de demandes,
+  - de protéger les APIs IA,
+  - de maîtriser les coûts.
+- Le système est conçu pour refuser ou différer proprement les requêtes en cas de dépassement de quota.
+
+### Coûts & Modèle de Consommation
+- Les services IA reposent sur un modèle **pay-as-you-go**.
+- Les tests actuels restent dans les **quotas gratuits** des fournisseurs.
+- Toute montée en charge au-delà de ces quotas entraîne mécaniquement des coûts.
+- L’architecture vise donc une **maîtrise du risque financier** via :
+  - limitation volontaire des appels IA,
+  - activation ciblée des traitements,
+  - absence de ressources IA actives en continu.
+
