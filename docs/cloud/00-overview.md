@@ -23,7 +23,7 @@ L'architecture repose sur un écosystème **découplé** où le Cloud sert de hu
 | **Backend Core** | Node.js + Prisma | **Service maître du cycle de vie des données**. Exposition des APIs, authentification et logique métier. |
 | **Data / IA Service** | Python (FastAPI) | Computer Vision (Authentification), Prédiction de prix (Data Science). |
 | **Persistance** | PostgreSQL | Stockage des métadonnées, utilisateurs et catalogues de prix. |
-| **Infrastructure** | Docker / K8s | Conteneurisation, orchestration et isolation des environnements. |
+| **Infrastructure** | Docker / K3s | Conteneurisation, orchestration et isolation des environnements. |
 
 ---
 
@@ -45,7 +45,7 @@ Le projet est conçu pour être déployé sur **AWS, GCP ou Azure** sans modific
 
 ### Scénarios de Déploiement
 * **Développement :** Utilisation de **Docker Compose** pour simuler l'ensemble de l'écosystème localement.
-* **Production :** Orchestration via **Kubernetes (K8s)** pour permettre l'autoscaling indépendant du service IA (calcul intensif) par rapport au backend métier.
+* **Production :** Orchestration via **Kubernetes (K3s)** pour permettre l'autoscaling indépendant du service IA (calcul intensif) par rapport au backend métier.
 
 ---
 
@@ -61,7 +61,14 @@ Le projet est conçu pour être déployé sur **AWS, GCP ou Azure** sans modific
 ### Sécurité & Données
 - Chiffrement des données en transit et au repos.
 - Gestion centralisée des secrets.
-- Les images de cartes ne sont pas considérées comme des données métier persistantes mais comme des artefacts techniques temporaires.
+- Les images de cartes constituent des données métier persistantes nécessaires à la visualisation des collections utilisateurs.
+
+  Deux niveaux de stockage sont distingués :
+  - Image brute (haute résolution) destinée au traitement IA et à l’archivage.
+  - Image optimisée (compressée) utilisée pour l’affichage rapide et le partage lors d’événements.
+  
+  Une stratégie de lifecycle peut être appliquée sur les images brutes afin de maîtriser les coûts de stockage.
+
 
 ### Gestion des images & Flux IA
 - Les images capturées sont transmises au service IA via API.
