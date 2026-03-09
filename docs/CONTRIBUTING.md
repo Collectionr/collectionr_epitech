@@ -1,6 +1,4 @@
-# Pôle Technique Commun (Transversal)
-
-##  Vue d'ensemble
+#  Vue d'ensemble
 
 Ce document définit les règles, les outils et les normes partagés par l'ensemble des développeurs du projet. Ces directives s'appliquent indistinctement aux environnements **front-end** et **back-end** afin de garantir l'homogénéité et la qualité de la base de code globale.
 
