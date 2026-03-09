@@ -32,22 +32,47 @@ Ces adaptateurs convertissent les données entre les cas d'utilisation et les ag
 
 Cette couche externe contient la configuration de Fastify, la connexion à PostgreSQL et les adaptateurs permettant de communiquer avec les microservices d'intelligence artificielle Python.
 
-## Structure de Dossiers Standard
+## Structure de Dossiers Standard (Architecture Modulaire)
 
-L'architecture standard est retenue car elle offre un équilibre optimal entre l'isolation des concepts et la maintenabilité.
+L'architecture standard utilise une organisation **modulaire par domaine métier**.
 
 ```
 src/
-  domain/
-    entities/
-    ports/
-  application/
-    use-cases/
-  infrastructure/
-    database/
-    http-adapters/
-  presentation/
-    controllers/
+├── modules/
+│   ├── cards/
+│   │   ├── cards.module.ts
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   └── ports/
+│   │   ├── application/
+│   │   │   └── use-cases/
+│   │   ├── infrastructure/
+│   │   │   └── database/
+│   │   └── presentation/
+│   │       └── controllers/
+│   ├── users/
+│   │   ├── users.module.ts
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   └── ports/
+│   │   ├── application/
+│   │   │   └── use-cases/
+│   │   ├── infrastructure/
+│   │   │   └── database/
+│   │   └── presentation/
+│   │       └── controllers/
+│   └── collections/
+│       ├── collections.module.ts
+│       ├── domain/
+│       │   ├── entities/
+│       │   └── ports/
+│       ├── application/
+│       │   └── use-cases/
+│       ├── infrastructure/
+│       │   └── database/
+│       └── presentation/
+│           └── controllers/
+└── main.ts
 ```
 
 ## Justification de l'Architecture pour Collectionr
