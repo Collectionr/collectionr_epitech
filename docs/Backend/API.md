@@ -1,12 +1,15 @@
-# 📘 Pokémon Card Scanner & Market API
+# 📘 Pokémon Card Scanner & CollectionR API
 
-## 1. Overview
+---
+
+# 1. Overview
 
 This API allows users to:
 
 * Scan a Pokémon card using the device camera
 * Automatically identify the card
 * Estimate its condition (grading) using Machine Learning
+* Retrieve card metadata
 * Retrieve market price data
 * Store cards in a user's personal collection
 
@@ -17,12 +20,14 @@ The system architecture is composed of:
 * **PostgreSQL database with Prisma ORM**
 * **Redis caching layer**
 * **React / React Native frontend**
+* **CollectionR internal card API**
+* **External market data APIs**
 
 ---
 
 # 2. System Architecture
 
-```id="arch001"
+```text
 React / React Native App
         │
         │ REST / GraphQL
@@ -37,11 +42,17 @@ Fastify API Server (TypeScript)
         ├── Scanner Microservice
         │       FastAPI + OpenCV
         │
+        ├── CollectionR Card API
+        │       Internal Card Metadata
+        │
         └── Market Data Aggregator
-                GraphQL
-              /         \
-        Cardmarket      eBay API
+                │
+        ┌───────────────┬───────────────┐
+        ▼               ▼               ▼
+   Cardmarket API      eBay API     TCGPlayer API
 ```
+
+The **CollectionR API remains the primary internal source for card metadata**, while market APIs provide **price information and additional data enrichment**.
 
 ---
 
@@ -57,7 +68,7 @@ The backend is built with:
 
 Clean architecture structure:
 
-```id="arch002"
+```text
 src
 │
 ├── domain
@@ -69,6 +80,7 @@ src
 │   ├── use-cases
 │   │   ├── scan-card.usecase.ts
 │   │   ├── identify-card.usecase.ts
+│   │   ├── get-card-data.usecase.ts
 │   │   └── get-market-price.usecase.ts
 │
 ├── infrastructure
@@ -79,9 +91,13 @@ src
 │   ├── cache
 │   │   └── redis.service.ts
 │   │
+│   ├── card
+│   │   └── collectionr-card.service.ts
+│   │
 │   ├── market
 │   │   ├── ebay.service.ts
-│   │   └── cardmarket.scraper.ts
+│   │   ├── tcgplayer.service.ts
+│   │   └── cardmarket.service.ts
 │   │
 │   └── scanner
 │       └── scanner.client.ts
@@ -98,18 +114,60 @@ src
 
 ---
 
-# 4. Data Models
+# 4. CollectionR Card API
+
+## Purpose
+
+The **CollectionR Card API** manages **internal TCG card metadata**.
+
+Goals:
+
+* maintain a **complete internal database of TCG cards**
+* provide a **stable and consistent card data source**
+* reduce dependency on external card APIs
+* enable internal enrichment with market data
+
+Inspired by APIs such as:
+
+```
+https://api.tcgdex.net/v2/en/cards/swsh3-136
+```
+
+But implemented internally.
+
+---
+
+## Responsibilities
+
+The API must:
+
+* store TCG card metadata
+* retrieve card information
+* support card lookup by ID
+* support search operations
+* merge metadata with market data
+
+External APIs are used **only for price enrichment**, not as the primary card metadata source.
+
+---
+
+# 5. Data Models
 
 ## Card
 
-```json id="model001"
+```json
 {
-  "id": "uuid",
-  "name": "Pikachu",
-  "set": "Base Set",
-  "number": "25",
-  "rarity": "Rare",
-  "image_url": "string"
+  "id": "swsh3-136",
+  "name": "Charizard",
+  "set": {
+    "id": "swsh3",
+    "name": "Darkness Ablaze"
+  },
+  "number": "136",
+  "rarity": "Rare Holo",
+  "types": ["Fire"],
+  "hp": 170,
+  "image": "https://cdn.collectionr/cards/swsh3-136.png"
 }
 ```
 
@@ -117,12 +175,13 @@ src
 
 ## CardScan
 
-```json id="model002"
+```json
 {
   "scan_id": "uuid",
-  "card_id": "uuid",
+  "card_id": "swsh3-136",
   "hash": "string",
   "grade": 8.5,
+  "confidence": 0.94,
   "detected_at": "timestamp"
 }
 ```
@@ -131,9 +190,9 @@ src
 
 ## MarketPrice
 
-```json id="model003"
+```json
 {
-  "card_id": "uuid",
+  "card_id": "swsh3-136",
   "source": "ebay",
   "average_price": 45.5,
   "currency": "EUR"
@@ -142,100 +201,60 @@ src
 
 ---
 
-# 5. API Endpoints
-
-The backend exposes:
-
-* **REST API** → for card scanning
-* **GraphQL API** → for card and market data
+# 6. Card API Endpoints
 
 ---
 
-# REST API – Scanner
+## GET /cards/:id
 
-## POST /scan
+Retrieve card metadata.
 
-Uploads an image to identify a Pokémon card.
-
-### Request
-
-```id="req001"
-POST /scan
+```http
+GET /cards/swsh3-136
 ```
 
-### Payload
+Response:
 
-```json id="req002"
+```json
 {
-  "image": "base64_encoded_image"
-}
-```
-
-### Processing Flow
-
-1. Image is sent to the Python scanner service
-2. Perceptual hashing
-3. Database matching
-4. ML grading
-5. Cache lookup via Redis (for known cards)
-
-### Response
-
-```json id="res001"
-{
-  "card_id": "uuid",
-  "name": "Pikachu",
-  "grade": 8.2,
-  "confidence": 0.94
+  "id": "swsh3-136",
+  "name": "Charizard",
+  "set": "Darkness Ablaze",
+  "rarity": "Rare Holo"
 }
 ```
 
 ---
 
-# Scanner Microservice
+## GET /cards/search
 
-Python service built with:
+Search cards by name.
 
-liaison
-
----
-
-# GraphQL API
-
-The backend exposes the endpoint:
-
-```id="gql001"
-/graphql
+```
+GET /cards/search?q=pikachu
 ```
 
-Built with **GraphQL**.
+---
+
+# 7. Market Data Aggregation
+
+The backend aggregates market prices from multiple APIs.
+
+Sources:
+
+* **Cardmarket API**
+* **eBay API**
+* **TCGPlayer API**
+
+The system merges the data to compute an **average market value**.
 
 ---
 
-## Query – Card
+## Example GraphQL Query
 
-```id="gql002"
+```graphql
 query {
-  card(id: "25") {
-    name
-    set
-    rarity
-  }
-}
-```
-
----
-
-## Query – Market Price
-
-Aggregates market data from:
-
-* eBay API
-* Cardmarket scraping
-
-```id="gql003"
-query {
-  marketPrice(cardId: "25") {
+  marketPrice(cardId: "swsh3-136") {
     source
     averagePrice
     currency
@@ -243,9 +262,9 @@ query {
 }
 ```
 
-### Response
+Response:
 
-```json id="gql004"
+```json
 {
   "data": {
     "marketPrice": [
@@ -264,50 +283,115 @@ query {
 
 ---
 
-# 6. Complete Scan Flow
+# 8. Scanner Microservice Integration
 
-```id="flow001"
+The scanner microservice performs:
+
+* card detection
+* perceptual hashing
+* card identification
+* ML grading
+
+The backend orchestrates the workflow.
+
+---
+
+## Communication Flow
+
+```
+Client
+  │
+  ▼
+POST /scan
+  │
+Fastify Backend
+  │
+Call Scanner Microservice
+  │
+Image Processing
+  │
+Hash Matching
+  │
+ML Grading
+  │
+Return cardId
+  │
+Backend retrieves card metadata
+  │
+Backend aggregates market data
+  │
+Return full card data
+```
+
+---
+
+# 9. Redis Cache Layer
+
+Redis caches:
+
+* card metadata
+* market prices
+* search queries
+
+Example keys:
+
+```
+card:swsh3-136
+card_search:pikachu
+price:swsh3-136
+```
+
+Cache strategy:
+
+| Data           | TTL   |
+| -------------- | ----- |
+| card metadata  | 24h   |
+| market prices  | 5 min |
+| search results | 1h    |
+
+---
+
+# 10. Complete Scan Flow
+
+```
 User scans card
      │
 React Native Camera
      │
 POST /scan
      │
-Fastify API
+Fastify Backend
      │
 Scanner Microservice
      │
-Hash matching
+Card identification
      │
-ML grading
+Return cardId
      │
-Card identified
+Backend loads card metadata
      │
-Redis cache lookup
+Backend fetches market prices
      │
-GraphQL market query
+Merge results
      │
 Return full card info
 ```
 
 ---
 
-# 8. Response Codes
+# 11. Response Codes
 
 | Code | Meaning          |
 | ---- | ---------------- |
 | 200  | Success          |
 | 201  | Resource created |
 | 400  | Invalid request  |
-| 401  | Unauthorized     |
 | 404  | Card not found   |
 | 500  | Server error     |
 
 ---
 
-# 9. Frontend
-
-Two client applications consume the API:
+# 12. Frontend
 
 ### Web App
 
