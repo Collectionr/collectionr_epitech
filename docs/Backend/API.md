@@ -196,43 +196,7 @@ POST /scan
 
 Python service built with:
 
-* **FastAPI**
-* **OpenCV**
-
-### Endpoints
-
-```id="scan001"
-POST /identify
-POST /grade
-```
-
----
-
-## POST /identify
-
-Identifies the card using perceptual hashing.
-
-```json id="scan002"
-{
-  "card_id": "xy123",
-  "hash_distance": 4
-}
-```
-
----
-
-## POST /grade
-
-Evaluates the physical condition of the card.
-
-```json id="scan003"
-{
-  "grade": 8.5,
-  "centering": 9,
-  "edges": 8,
-  "surface": 8
-}
-```
+liaison
 
 ---
 
@@ -325,24 +289,6 @@ GraphQL market query
      │
 Return full card info
 ```
-
----
-
-# 7. Authentication
-
-Authentication via **JWT**.
-
-### Headers
-
-```id="auth001"
-Authorization: Bearer <token>
-```
-
-Used for:
-
-* user sessions
-* personal card collections
-* protected endpoints
 
 ---
 
