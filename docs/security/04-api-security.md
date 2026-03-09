@@ -1,9 +1,26 @@
-## 04 – API Security
+## API Sécurité
 
+### Sommaire
+
+1. [Objectif](#1-objectif)
+2. [Périmètre](#2-périmètre)
+3. [Principes généraux de sécurité](#3-principes-généraux-de-sécurité)
+4. [Authentification & gestion des tokens](#4-authentification--gestion-des-tokens)
+5. [Autorisation & RBAC](#5-autorisation--rbac)
+6. [Protection contre les attaques courantes (OWASP)](#6-protection-contre-les-attaques-courantes-owasp-top-10)
+7. [Rate Limiting & protection contre les abus](#7-rate-limiting--protection-contre-les-abus)
+8. [Sécurité API Web vs Mobile](#8-sécurité-api-web-vs-mobile)
+9. [Journalisation & monitoring](#9-journalisation--monitoring)
+10. [Sécurité des environnements](#10-sécurité-des-environnements)
+11. [Évolution future](#11-évolution-future)
+
+
+---
 
 ### 1. Objectif
 
 Ce document définit les exigences de sécurité applicables aux API exposées par la plateforme ESP.
+
 L’objectif est de prévenir :
 
 - Les abus d’utilisation (spam, surcharge, scraping)
@@ -14,7 +31,25 @@ L’objectif est de prévenir :
 Ces exigences s’appliquent à toutes les API backend accessibles depuis le web ou l’application mobile.
 
 ---
-### 2. Principes généraux de sécurité
+
+### 2. Périmètre
+
+Ce document couvre la sécurité de l’API applicative exposée aux clients :
+
+- application web
+- application mobile
+
+L’API applicative constitue le **point d’entrée unique** vers les services backend.
+
+Les traitements internes (ex : analyse IA, traitements asynchrones) ne sont pas exposés directement aux clients et sont considérés comme **hors périmètre de ce document**.
+
+L’API applicative interagit principalement avec la **base de données applicative**, qui contient les données métier et les informations des utilisateurs.
+
+Les traitements liés à l’analyse et aux modèles IA peuvent utiliser une **base de données dédiée**, isolée de la base applicative, afin de garantir une séparation des responsabilités et une meilleure sécurité des données.
+
+---
+
+### 3. Principes généraux de sécurité
 
 La sécurité repose sur les principes suivants :
 
@@ -23,23 +58,30 @@ La sécurité repose sur les principes suivants :
 - **Moindre privilège (Least Privilege)** : chaque utilisateur ne peut accéder qu’aux ressources strictement nécessaires.
 - **Séparation des environnements** : dev, staging et production sont isolés.
 
+Ces principes sont appliqués à l’ensemble des endpoints exposés par l’API.
+
 ---
-### 3. Authentification & gestion des tokens
-#### 3.1 Exigences
+
+### 4. Authentification & gestion des tokens
+
+L’API constitue le point d’entrée unique vers les services backend
+et la base de données applicative.
+
+#### 4.1 Exigences
 
 - Toute action sensible nécessite une authentification.
 - Les mots de passe sont hashés avec un algorithme sécurisé (bcrypt ou Argon2).
 - Les tokens d’accès sont signés et ont une durée de vie limitée.
 - Les clés de signature sont stockées de manière sécurisée (Secret Manager / variables protégées).
 
-#### 3.2 Mécanisme retenu
+#### 4.2 Mécanisme retenu
 
 - Authentification basée sur **JWT (JSON Web Token)**.
 - **Access Token** : durée courte (ex : 15 minutes).
 - **Refresh Token** : durée plus longue (ex : 7 jours).
 - Rotation possible des clés de signature.
 
-#### 3.3 Stockage des tokens
+#### 4.3 Stockage des tokens
 
 - 🌐 Web : cookies HttpOnly + Secure
 
@@ -48,21 +90,25 @@ La sécurité repose sur les principes suivants :
 Aucun token ne doit être stocké en localStorage.
 
 ---
-### 4. Autorisation & RBAC (Role-Based Access Control)
-#### 4.1 Exigences
+### 5. Autorisation & RBAC (Role-Based Access Control)
+
+Les contrôles de sécurité décrits dans cette section
+découlent directement des menaces identifiées dans le
+threat model de la plateforme.
+
+#### 5.1 Exigences
 
 - Chaque utilisateur possède un rôle.
 - Les rôles définissent les permissions autorisées.
 -Les vérifications sont effectuées côté backend via middleware.
 
-#### 4.2 Rôles envisagés
+#### 5.2 Rôles envisagés
 
 - ```USER```
-
 - ```ADMIN```
 - ```MODERATOR``` (*si marketplace activée*)
 
-#### 4.3 Protection contre l’IDOR
+#### 5.3 Protection contre l’IDOR
 
 L’accès aux ressources est systématiquement vérifié :
 
@@ -70,38 +116,38 @@ L’accès aux ressources est systématiquement vérifié :
 - Les identifiants d’objets sont toujours validés côté serveur.
 
 --- 
-### 5. Protection contre les attaques courantes (OWASP Top 10)
+### 6. Protection contre les attaques courantes (OWASP Top 10)
 
 La plateforme prend en compte les principales menaces :
 
-#### 5.1 Injection (SQL / NoSQL)
+#### 6.1 Injection (SQL / NoSQL)
 
 - Utilisation d’ORM ou requêtes paramétrées.
 - Aucune concaténation dynamique non contrôlée.
 
-### 5.2 Broken Authentication
+### 6.2 Broken Authentication
 
 - Durée de vie courte des tokens.
 - Invalidation possible des sessions.
 - Limitation des tentatives de connexion.
 
-#### 5.3 Sensitive Data Exposure
+#### 6.3 Sensitive Data Exposure
 
 - Chiffrement TLS obligatoire (HTTPS).
 - Données sensibles non exposées dans les logs.
 - Sauvegardes chiffrées.
 
-#### 5.4 XSS
+#### 6.4 XSS
 
 - Validation et nettoyage des entrées utilisateur.
 - Protection côté frontend via frameworks sécurisés.
 
-#### 5.5 CSRF (Web)
+#### 6.5 CSRF (Web)
 
 - Si utilisation de cookies → protection CSRF activée.
 
 ---
-### 6. Rate Limiting & Protection contre les abus
+### 7. Rate Limiting & Protection contre les abus
 
 Afin de prévenir la surcharge et les abus :
 
@@ -121,21 +167,21 @@ Dans le cas de traitements IA coûteux, des quotas par utilisateur peuvent être
 
 ---
 
-### 7. Sécurité API Web vs Mobile
-#### 7.1 Web
+### 8. Sécurité API Web vs Mobile
+#### 8.1 Web
                 
 - Cookies HttpOnly
 - CORS strictement configuré
 - Protection CSRF si nécessaire
 
-#### 7.2 Mobile
+#### 8.2 Mobile
 
 - -Stockage sécurisé des tokens
 - Aucune clé API embarquée en clair
 - Validation stricte TLS
 
 ---
-### 8. Journalisation & Monitoring
+### 9. Journalisation & Monitoring
 
 - Logs des tentatives de connexion
 - Logs des erreurs 401 / 403
@@ -145,7 +191,7 @@ Dans le cas de traitements IA coûteux, des quotas par utilisateur peuvent être
 Les logs ne doivent contenir aucune donnée sensible (mots de passe, tokens, données personnelles).
 
 --- 
-### 9. Sécurité des environnements
+### 10. Sécurité des environnements
 
 - Variables sensibles stockées via Secret Manager.
 - Aucune clé ou secret dans le code source.
@@ -153,7 +199,7 @@ Les logs ne doivent contenir aucune donnée sensible (mots de passe, tokens, don
 - Accès restreint aux ressources cloud via IAM.
 
 ---
-### 10. Évolution future
+### 11. Évolution future
 
 En cas de montée en charge ou d’ouverture publique importante :
 - Mise en place d’un WAF (Web Application Firewall).
