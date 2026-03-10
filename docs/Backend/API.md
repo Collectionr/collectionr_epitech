@@ -73,43 +73,43 @@ src
 │
 ├── domain
 │   ├── entities
-│   │   ├── card.entity.ts
-│   │   └── collection.entity.ts
+│   │   ├── Card.ts
+│   │   └── Collection.ts
 │
 ├── application
 │   ├── use-cases
-│   │   ├── scan-card.usecase.ts
-│   │   ├── identify-card.usecase.ts
-│   │   ├── get-card-data.usecase.ts
-│   │   └── get-market-price.usecase.ts
+│   │   ├── ScanCardUseCase.ts
+│   │   ├── IdentifyCardUseCase.ts
+│   │   ├── GetCardDataUseCase.ts
+│   │   └── GetMarketPriceUseCase.ts
 │
 ├── infrastructure
 │   ├── database
-│   │   ├── prisma.service.ts
+│   │   ├── PrismaService.ts
 │   │   └── schema.prisma
 │   │
 │   ├── cache
-│   │   └── redis.service.ts
+│   │   └── RedisService.ts
 │   │
 │   ├── card
-│   │   └── collectionr-card.service.ts
+│   │   └── CollectionRCardService.ts
 │   │
 │   ├── market
-│   │   ├── ebay.service.ts
-│   │   ├── tcgplayer.service.ts
-│   │   └── cardmarket.service.ts
+│   │   ├── EbayService.ts
+│   │   ├── TcgPlayerService.ts
+│   │   └── CardmarketService.ts
 │   │
 │   └── scanner
-│       └── scanner.client.ts
+│       └── ScannerClient.ts
 │
 ├── interfaces
 │   ├── graphql
-│   │   └── card.resolver.ts
+│   │   └── CardResolver.ts
 │   │
 │   └── routes
-│       └── scan.routes.ts
+│       └── ScanRoutes.ts
 │
-└── server.ts
+└── Server.ts
 ```
 
 ---
@@ -170,23 +170,6 @@ External APIs are used **only for price enrichment**, not as the primary card me
   "image": "https://cdn.collectionr/cards/swsh3-136.png"
 }
 ```
-
----
-
-## CardScan
-
-```json
-{
-  "scan_id": "uuid",
-  "card_id": "swsh3-136",
-  "hash": "string",
-  "grade": 8.5,
-  "confidence": 0.94,
-  "detected_at": "timestamp"
-}
-```
-
----
 
 ## MarketPrice
 
@@ -283,103 +266,7 @@ Response:
 
 ---
 
-# 8. Scanner Microservice Integration
-
-The scanner microservice performs:
-
-* card detection
-* perceptual hashing
-* card identification
-* ML grading
-
-The backend orchestrates the workflow.
-
----
-
-## Communication Flow
-
-```
-Client
-  │
-  ▼
-POST /scan
-  │
-Fastify Backend
-  │
-Call Scanner Microservice
-  │
-Image Processing
-  │
-Hash Matching
-  │
-ML Grading
-  │
-Return cardId
-  │
-Backend retrieves card metadata
-  │
-Backend aggregates market data
-  │
-Return full card data
-```
-
----
-
-# 9. Redis Cache Layer
-
-Redis caches:
-
-* card metadata
-* market prices
-* search queries
-
-Example keys:
-
-```
-card:swsh3-136
-card_search:pikachu
-price:swsh3-136
-```
-
-Cache strategy:
-
-| Data           | TTL   |
-| -------------- | ----- |
-| card metadata  | 24h   |
-| market prices  | 5 min |
-| search results | 1h    |
-
----
-
-# 10. Complete Scan Flow
-
-```
-User scans card
-     │
-React Native Camera
-     │
-POST /scan
-     │
-Fastify Backend
-     │
-Scanner Microservice
-     │
-Card identification
-     │
-Return cardId
-     │
-Backend loads card metadata
-     │
-Backend fetches market prices
-     │
-Merge results
-     │
-Return full card info
-```
-
----
-
-# 11. Response Codes
+# 8. Response Codes
 
 | Code | Meaning          |
 | ---- | ---------------- |
@@ -391,7 +278,7 @@ Return full card info
 
 ---
 
-# 12. Frontend
+# 9. Frontend
 
 ### Web App
 
