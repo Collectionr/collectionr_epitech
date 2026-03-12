@@ -38,40 +38,55 @@ L'architecture standard utilise une organisation **modulaire par domaine métier
 
 ```
 src/
+├── shared/
+│   ├── domain/
+│   └── infrastructure/
 ├── modules/
 │   ├── cards/
-│   │   ├── cards.module.ts
+│   │   ├── CardsModule.ts
 │   │   ├── domain/
 │   │   │   ├── entities/
-│   │   │   └── ports/
+│   │   │   └── repositories/
 │   │   ├── application/
-│   │   │   └── use-cases/
+│   │   │   ├── use-cases/
+│   │   │   └── dtos/
 │   │   ├── infrastructure/
-│   │   │   └── database/
-│   │   └── presentation/
-│   │       └── controllers/
+│   │   │   ├── repositories/
+│   │   │   └── external-services/
+│   │   └── interface/
+│   │       ├── controllers/
+│   │       ├── middlewares/
+│   │       └── routes/
 │   ├── users/
-│   │   ├── users.module.ts
+│   │   ├── UsersModule.ts
 │   │   ├── domain/
 │   │   │   ├── entities/
-│   │   │   └── ports/
+│   │   │   └── repositories/
 │   │   ├── application/
-│   │   │   └── use-cases/
+│   │   │   ├── use-cases/
+│   │   │   └── dtos/
 │   │   ├── infrastructure/
-│   │   │   └── database/
-│   │   └── presentation/
-│   │       └── controllers/
+│   │   │   └── repositories/
+│   │   └── interface/
+│   │       ├── controllers/
+│   │       ├── middlewares/
+│   │       └── routes/
 │   └── collections/
-│       ├── collections.module.ts
+│       ├── CollectionsModule.ts
 │       ├── domain/
 │       │   ├── entities/
-│       │   └── ports/
+│       │   └── repositories/
 │       ├── application/
-│       │   └── use-cases/
+│       │   ├── use-cases/
+│       │   └── dtos/
 │       ├── infrastructure/
-│       │   └── database/
-│       └── presentation/
-│           └── controllers/
+│       │   └── repositories/
+│       └── interface/
+│           ├── controllers/
+│           ├── middlewares/
+│           └── routes/
+├── prisma/
+│   └── migrations/
 └── main.ts
 ```
 

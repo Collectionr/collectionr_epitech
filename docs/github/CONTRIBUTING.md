@@ -1,8 +1,7 @@
 # Guide GitHub - Normes et Bonnes Pratiques
 
-> **Note importante** : Ce document n'est pas définitif. Si vous avez des suggestions, des préférences ou des idées, n'hésitez pas à en parler ! Le but est de créer l'environnement de travail le plus sain possible, et nous comptons sur tout le monde pour jouer le jeu. 🙂
+> **Note importante** : Ce document n'est pas définitif. Si vous avez des suggestions, des préférences ou des idées, n'hésitez pas à en parler ! Le but est de créer l'environnement de travail le plus sain possible, et nous comptons sur tout le monde pour jouer le jeu.
 >
-> N'hésitez pas à partager vos retours dans le salon `#suggestions` pour que nous gardions ce canal uniquement pour les questions et pépins liés à Git.
 
 ---
 

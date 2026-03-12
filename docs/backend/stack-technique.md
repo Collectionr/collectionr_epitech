@@ -1,52 +1,9 @@
-# 📘 Backend Technical Documentation
-
+# 📘 Stack Technique Backend
 ## CollectionR
 
 ---
 
-# 1. Backend Architecture
-
-Le backend suit une **Clean Architecture** afin de garantir :
-
-* séparation des responsabilités
-* code maintenable
-* indépendance du framework
-* facilité de test
-
-Architecture logique :
-
-```
-src
-│
-├── domain
-│   ├── entities
-│   ├── repositories
-│   └── usecases
-│
-├── application
-│   ├── services
-│   └── dto
-│
-├── infrastructure
-│   ├── database
-│   │   └── prisma
-│   ├── cache
-│   │   └── redis
-│   ├── repositories
-│   └── externalApis
-│
-├── interfaces
-│   ├── controllers
-│   └── routes
-│
-└── main.ts
-```
-
-Cette structure permet de **découpler le domaine métier de l’infrastructure technique**.
-
----
-
-# 2. Backend Stack
+# 1. Backend Stack
 
 | Component    | Technology |
 | ------------ | ---------- |
@@ -58,6 +15,18 @@ Cette structure permet de **découpler le domaine métier de l’infrastructure 
 | Cache        | Redis      |
 
 ---
+
+# 2. Backend Architecture
+
+Le backend suit une **Clean Architecture** afin de garantir :
+
+* séparation des responsabilités
+* code maintenable
+* indépendance du framework
+* facilité de test
+
+[Voir documentation Clean Architecture](./clean-architecture.md)
+
 
 # 3. Backend Framework
 
@@ -85,11 +54,10 @@ Chaque module contient :
 
 ```
 module
-├── controller
-├── service
-├── repository
-├── dto
-└── entity
+├── domain
+├── application
+├── infrastructure
+└── interface
 ```
 
 ---
