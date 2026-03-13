@@ -1,0 +1,205 @@
+# Schéma DB — TCG App
+
+## Diagramme
+
+```mermaid
+erDiagram
+    LICENCE_TCG ||--o{ SET : contains
+    SET ||--o{ CARD : contains
+    CARD ||--o{ VARIANT : has
+    CARD ||--o{ PRICEHISTORY : "has history"
+    DATASOURCE ||--o{ PRICEHISTORY : provides
+    ROLE ||--o{ ROLE_PERMISSION : has
+    PERMISSION ||--o{ ROLE_PERMISSION : "assigned to"
+    ROLE ||--o{ USER : assigned_to
+    VARIANT ||--o{ PRICEHISTORY : "has history"
+    USER ||--o{ SESSION : has
+    USER ||--o{ COLLECTION : creates
+    USER ||--o{ AUDITLOG : performs
+    USER ||--o{ SCANHISTORY : triggers
+    USER ||--o{ WISHLIST : "listed in"
+    COLLECTION ||--o{ COLLECTIONITEM : includes
+    COLLECTION ||--o{ COLLECTIONVALUEHISTORY : "tracks value"
+    CARD ||--o{ COLLECTIONITEM : "is in"
+    VARIANT ||--o{ COLLECTIONITEM : uses
+    VARIANT ||--o{ WISHLIST : "listed in"
+    CARD ||--o{ WISHLIST : "listed in"
+    SCANHISTORY ||--o{ GRADINGRESULT : produces
+    GRADINGRESULT ||--o{ COLLECTIONITEM : "graded by"
+    CARD ||--o{ GRADINGRESULT : "graded"
+
+    LICENCE_TCG {
+        uuid id PK
+        string name
+        string slug
+        string logoUrl
+    }
+
+    ROLE {
+        uuid id PK
+        string name
+    }
+
+    PERMISSION {
+        uuid id PK
+        string name
+    }
+
+    ROLE_PERMISSION {
+        uuid roleId FK
+        uuid permissionId FK
+    }
+
+    USER {
+        uuid id PK
+        string email UK
+        string passwordHash
+        string username
+        uuid roleId FK
+        boolean isActive
+        datetime createdAt
+    }
+
+    SESSION {
+        uuid id PK
+        uuid userId FK
+        string refreshToken
+        string ipAddress
+        boolean isRevoked
+        datetime expiresAt
+    }
+
+    SET {
+        uuid id PK
+        uuid licenceTCGId FK
+        string name
+        int year
+        int totalCards
+    }
+
+    CARD {
+        uuid id PK
+        uuid setId FK
+        string name
+        string number
+        string rarity
+        string types
+        int hp
+        string imageUrl
+        float predictedPrice
+        float priceLowerBound
+        float priceUpperBound
+    }
+
+    VARIANT {
+        uuid id PK
+        uuid cardId FK
+        string label
+        string imageUrl
+    }
+
+    DATASOURCE {
+        uuid id PK
+        string name
+        string baseUri
+        boolean isActive
+    }
+
+    PRICEHISTORY {
+        uuid id PK
+        uuid cardId FK
+        uuid variantId FK "nullable"
+        uuid sourceId FK
+        enum condition
+        float price
+        string currency
+        datetime timestamp
+    }
+
+    COLLECTION {
+        uuid id PK
+        uuid userId FK
+        uuid licenceTCGId FK
+        string name
+        datetime createdAt
+    }
+
+    COLLECTIONITEM {
+        uuid id PK
+        uuid collectionId FK
+        uuid cardId FK
+        uuid variantId FK "nullable"
+        uuid gradingResultId FK
+        enum condition
+    }
+
+    COLLECTIONVALUEHISTORY {
+        uuid id PK
+        uuid collectionId FK
+        float totalValue
+        string currency
+        datetime timestamp
+    }
+
+    WISHLIST {
+        uuid id PK
+        uuid userId FK
+        uuid cardId FK
+        uuid variantId FK "nullable"
+        string priority
+        datetime addedAt
+    }
+
+    SCANHISTORY {
+        uuid id PK
+        uuid userId FK
+        string type
+        string imageUrl
+        int detectedCount
+        json detectedCards
+        string status
+        datetime createdAt
+    }
+
+    GRADINGRESULT {
+        uuid id PK
+        uuid cardId FK
+        uuid userId FK
+        uuid scanId FK
+        float score
+        float centeringScore
+        float cornersScore
+        float edgesScore
+        float surfaceScore
+        string description
+        string modelVersion
+        datetime createdAt
+    }
+
+    AUDITLOG {
+        uuid id PK
+        uuid userId FK
+        string action
+        string targetType
+        uuid targetId
+        json metadata
+        datetime timestamp
+    }
+```
+
+---
+
+## Règles d'Intégrité & Contraintes SQL
+
+Pour une documentation complète sur les contraintes, les soft deletes, les triggers et les scénarios d'intégrité, voir :
+
+**➜ [Règles d'Intégrité & Contraintes SQL](./regles-integrité.md)**
+
+Ce document détaille :
+- Colonnes obligatoires vs nullables
+- Contraintes UNIQUE et CHECK
+- Énumérations (ENUM)
+- Soft delete et historisation
+- Cascades et suppressions
+- Triggers SQL recommandés
+- Scénarios d'intégrité pratiques
