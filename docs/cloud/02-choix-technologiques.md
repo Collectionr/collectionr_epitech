@@ -1,61 +1,59 @@
-# Documentation : Choix Technologiques & Portabilité — Projet ESP
+# Analyse Comparative et Stratégique des Fournisseurs Cloud (Projet ESP)
 
-## 1. Comparaison des fournisseurs Cloud
+Dans le cadre de notre projet de fin d'études de 18 mois (équipe de 10 personnes), notre stratégie Cloud doit soutenir nos développements tout en respectant un budget étudiant strict. Face au risque de dépendance technologique ("Vendor Lock-in") et à nos forts besoins en puissance Data/IA (3 personnes dédiées), nous avons pris une décision architecturale forte : **notre infrastructure sera conteneurisée via Docker et orchestrée sous K3s (Kubernetes allégé).**
 
-Pour héberger notre projet, nous avons comparé plusieurs fournisseurs. Nos critères principaux sont : le budget étudiant (très limité), les besoins en Intelligence Artificielle (IA), les tendances actuelles du marché, et la volonté de garder nos données en Europe (souveraineté).
+Ce choix nous rend agnostiques sur la partie hébergement et redéfinit notre grille de lecture des fournisseurs Cloud.
 
-* **AWS (Amazon) & Azure (Microsoft) :** Ce sont les géants du marché. Ils ont tout ce qu'il faut, mais leurs tarifs sont compliqués et chers pour un budget étudiant, surtout quand on déplace des données. De plus, ils sont américains, donc soumis aux lois US (Cloud Act) qui peuvent accéder aux données.
-* **GCP (Google Cloud) :** Excellent pour l'IA et la gestion des mots de passe (Secret Manager). C'est très tendance, mais comme AWS, c'est américain et l'hébergement de base coûte cher.
-* **Scaleway :** Un acteur français très populaire en ce moment quand on parle de "souveraineté des données". C'est moderne, les prix sont clairs et ça marche très bien avec nos outils.
-* **Hetzner :** Un acteur allemand. C'est le champion du rapport puissance/prix. C'est la solution la moins chère pour louer un serveur simple (VPS) et tout installer nous-mêmes.
+## 1. Tableau Comparatif Détaillé
 
----
+Le tableau ci-dessous évalue les fournisseurs selon nos critères stricts, en prenant en compte notre approche K3s.
 
-## 2. Notre choix principal
+| Fournisseur | Gratuité (Budget Étudiant) | Niveau Vendor Lock-in | Capacité IA & Data (LLM) | Complexité | Temps Setup Estimé* | Maintenance Hebdo |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Microsoft Azure** | 🥇 **100$ offerts** (Sans CB). Sécurité mentale maximale. | 🟠 **Fort.** Dépendance aux SDK Azure OpenAI si intégration poussée. | ⭐⭐⭐⭐⭐<br>Accès natif à GPT-4. Idéal pour des LLM "sur étagère". | **Moyenne.** Interface dense. | **~40h - 60h** | **~1h - 3h** |
+| **GCP (Google)** | 🥈 **300$ offerts** (CB requise, risque de dépassement). | 🔴 **Très Fort.** Les outils Data (BigQuery) lient fortement le code à Google. | ⭐⭐⭐⭐⭐<br>Le Roi de la Data (Vertex AI, BigQuery). | **Faible.** Interface intuitive pour les devs. | **~30h - 50h** | **~1h - 2h** |
+| **AWS** | 🥉 **Free Tier 12 mois** (Coûts cachés fréquents). | 🟠 **Fort.** Écosystème très propriétaire. | ⭐⭐⭐⭐<br>Très complet (Bedrock) mais plus lourd à intégrer. | **Élevée.** Très granulaire. | **~60h - 80h** | **~2h - 4h** |
+| **Scaleway** | ❌ **Pas de gratuité massive** (mais tarifs bas et transparents). | 🟢 **Faible.** Standard IaaS européen, facile d'en sortir. | ⭐⭐⭐<br>IA en développement, peu de services managés. | **Faible.** Très clair. | **~20h - 40h** | **~2h - 3h** |
+| **Hetzner** | ❌ **Aucune gratuité** (mais rapport puissance/prix imbattable). | 🟢 **Nul.** Totalement agnostique. On loue du métal pur. | ⭐<br>Puissance brute uniquement (CPU/RAM). Aucune surcouche IA. | **Expert.** Tout doit être fait "from scratch". | **~80h - 100h+** | **~4h - 6h+** |
+| **Oracle Cloud Infrastructure** | **Free Tier ** (mais rapport puissance/prix imbattable). | 🟢 **Faible.** Totalement agnostique. On loue du métal pur. | ⭐<br>Puissance brute uniquement (CPU/RAM). Aucune surcouche IA. | **Expert.** Tout doit être fait "from scratch". | **3 - 8h** | **~1h/mois** |
 
-*(Note interne : Ce choix doit encore être validé avec ma collègue Cyber-sécurité pour vérifier que nos règles de réseau et d'accès sont bien respectées).*
-
-
-
-
----
-
-## 3. Éviter d'être bloqué chez un fournisseur (Risque de dépendance / Lock-in)
-
-Le "Vendor Lock-in", c'est quand on utilise tellement les outils spécifiques d'un fournisseur cloud (comme sa base de données maison) qu'il devient impossible ou très cher de le quitter.
-
-Pour le projet ESP, **ce risque est presque nul** car nous faisons les choix suivants :
-* **Des outils standards :** Nous utilisons une base de données PostgreSQL normale, pas une version bloquée par un fournisseur cloud.
-* **Du code universel :** Nos programmes (Node.js pour l'API, Python pour l'IA) peuvent tourner sur n'importe quel ordinateur sous Linux.
-* **Réseau indépendant :** C'est nous qui gérons notre réseau interne grâce à nos outils (Docker), et non le fournisseur cloud.
+*\*Le temps de setup (pendant les 6 mois de conception) comprend la création de l'architecture, la gestion des droits (IAM), la configuration réseau et la mise en place du CI/CD.*
 
 ---
 
-## 4. Notre stratégie pour pouvoir déménager facilement (Portabilité)
+## 2. Synthèse et Choix Stratégique : L'Architecture Hybride OCI & GCP via K3s
 
+Cette stratégie sépare l'hébergement de notre code (le Cœur) de la consommation des services intelligents (l'Edge).
 
+### A. Le Cœur Agnostique et 100% Gratuit (Compute)
+* **Le Choix :** **Oracle Cloud Infrastructure (OCI) - Offre "Always Free".**
+* **Le Rôle :** Héberger notre cluster K3s qui fera tourner 100% de notre code métier (Backend, Frontend, bases de données PostgreSQL conteneurisées).
+* **Les Avantages ("Hack FinOps") :**
+  * **Gratuité et Performance :** OCI offre gratuitement et à vie jusqu'à 4 cœurs ARM (Ampere A1) et 24 Go de RAM. C'est une puissance inespérée pour un coût de 0€, garantissant un cluster K3s robuste pour nos 5 développeurs.
+  * **Zéro Lock-in :** Le cluster K3s nous appartient. En cas de besoin, l'infrastructure peut être migrée vers un autre fournisseur IaaS très rapidement.
+* **Le Défi Technique :** Les serveurs gratuits d'Oracle reposent sur une architecture ARM. L'équipe de développement devra configurer ses pipelines CI/CD pour compiler les images Docker en `linux/arm64`.
 
-Notre but est de pouvoir recréer tout le projet chez un autre fournisseur en quelques heures si besoin. Voici comment :
-
-1.  **L'infrastructure codée (Terraform) :** Au lieu de cliquer sur des boutons pour créer nos serveurs, nous écrivons un code qui le fait pour nous. Pour changer de fournisseur, il suffit de changer quelques lignes dans ce code.
-2.  **Des serveurs "jetables" :** Nous n'installons rien manuellement sur le serveur. Si le serveur plante, on le jette et on en recrée un automatiquement avec notre code.
-3.  **Des boîtes indépendantes (Conteneurs) :** Toute notre application est emballée dans des boîtes standardisées. Tant que le nouveau fournisseur accepte ces boîtes, l'application fonctionnera.
+### B. L'Edge IA & Data (Services Managés & Performance)
+* **Le Choix :** **Google Cloud Platform (GCP).**
+* **Le Rôle :** Le pôle Data/IA ne déploiera pas de modèles d'apprentissage lourds dans notre cluster K3s sur OCI. Notre backend communiquera via des API externes sécurisées avec GCP pour les tâches d'intelligence artificielle (Vertex AI, Gemini) ou de Big Data (BigQuery).
+* **Les Avantages :** * **Optimisation budgétaire absolue :** Les 300$ de crédits de bienvenue Google seront exclusivement alloués aux requêtes IA et Data. En ne payant aucun frais d'hébergement serveur chez Google, nous prolongeons considérablement la durée de vie de ces crédits.
+  * **Productivité maximale :** Nos 3 experts Data profitent de la puissance de calcul massive des meilleurs outils mondiaux sans surcharger ou complexifier notre infrastructure K3s principale.
 
 ---
 
-## 5. À quoi servent nos outils principaux ?
+## 3. Impact et Plan d'Action (Pôle Cloud & Cyber)
 
-L'utilisation de ces trois outils est ce qui se fait de mieux aujourd'hui (très "hype" sur un CV) et nous permet de garder le contrôle.
+Ce choix architectural brillant requiert une coordination et un investissement technique majeurs du binôme Cloud/Cyber lors des 6 premiers mois de conception (Cahier des charges & PoC) :
 
-### Terraform (L'Architecte)
-* **Son rôle :** Il crée et configure le serveur à notre place.
-* **Dans le projet :** C'est le seul outil qu'on utilise pour louer le serveur et configurer les règles de sécurité (qui a le droit d'entrer ou non). Comme c'est du code, on garde un historique parfait de toutes les modifications.
+* **Action Cloud (Infrastructure as Code & CI/CD) :** * Automatisation du déploiement des serveurs OCI via Terraform et de l'installation du cluster K3s. 
+  * Accompagnement de l'équipe Dev pour mettre en place un pipeline CI/CD capable de compiler les conteneurs en multi-architecture (x86 vers ARM64).
+* **Action Cyber (Zero Trust & IAM) :** * Sécurisation stricte du cluster K3s (Network Policies, gestion chiffrée des secrets). 
+  * Gestion des identités sur deux plateformes distinctes (OCI et GCP) et sécurisation absolue des clés API permettant à notre K3s de communiquer avec Google Cloud.
+* **Contrôle Budgétaire & Réseau (Le plus critique) :** * Mise en place immédiate de *Budgets Alerts* sur GCP. 
+  * Surveillance stricte de la "Data Gravity" : Google facturant le trafic sortant (Egress), l'équipe Cloud devra s'assurer que le pôle Data ne rapatrie vers OCI que des résultats légers (JSON, textes générés) et non des bases de données entières.
 
-### Docker (Les Boîtes de transport)
-* **Son rôle :** Il emballe chaque partie de l'application (le site, l'IA, la base de données) dans des environnements isolés appelés "conteneurs".
-* **Dans le projet :** On l'utilise pour lancer le projet au début (le MVP). Ça permet de s'assurer que si ça marche sur l'ordinateur d'un développeur, ça marchera exactement pareil sur le serveur. Il protège aussi la base de données en la cachant d'Internet.
+Ce choix architectural brillant pour le projet requiert un investissement technique majeur du binôme Cloud/Cyber lors des 6 premiers mois :
 
-### Kubernetes / K3s (Le Chef d'orchestre)
-
-* **Son rôle :** Il surveille et gère tous les conteneurs Docker de manière automatique. K3s est une version plus légère et économique de Kubernetes.
-* **Dans le projet :** C'est notre objectif final. Une fois que le projet aura grandi, K3s remplacera le Docker simple. Si un morceau de l'application plante, K3s le redémarre tout seul. S'il y a beaucoup d'utilisateurs d'un coup, K3s lance automatiquement de nouveaux conteneurs d'IA pour tenir la charge.
+* **Action Cloud (Infrastructure as Code) :** Automatisation du déploiement des serveurs (Terraform) et de l'installation du cluster K3s (Ansible). Gestion des Ingress Controllers et du stockage persistant.
+* **Action Cyber (Zero Trust) :** Sécurisation stricte du cluster. Implémentation de *Network Policies* (isolation des conteneurs), gestion chiffrée des secrets (évitant les identifiants en clair) et sécurisation des clés API permettant à K3s de communiquer avec GCP/Azure.
+* **Contrôle Budgétaire :** Mise en place immédiate d'alertes de facturation (*Budgets Alerts*) sur la partie Edge (IA) pour garantir le respect de nos ressources limitées.
