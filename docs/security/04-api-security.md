@@ -54,9 +54,13 @@ Les traitements liés à l’analyse et aux modèles IA peuvent utiliser une **b
 La sécurité repose sur les principes suivants :
 
 - **Zero Trust** : aucune requête n’est considérée comme sûre par défaut.
-- **Validation côté serveur uniquement** : le frontend ne constitue jamais une barrière de sécurité.
+- **Validation côté serveur obligatoire** : toutes les validations de sécurité et contrôles d’accès sont réalisés côté backend.
+- **Le frontend peut implémenter des validations ou restrictions d’interface pour améliorer l’expérience utilisateur**, mais celles-ci ne constituent pas une barrière de sécurité fiable et ne remplacent jamais les contrôles côté serveur.
+- **Authentification et autorisation systématiques** : chaque endpoint protégé vérifie l’identité du client et ses droits d’accès avant de traiter la requête.
 - **Moindre privilège (Least Privilege)** : chaque utilisateur ne peut accéder qu’aux ressources strictement nécessaires.
 - **Séparation des environnements** : dev, staging et production sont isolés.
+- **Protection contre l’abus (Rate Limiting)** : les endpoints critiques sont protégés contre les abus via des mécanismes de limitation de requêtes afin de prévenir les attaques de type brute force ou déni de service applicatif.
+- **Journalisation et traçabilité** : les actions sensibles et les événements de sécurité sont journalisés afin de permettre l’audit, la détection d’incidents et l’analyse postérieure.
 
 Ces principes sont appliqués à l’ensemble des endpoints exposés par l’API.
 
@@ -122,8 +126,9 @@ La plateforme prend en compte les principales menaces :
 
 #### 6.1 Injection (SQL / NoSQL)
 
-- Utilisation d’ORM ou requêtes paramétrées.
-- Aucune concaténation dynamique non contrôlée.
+- Validation systématique côté serveur de toutes les entrées provenant du client (type, format, longueur maximale, valeurs autorisées).
+- Utilisation d’ORM ou de requêtes paramétrées.
+- Aucune concaténation dynamique non contrôlée dans les requêtes.
 
 ### 6.2 Broken Authentication
 
