@@ -1,5 +1,28 @@
 # 📘 Stack Technique 
 
+## 📑 Table des Matières
+
+- [1. Stack](#1-stack)
+  - [Backend](#backend)
+  - [Frontend Web](#frontend-web)
+  - [Frontend Mobile](#frontend-mobile)
+  - [Microservices Python](#microservices-python)
+  - [Real-time Communication](#real-time-communication)
+  - [File Storage](#file-storage)
+- [2. Backend Architecture](#2-backend-architecture)
+- [3. Backend Framework](#3-backend-framework)
+- [4. Backend Responsibilities](#4-backend-responsibilities)
+- [5. HTTP Layer](#5-http-layer)
+- [6. Database](#6-database)
+- [7. ORM](#7-orm)
+- [8. Cache Layer & Task Queues](#8-cache-layer--task-queues)
+  - [Redis OCR](#redis-ocr-reconnaissance-de-cartes)
+  - [Redis Scraping](#redis-scraping-agrégation-des-prix)
+- [9. Python Microservices & ML Pipeline](#15-python-microservices--ml-pipeline)
+- [10. Frontend Stack](#16-frontend-stack-en-attente-de-construction)
+
+---
+
 # 1. Stack
 
 ## Backend
@@ -20,21 +43,21 @@
 | Framework    | React      |
 | Language     | TypeScript |
 | Routing      | React Router |
-| State Mgmt   | Zustand / TanStack Query |
-| Styling      | TailwindCSS |
+| State Mgmt   | ... |
+| Styling      | ... |
 | HTTP Client  | Axios      |
-| Build Tool   | Vite       |
+| Build Tool   | ...       |
 
 ## Frontend Mobile
 
 | Component    | Technology |
 | ------------ | ---------- |
 | Framework    | React Native |
-| Platform     | Expo Go    |
+| Platform     | Expo / EAS Build    |
 | Language     | TypeScript |
 | Navigation   | React Navigation |
-| State Mgmt   | Zustand    |
-| Styling      | NativeWind |
+| State Mgmt   | ...    |
+| Styling      | ... |
 | HTTP Client  | Axios      |
 | Camera       | Expo Camera |
 
@@ -125,8 +148,6 @@ Le backend est responsable de :
 * orchestration du scanner
 * optimisation des requêtes
 * gestion du cache Redis
-
----
 
 ---
 
@@ -303,15 +324,17 @@ schedule:scraping:daily
 
 ---
 
-# 15. Python Microservices & ML Pipeline
+# 9. Python Microservices & ML Pipeline
 
-Le **backend NestJS** n'exécute **pas directement** les tâches de traitement intensif. Il utilise des **microservices Python indépendants** qui consomment les queues Redis et stockent les résultats dans PostgreSQL.
+Le *backend NestJS** n'exécute **pas directement** les tâches de traitement intensif. Il utilise des **microservices Python indépendants** qui consomment les queues Redis et stockent les résultats dans PostgreSQL.
 
-Le **microservices** s'occupera de **l'api collectionr**, le **scrapping des marketplace** ainsi que **l'OCR** 
+Les **microservices** s'occuperont de **l'api collectionr**, le **scraping des marketplace** ainsi que **l'OCR** 
 
-⚠️ **Cette section sera développée lors de la phase de documentation du frontend.**
+⚠️ **Cette section sera développée lors de la phase de documentation du microservice.**
 
-# 16. Frontend Stack (En Attente de Construction)
+**Responsable** : Alexis pour la partie API et Scraping & Youness pour la partie OCR
+
+# 10. Frontend Stack (En Attente de Construction)
 
 
 ⚠️ **Cette section sera développée lors de la phase de documentation du frontend.**
