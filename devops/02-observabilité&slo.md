@@ -1,57 +1,76 @@
+# 🛰️ Suivi des performances et fiabilité — Collectionr
 
+Ce document explique comment on s’assure que l’application fonctionne correctement, reste rapide et évite les pannes.
 
-## 🛰️ Stratégie d'Observabilité & SLO - Collectionr
-
-Cette documentation définit les standards de performance et de fiabilité pour l'infrastructure de Collectionr, en s'appuyant sur une stack **Docker** et un monitoring via **Prometheus/Grafana**
-
-### 1. Objectifs de Niveau de Service (SLO)
-
-Nous visons le "sweet spot" : une application fluide qui masque la complexité du traitement asynchrone par une communication transparente.
-
-| Service | Indicateur (SLI) | Objectif (SLO) | Seuil de Performance |
-| :--- | :--- | :--- | :--- |
-| **Pipeline OCR** | Temps total : Envoi photo → Notification SSE | **98%** des requêtes | **2 à 5 secondes** |
-| **Disponibilité API** | Taux de succès des endpoints REST | **99%** | Erreur < 1% |
-| **Fiabilité SSE** | Maintien de la connexion persistante Frontend/Backend | **97%** de stabilité | Pas de déconnexion sauvage |
-| **Uptime Global** | Disponibilité de l'infrastructure conteneurisée [cite: 155] | **99%** | ~7h d'indisponibilité / mois |
-
-> **Note sur le Budget d'Erreur :** Avec un SLO à **99%**, nous nous autorisons une maintenance "propre" et des redémarrages de conteneurs sans impacter la note de qualité globale du projet.
+Même si la technique derrière est complexe, l’objectif reste simple : offrir une expérience fluide et fiable aux utilisateurs.
 
 ---
 
-### 2. Stratégie de Logging (Approche "Lean")
+## 1. 🎯 Objectifs de qualité
 
-Faute d'outil d'agrégation type Loki, nous optimisons l'utilisation native de Docker pour garder une visibilité complète sans consommer de ressources inutiles.
+On définit des objectifs précis pour vérifier que tout fonctionne bien.
 
-* **Formatage :** Tous les services (Backend, Workers OCR, Microservice TCG) doivent logger au format **JSON structuré** dans la sortie standard (`stdout`).
-* **Consultation :** Utilisation des commandes natives `docker logs -f [container_name]` pour le debugging à chaud.
-* **Gestion du stockage (Crucial pour le $0) :** Configuration de la **Log Rotation** dans `daemon.json` pour éviter la saturation du disque du VPS :
-    ```json
-    "log-driver": "json-file",
-    "log-opts": { "max-size": "10m", "max-file": "3" }
-    ```
-* **Traçabilité :** Le `job_id` généré par le Backend doit être systématiquement inclus dans chaque log lié au traitement d'une image pour permettre un `grep` efficace sur l'ensemble des conteneurs.
+📸 Traitement d’une image (OCR)  
+→ 98% des images doivent être traitées en 2 à 5 secondes
 
----
+🌐 API (communication avec l’application)  
+→ 99% des requêtes doivent réussir  
+→ Moins de 1% d’erreurs
 
-### 3. Monitoring & Feedback Utilisateur
+🔄 Temps réel (connexion SSE)  
+→ La connexion doit rester stable dans 97% des cas  
+→ Pas de coupures inattendues
 
-L'observabilité ne sert pas qu'aux développeurs, elle nourrit aussi l'expérience utilisateur (UX).
+⏱️ Disponibilité générale  
+→ L’application doit fonctionner 99% du temps  
+→ Cela correspond à environ 7 heures de panne maximum par mois
 
-* **Visualisation (Grafana) :** * Mise en place d'un dashboard "Health Check" surveillant la saturation de la queue **Redis**[cite: 155].
-    * Si la file d'attente dépasse 10 jobs, une alerte est déclenchée pour notifier l'équipe IA d'une possible saturation des workers[cite: 122].
-* **Interface Fluide :** * Le Frontend utilise les événements SSE pour afficher une progression réelle (ex: "Scan en cours...", "Extraction des données...", "Finalisation")[cite: 47, 51].
-    * Utilisation de **Shimmer Loaders** pour maintenir la perception de fluidité pendant que le pipeline OCR travaille en arrière-plan[cite: 51].
+👉 En résumé :  
+On accepte un peu de maintenance, mais sans impact visible pour les utilisateurs.
 
 ---
 
-### 4. Alerting & Maintenance Cyber
+## 2. 🧾 Gestion des logs
 
-En tant qu'équipe Cloud/Cyber, notre priorité est la réactivité sur les pannes critiques[cite: 152, 153, 158].
+Les “logs” sont des messages générés par l’application pour expliquer ce qu’elle fait.
 
-* **Canal d'alerte :** Intégration de Grafana avec un webhook **Discord** (gratuit) pour recevoir les alertes de chute de service (Down) ou de saturation disque.
-* **Auto-healing :** Configuration de la politique `restart: unless-stopped` sur tous les services Docker Compose pour garantir la résilience sans intervention manuelle immédiate[cite: 155].
+- Tous les services enregistrent leurs actions de manière claire
+- Les logs sont faciles à consulter via Docker
+- Leur taille est limitée pour éviter de saturer le serveur
+- Chaque traitement possède un identifiant unique (`job_id`)
+
+👉 En résumé :  
+Si un problème arrive, on peut rapidement comprendre ce qu’il s’est passé.
 
 ---
 
-Cette base documentaire assure que même avec un budget nul, le projet **Collectionr** présente une rigueur professionnelle lors de la soutenance finale. Est-ce que cette structure te convient pour ton livrable DevOps ?
+## 3. 📊 Surveillance du système et expérience utilisateur
+
+On surveille en permanence l’état du système, mais aussi ce que voit l’utilisateur.
+
+### Côté technique
+- Un tableau de bord affiche l’état général du système
+- On surveille la file de tâches (Redis)
+- Si trop de tâches s’accumulent, une alerte est envoyée
+
+### Côté utilisateur
+- L’utilisateur voit les étapes du traitement en direct :
+  - “Scan en cours…”
+  - “Extraction des données…”
+  - “Finalisation…”
+- Des animations de chargement rendent l’attente plus fluide
+
+👉 En résumé :  
+L’utilisateur comprend ce qui se passe au lieu d’attendre sans information.
+
+---
+
+## 4. 🚨 Alertes et maintenance automatique
+
+On met en place des mécanismes pour réagir rapidement en cas de problème.
+
+- Une alerte est envoyée sur Discord si un service ne fonctionne plus
+- Les services redémarrent automatiquement en cas de crash
+
+👉 En résumé :  
+Le système se répare tout seul autant que possible, et l’équipe est immédiatement informée en cas de problème.
