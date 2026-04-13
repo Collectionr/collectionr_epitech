@@ -9,11 +9,11 @@
 5. [Autorisation & RBAC](#5-autorisation--rbac)
 6. [Protection contre les attaques courantes (OWASP)](#6-protection-contre-les-attaques-courantes-owasp-top-10)
 7. [Rate Limiting & protection contre les abus](#7-rate-limiting--protection-contre-les-abus)
-8. [Sécurité API Web vs Mobile](#8-sécurité-api-web-vs-mobile)
-9. [Journalisation & monitoring](#9-journalisation--monitoring)
-10. [Sécurité des environnements](#10-sécurité-des-environnements)
-11. [Évolution future](#11-évolution-future)
-
+8. [Sécurité du volume partagé OCR](#8-sécurité-api-web-vs-mobile)
+9. [Sécurité API Web vs Mobile](#9-sécurité-api-web-vs-mobile)
+10. [Journalisation & monitoring](#10-journalisation--monitoring)
+11. [Sécurité des environnements](#11-sécurité-des-environnements)
+12. [Évolution future](#12-évolution-future)
 
 ---
 
@@ -209,8 +209,54 @@ Ces valeurs pourront évoluer.
 
 ---
 
-## 8. Sécurité API Web vs Mobile
-### 8.1 Web
+## 8. Sécurité du volume partagé OCR
+
+Le traitement OCR repose sur un volume partagé utilisé pour l’échange temporaire de fichiers entre les services applicatifs.
+
+Ce volume constitue un point sensible de l’architecture, car il est utilisé lors des opérations de scan déclenchées par l’API.
+
+### 8.1 Isolation des accès
+
+Le principe du moindre privilège s’applique à ce volume partagé :
+
+- le backend dépose les fichiers nécessaires au traitement
+- le worker OCR lit les fichiers à traiter et écrit les արդյունats nécessaires
+- les autres services n’ont pas accès à ce volume
+
+Les droits d’accès sont limités afin d’éviter toute lecture, modification ou suppression non autorisée.
+
+Cette isolation est cohérente avec le principe de Zero Trust appliqué à l’ensemble de la plateforme.
+
+### 8.2 Usage temporaire des fichiers
+
+Les fichiers liés au traitement OCR sont conservés uniquement pendant la durée nécessaire au traitement.
+
+Des mécanismes de nettoyage sont prévus afin de supprimer automatiquement les fichiers temporaires après traitement ou après expiration d’un délai court.
+
+Cette approche permet de réduire :
+
+- le risque d’exposition de données
+- l’encombrement du stockage
+- l’impact d’un incident de sécurité
+
+### 8.3 Protection contre la saturation du stockage
+
+Le point d’entrée `/scan` peut faire l’objet de limitations spécifiques afin d’éviter une saturation du disque ou une dégradation du service.
+
+Les protections suivantes peuvent être appliquées :
+
+- limitation du nombre de requêtes de scan par utilisateur ou par IP
+- limitation de la taille maximale des fichiers envoyés
+- quotas d’usage sur les traitements OCR
+- suppression automatique des fichiers temporaires
+- surveillance de l’espace disque disponible
+
+Ces mesures permettent de limiter les risques de déni de service applicatif liés au stockage temporaire.
+
+---
+
+## 9. Sécurité API Web vs Mobile
+### 9.1 Web
 
 - Cookies HttpOnly
 - CORS strictement configuré
@@ -218,7 +264,7 @@ Ces valeurs pourront évoluer.
 
 ---
 
-### 8.2 Mobile
+### 9.2 Mobile
 
 - Stockage sécurisé des tokens
 - Aucune clé API embarquée en clair
@@ -226,7 +272,7 @@ Ces valeurs pourront évoluer.
 
 ---
 
-## 9. Journalisation & Monitoring
+## 10. Journalisation & Monitoring
 
 La surveillance repose sur :
 
@@ -240,7 +286,7 @@ Aucune donnée sensible n’est présente dans les logs.
 
 ---
 
-## 10. Sécurité des environnements
+## 11. Sécurité des environnements
 
 - Variables sensibles stockées via Secret Manager
 - Aucune clé ou secret dans le code source
@@ -248,7 +294,7 @@ Aucune donnée sensible n’est présente dans les logs.
 - Accès restreint aux ressources cloud via IAM
 
 ---
-## 11. Évolution future
+## 12. Évolution future
 
 En cas de montée en charge ou d’ouverture publique importante :
 - Mise en place d’un WAF (Web Application Firewall).
