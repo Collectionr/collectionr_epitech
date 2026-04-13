@@ -33,7 +33,7 @@ La journalisation repose sur les principes suivants :
 
 - **Traçabilité :** les événements importants doivent être enregistrés.
 - **Sécurité :** les logs ne doivent pas exposer d’informations sensibles.
-- **Accessibilité :** les logs doivent pouvoir être consultés pour analyser un incident.
+- **Accessibilité :** les logs doivent doivent être consultables pour analyser un incident.
 - **Conservation limitée :** les logs sont conservés uniquement pendant la durée nécessaire.
 
 ---
@@ -55,6 +55,33 @@ Exemples d’événements journalisés :
 - erreurs applicatives
 - lancement d’un traitement OCR
 - résultat d’un traitement IA
+
+#### Niveaux de journalisation
+
+Les logs applicatifs utilisent différents niveaux de gravité afin de faciliter leur exploitation :
+
+- **DEBUG** : informations détaillées pour le développement
+- **INFO** : fonctionnement normal de l’application
+- **WARN** : comportement anormal sans blocage
+- **ERROR** : erreurs empêchant une action ou un traitement
+
+Ces niveaux permettent de filtrer les logs selon le contexte (développement, production, analyse d’incident).
+
+#### Structure des logs
+
+Chaque log applicatif suit une structure standardisée afin de garantir sa lisibilité et son exploitation.
+
+Un log contient généralement :
+
+- un horodatage (timestamp)
+- un niveau de gravité
+- un message descriptif
+- un identifiant de service (ex : API, worker)
+- éventuellement un identifiant utilisateur anonymisé
+
+Lorsque cela est possible, un identifiant de corrélation (correlation ID) peut être utilisé pour relier plusieurs logs appartenant à une même requête ou opération.
+
+Cela permet de suivre le parcours d’une action utilisateur à travers plusieurs services.
 
 ---
 
@@ -88,6 +115,8 @@ Actions auditées :
 - actions administratives
 
 Ces logs permettent d’identifier les comportements suspects et de tracer les actions importantes.
+
+Chaque log inclut un horodatage et, lorsque pertinent, un identifiant utilisateur anonymisé afin de garantir la traçabilité sans exposer de données sensibles.
 
 ---
 
@@ -124,11 +153,29 @@ Les services produisent leurs logs via les flux standards :
 - stdout
 - stderr
 
+Les flux standards correspondent aux sorties classiques d’un programme :
+
+- **stdout (standard output)** : utilisé pour les messages de fonctionnement normal (informations, résultats)
+- **stderr (standard error)** : utilisé pour les erreurs et anomalies rencontrées
+
+Cette séparation permet de distinguer facilement les informations des erreurs, ce qui facilite l’analyse des incidents.
+
 Les journaux peuvent être consultés via les outils Docker.
 
 Cette approche est adaptée à une infrastructure simple basée sur Docker Compose.
 
+#### Format des logs
+
+Les logs applicatifs sont générés dans un format structuré (JSON) afin de faciliter leur analyse et leur intégration avec des outils de centralisation.
+
+Ce format permet notamment :
+
+- une recherche plus efficace
+- un filtrage avancé
+- une meilleure compatibilité avec des outils comme Grafana Loki ou ELK
+
 ---
+
 
 ## 6. Sécurité des logs
 
@@ -139,6 +186,8 @@ Afin de garantir la sécurité des journaux :
 - les données personnelles sont minimisées
 
 Les logs doivent éviter toute exposition de données sensibles.
+
+Les accès aux logs peuvent être tracés afin de détecter toute consultation ou manipulation non autorisée.
 
 ---
 
@@ -180,6 +229,7 @@ Exemples d’outils possibles :
 
 Ces outils permettront :
 
-- une recherche centralisée dans les logs
+- une centralisation des logs
+- une recherche avancée
 - la détection d’incidents
-- l’analyse avancée des événements.
+- une meilleure observabilité du système
