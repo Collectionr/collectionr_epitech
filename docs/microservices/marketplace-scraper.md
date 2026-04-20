@@ -4,7 +4,9 @@
 
 Ce document décrit la conception et l'implémentation du **microservice de scraping de marketplaces** du projet Collectionr.
 
-Son rôle est de **collecter automatiquement les prix des cartes Pokémon TCG** depuis des sites marchands externes, de les stocker en base de données et de les rendre disponibles au backend principal (NestJS).
+Son rôle est de **collecter automatiquement les prix des cartes Pokémon TCG** depuis des sites marchands externes et de les stocker en base de données.
+
+> **Important** : ce microservice est un **worker en arrière-plan**. Il n'expose aucune API REST. Seul le backend NestJS expose des endpoints.
 
 ---
 
@@ -47,16 +49,15 @@ Le microservice scraper est un composant **indépendant** qui s'interface avec l
 ┌─────────────────────▼───────────────────────────────┐
 │               BACKEND NESTJS                        │
 │          (API principale, authentification)         │
-└──────┬──────────────────────────┬───────────────────┘
-       │ HTTP REST                │ PostgreSQL
-       │                          │
-┌──────▼──────────┐    ┌──────────▼──────────────────┐
-│    SCRAPER      │    │       BASE DE DONNÉES        │
-│  MICROSERVICE   │───▶│         PostgreSQL           │
-│  (Python /      │    │  (cartes, prix, historique)  │
-│   Node.js)      │    └─────────────────────────────-┘
-└──────┬──────────┘
-       │ HTTP / scraping HTML
+└──────────────────────────┬──────────────────────────┘
+                           │ PostgreSQL (lecture)
+                           │
+┌──────────────────┐    ┌──▼────────────────────────┐
+│    SCRAPER       │    │     BASE DE DONNÉES        │
+│  MICROSERVICE    │───▶│       PostgreSQL           │
+│  (worker)        │    │ (cartes, prix, historique) │
+└──────┬───────────┘    └───────────────────────────-┘
+       │ Appels API officielles
        ▼
 ┌──────────────────────────────────────────────────────┐
 │             MARKETPLACES EXTERNES                    │
@@ -68,10 +69,11 @@ Le microservice scraper est un composant **indépendant** qui s'interface avec l
 
 | Responsabilité             | Description                                             |
 |----------------------------|---------------------------------------------------------|
-| Collecte des prix          | Interroger les marketplaces à intervalles réguliers     |
+| Collecte des prix          | Appeler les APIs des marketplaces selon un planning       |
 | Normalisation des données  | Unifier les formats de prix, devises, états des cartes  |
 | Stockage                   | Écrire les prix dans PostgreSQL                         |
-| Exposition des données     | Fournir une API REST simple pour le backend NestJS      |
+
+> Le backend NestJS est le **seul** composant à exposer des endpoints REST. Le scraper écrit en base, le backend lit en base.
 
 ---
 
@@ -389,13 +391,21 @@ def normalize_condition(source: str, raw_condition: str) -> str:
 
 ## 7.2 Normalisation des devises
 
-On convertit toutes les devises en **EUR** comme devise de référence.
+On convertit toutes les devises en **EUR** comme devise de référence afin de pouvoir comparer des prix entre marketplaces utilisant des devises différentes (USD pour eBay et TCGPlayer, EUR pour Cardmarket).
 
 ```python
 import httpx
 
 async def convert_to_eur(amount: float, from_currency: str) -> float:
-    """Convertit un montant en EUR via une API de taux de change."""
+       """Convertit un montant en EUR via une API de taux de change.
+
+    ATTENTION : cette conversion permet de comparer des montants sur une
+    devise commune, mais elle ne suffit pas à comparer deux cartes entre elles.
+    La langue de la carte (EN, JP, FR) influence fortement son prix de marché :
+    une même carte en japonais peut valoir bien plus ou bien moins que sa
+    version anglaise ou française. Il ne faut JAMAIS fusionner les prix de
+    deux cartes de langues différentes, même après conversion en EUR.
+    """
     if from_currency == "EUR":
         return amount
 
@@ -409,34 +419,51 @@ async def convert_to_eur(amount: float, from_currency: str) -> float:
     return round(amount * eur_rate, 2)
 ```
 
-> **Astuce** : Pour éviter trop d'appels à l'API de conversion, on peut mettre en cache les taux de change dans Redis avec une durée de vie (TTL) de 1 heure.
+> **Astuce** : Pour éviter trop d'appels à l'API de conversion, on peut stocker temporairement en mémoire les taux de change avec un timestamp et les rafraîchir toutes les heures.
+
+### Limite importante : la langue de la carte
+
+La conversion en EUR permet d'**unifier les montants**, mais elle ne dit rien sur la **valeur réelle** d'une carte sur le marché.
+
+En pratique, la langue d'une carte est un facteur de prix à part entière :
+
+| Carte            | Langue | Prix indicatif |
+|------------------|--------|----------------|
+| Charizard VMAX   | EN     | ~45 €          |
+| Charizard VMAX   | JP     | ~8 €           |
+| Charizard VMAX   | FR     | ~40 €          |
+
+> Deux prix en EUR ne sont comparables que si la carte est **la même langue, le même état et la même édition**.
+
+Pour cette raison, la langue doit être conservée dans les données stockées. Elle fait partie de l'identité d'un prix, au même titre que la source (marketplace) ou l'état (NM, LP...).
+
+### Différence entre normalisation de devise et normalisation métier
+
+| Type de normalisation    | Ce qu'elle fait                                      | Ce qu'elle ne fait pas                        |
+|--------------------------|------------------------------------------------------|-----------------------------------------------|
+| Normalisation de devise  | Convertit USD/EUR pour comparer des montants         | Ne rend pas deux cartes comparables entre elles |
+| Normalisation métier     | Standardise l'état, la langue, l'édition             | Ne convertit pas les montants                 |
+
+Les deux sont nécessaires et complémentaires. Une carte normalisée correctement doit avoir : une devise commune (EUR), un état standardisé (NM, LP...), **et une langue identifiée (EN, JP, FR)**.
 
 ## 7.3 Normalisation des noms de cartes
 
 Les noms de cartes peuvent différer légèrement selon les sources (accents, casse, caractères spéciaux).
 
-```python
-import unicodedata
-import re
+La normalisation consiste à :
 
-def normalize_card_name(name: str) -> str:
-    """Normalise un nom de carte pour la comparaison."""
-    # Mettre en minuscules
-    name = name.lower()
-    # Supprimer les accents
-    name = unicodedata.normalize("NFD", name)
-    name = "".join(c for c in name if unicodedata.category(c) != "Mn")
-    # Supprimer les caractères spéciaux
-    name = re.sub(r"[^a-z0-9 ]", "", name)
-    # Supprimer les espaces en trop
-    name = name.strip()
-    return name
+1. Mettre le nom en **minuscules**
+2. **Supprimer les accents** et caractères diacritiques
+3. **Supprimer les caractères spéciaux** (tirets, parenthèses, etc.)
+4. Supprimer les espaces superflus
 
-# Exemples :
-# "Dracaufeu" → "dracaufeu"
-# "Charizard-EX"  → "charizard ex"
-# "Pikachu (Promo)" → "pikachu promo"
-```
+Exemples :
+
+| Nom brut            | Nom normalisé     |
+|---------------------|-------------------|
+| `"Dracaufeu"`       | `"dracaufeu"`     |
+| `"Charizard-EX"`    | `"charizard ex"`  |
+| `"Pikachu (Promo)"` | `"pikachu promo"` |
 
 ---
 
@@ -523,106 +550,40 @@ async def scrape_card_price(card_id: str, source: str) -> None:
 
 # 9. Intégration avec le backend NestJS
 
-## Comment le backend utilise le scraper
+## Comment le backend utilise les données du scraper
 
-Le backend NestJS ne scrape pas lui-même les prix. Il délègue cette responsabilité au microservice scraper via une requête HTTP interne.
+Le scraper écrit les prix dans PostgreSQL. Le backend NestJS lit directement ces données en base lorsqu'un utilisateur consulte les prix d'une carte.
+
+> Le scraping n'est **jamais** déclenché par une requête utilisateur. Il tourne en tâche de fond, de manière périodique.
 
 ```
 Client  ──▶  GET /market/{cardId}  ──▶  Backend NestJS
                                               │
-                                    Vérifie le cache Redis
+                                    Lecture en base PostgreSQL
+                                       (table card_prices)
                                               │
-                              Données en cache ? ──▶ OUI  ──▶ Réponse directe
+                              Données disponibles ? ──▶ OUI  ──▶ Réponse au client
                                               │
                                              NON
                                               │
-                                    Appelle le Scraper
-                                    GET /prices/{cardId}
-                                              │
-                                    Retourne les prix normalisés
-                                              │
-                                    Stocke dans Redis (TTL : 30min)
-                                              │
-                                         Réponse au client
+                                    Retourne une réponse vide
+                                    (le prochain cron job remplira)
 ```
 
-## Endpoint exposé par le scraper
+## Rôles clairement séparés
 
-Le microservice expose une API REST simple :
+| Composant             | Rôle                                                        |
+|-----------------------|-------------------------------------------------------------|
+| Scraper (worker)      | Collecte les prix, écrit en base, tourne en tâche de fond   |
+| Backend NestJS        | Expose les endpoints, lit les données en base               |
+| PostgreSQL            | Source de vérité pour tous les prix                         |
+| Redis                 | Planification des jobs (BullMQ), pas de stockage de prix    |
 
-```
-GET /prices/{cardId}
-```
+## Endpoint côté backend
 
-Exemple de réponse :
+L'endpoint `GET /market/{cardId}` retourne les derniers prix disponibles pour une carte.
 
-```json
-{
-  "cardId": "swsh3-136",
-  "prices": [
-    {
-      "source": "cardmarket",
-      "condition": "NM",
-      "price": 45.50,
-      "currency": "EUR",
-      "scrapedAt": "2026-04-13T08:00:00Z"
-    },
-    {
-      "source": "ebay",
-      "condition": "NM",
-      "price": 42.00,
-      "currency": "EUR",
-      "scrapedAt": "2026-04-13T08:01:00Z"
-    }
-  ]
-}
-```
-
-## Implémentation côté NestJS
-
-```typescript
-// market.service.ts
-@Injectable()
-export class MarketService {
-  constructor(
-    private readonly httpService: HttpService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
-
-  async getCardPrices(cardId: string): Promise<CardPriceDto[]> {
-    const cacheKey = `prices:${cardId}`;
-
-    // 1. Vérifier le cache Redis
-    const cached = await this.cacheManager.get<CardPriceDto[]>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // 2. Appeler le microservice scraper
-    const { data } = await this.httpService.axiosRef.get(
-      `${process.env.SCRAPER_BASE_URL}/prices/${cardId}`,
-    );
-
-    // 3. Mettre en cache pendant 30 minutes (1800 secondes)
-    await this.cacheManager.set(cacheKey, data.prices, 1800);
-
-    return data.prices;
-  }
-}
-```
-
-```typescript
-// market.controller.ts
-@Controller("market")
-export class MarketController {
-  constructor(private readonly marketService: MarketService) {}
-
-  @Get(":cardId")
-  async getMarketPrices(@Param("cardId") cardId: string) {
-    return this.marketService.getCardPrices(cardId);
-  }
-}
-```
+Si le scraper ne s'est pas encore exécuté pour cette carte, la réponse sera vide ou indiquera l'absence de données — **aucun scraping n'est déclenché à la demande**.
 
 ---
 
@@ -724,72 +685,67 @@ await browser.close();
 
 ---
 
-# 11. Flux complet d'une requête
+# 11. Flux complet du système
 
-Voici le déroulement complet, étape par étape, lorsqu'un utilisateur consulte les prix d'une carte.
+Il y a deux flux distincts et **indépendants** : le flux de scraping (automatique) et le flux utilisateur (à la demande).
+
+## Flux 1 : Scraping périodique (automatique)
+
+Ce flux s'exécute automatiquement, sans aucune interaction utilisateur.
+
+```
+┌──────────────────────────────────┐
+│         CRON JOB (1x/jour)       │  1. Déclenchement automatique planifié
+└──────────────────┬───────────────┘
+                   │  Job ajouté dans la queue (Redis/BullMQ)
+                   ▼
+┌──────────────────────────────────┐
+│        SCRAPER (worker)          │  2. Récupère le job et démarre la collecte
+└──────────────────┬───────────────┘
+                   │  Appels vers les APIs officielles
+                   ▼
+┌──────────────────────────────────┐
+│       MARKETPLACES EXTERNES      │  3. Retournent les données brutes
+│  Cardmarket API  |  eBay API     │     (prix, état, devise)
+└──────────────────┬───────────────┘
+                   │  Normalisation (devise → EUR, état standardisé)
+                   ▼
+┌──────────────────────────────────┐
+│          PostgreSQL              │  4. Écriture dans card_prices et price_history
+└──────────────────────────────────┘
+```
+
+## Flux 2 : Consultation par l'utilisateur
+
+Ce flux se déclenche lorsqu'un utilisateur consulte les prix d'une carte.
 
 ```
 ┌──────────┐
-│  Client  │  1. L'utilisateur demande les prix de "swsh3-136"
+│  Client  │  1. Demande les prix de "swsh3-136"
 └─────┬─────┘
       │  GET /market/swsh3-136
       ▼
-┌─────────────┐
-│   Backend   │  2. Le backend vérifie le cache Redis
-│   NestJS    │
-└──────┬──────┘
+┌─────────────────────┐
+│   Backend NestJS    │  2. Lit les dernières données disponibles
+│                     │     depuis PostgreSQL (table card_prices)
+└──────┬──────────────┘
        │
-       │  Cache manquant
-       │  GET /prices/swsh3-136
-       ▼
-┌─────────────┐
-│   Scraper   │  3. Le scraper interroge sa base de données locale
-│ Microservice│     Si les données sont récentes (< 1h) → retourne directement
-└──────┬──────┘     Sinon → lance une nouvelle collecte
-       │
-       │  Requêtes vers les APIs externes
-       ▼
-┌─────────────────────────────────────┐
-│           Marketplaces              │
-│  Cardmarket API   eBay API          │
-└──────┬──────────────────────────────┘
-       │  Données brutes (prix, état, devise)
-       ▼
-┌─────────────┐
-│   Scraper   │  4. Normalisation :
-│ Microservice│     - Conversion en EUR
-│             │     - Standardisation des états (NM, LP...)
-│             │     - Nettoyage des noms
-└──────┬──────┘
-       │  Écriture en base
-       ▼
-┌─────────────┐
-│ PostgreSQL  │  5. Sauvegarde dans CardPrice et PriceHistory
-└──────┬──────┘
-       │  Réponse JSON normalisée
-       ▼
-┌─────────────┐
-│   Backend   │  6. Stockage dans Redis (TTL : 30 min)
-│   NestJS    │     Retourne la réponse au client
-└──────┬──────┘
-       │
+       │  Données disponibles → retourne les prix
+       │  Pas de données      → retourne une réponse vide
        ▼
 ┌──────────┐
-│  Client  │  7. Affichage des prix sur l'interface
+│  Client  │  3. Affiche les prix (ou un message d'absence de données)
 └──────────┘
 ```
 
-## Résumé des étapes
+> Le scraping n'est **jamais** déclenché lors de la consultation d'une carte. Les données affichées sont celles de la dernière exécution du cron job.
 
-| Étape | Acteur            | Action                                              |
-|-------|-------------------|-----------------------------------------------------|
-| 1     | Client            | Envoie `GET /market/swsh3-136`                      |
-| 2     | Backend NestJS    | Vérifie le cache Redis                              |
-| 3     | Microservice      | Vérifie si les données sont fraîches en base        |
-| 4     | Microservice      | Appelle les APIs Cardmarket / eBay                  |
-| 5     | Microservice      | Normalise et sauvegarde les données                 |
-| 6     | Backend NestJS    | Met en cache et retourne la réponse                 |
-| 7     | Client            | Reçoit les prix normalisés et les affiche           |
+## Résumé des deux flux
+
+| Flux         | Déclencheur          | Acteurs impliqués                          |
+|--------------|----------------------|--------------------------------------------|
+| Scraping     | Cron job automatique | Scraper → Marketplaces → PostgreSQL        |
+| Consultation | Requête utilisateur  | Client → Backend → PostgreSQL              |
 
 ---
 
@@ -804,4 +760,4 @@ Le microservice scraper de marketplaces est un composant clé du projet Collecti
 
 En privilégiant les **APIs officielles** plutôt que le scraping HTML, on garantit une solution **fiable, stable et respectueuse des conditions d'utilisation** des plateformes tierces.
 
-La combinaison **cron jobs + Redis + PostgreSQL + NestJS** offre une architecture simple, robuste et extensible, adaptée au niveau d'un projet de fin d'études.
+La combinaison **cron jobs + BullMQ (Redis) + PostgreSQL + NestJS** offre une architecture simple, robuste et extensible, adaptée au niveau d'un projet de fin d'études. Redis assure la planification des tâches, PostgreSQL est la source de vérité pour toutes les données de prix.
