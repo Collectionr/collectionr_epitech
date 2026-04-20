@@ -292,11 +292,27 @@ Les flux décrits ici respectent les principes définis dans ces documents.
 
 ## 11. Évolution future
 
-Dans le cadre de l’évolution vers Kubernetes (K3s) :
+Dans le cadre d’une évolution vers une infrastructure orchestrée (Kubernetes – K3s), les flux techniques décrits dans ce document restent globalement inchangés dans leur logique fonctionnelle.
 
-- orchestration des services (API, OCR)
-- meilleure gestion des ressources
-- amélioration de la scalabilité
-- centralisation des logs et monitoring
+Les interactions entre les composants (client, API, OCR, base de données, APIs tierces) restent identiques, mais leur exécution est optimisée.
 
-Les flux resteront identiques mais seront optimisés en termes de performance et de résilience.
+Les principales évolutions concernent :
+
+- l’orchestration des services (API, OCR) sous forme de conteneurs distribués
+- la répartition de la charge entre plusieurs instances (scalabilité horizontale)
+- la gestion automatique des redémarrages en cas de panne
+- une meilleure isolation des composants
+
+Dans le cas du flux OCR, cette évolution permet notamment :
+
+- de paralléliser les traitements de scan
+- de mieux gérer les pics de charge sur l’endpoint `/scan`
+- de limiter les impacts d’un traitement lourd sur l’ensemble du système
+
+Par ailleurs, l’introduction de Kubernetes facilite :
+
+- la centralisation des logs
+- la mise en place de mécanismes de monitoring avancés
+- l’amélioration de la résilience globale de la plateforme
+
+Cette évolution s’inscrit dans une démarche progressive, en conservant une architecture initiale simple basée sur Docker, puis en introduisant K3s lorsque les besoins en performance et en scalabilité le justifient.
