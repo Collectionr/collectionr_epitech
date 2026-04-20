@@ -1,0 +1,15 @@
+# A3 – Flux techniques plateforme
+
+## 1. Objectif
+
+Ce document décrit les principaux flux techniques de la plateforme ESP.
+
+L’objectif est de :
+
+- comprendre les interactions entre les composants
+- identifier les points critiques (sécurité, performance, stockage)
+- garantir la cohérence avec l’architecture globale
+
+Les flux présentés couvrent les échanges entre les clients (web/mobile), l’API backend, les services internes et la base de données.
+
+---
