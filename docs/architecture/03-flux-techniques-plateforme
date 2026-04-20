@@ -1,5 +1,21 @@
 # A3 – Flux techniques plateforme
 
+### Sommaire
+
+1. [Objectif](#1-objectif)
+2. [Vue d'ensemble des composants](#2-vue-densemble-des-composants)
+3. [Flux d’authentification](#3-flux-dauthentification)
+4. [Flux d’accès aux données](#4-flux-daccès-aux-données)
+5. [Flux de scan OCR (fonction critique)](#5-flux-de-scan-ocr-fonction-critique)
+6. [Flux d’intégration API tierces](#6-flux-dintégration-api-tierces)
+7. [Flux de journalisation](#7-flux-de-journalisation)
+8. [Flux de gestion des erreurs](#8-flux-de-gestion-des-erreurs)
+9. [Points critiques de l’architecture](#9-points-critiques-de-larchitecture)
+10. [Cohérence avec les autres documents](#10-cohérence-avec-les-autres-documents)
+11. [Évolution future](#11-évolution-future)
+
+---
+
 ## 1. Objectif
 
 Ce document décrit les principaux flux techniques de la plateforme ESP.
@@ -13,3 +29,274 @@ L’objectif est de :
 Les flux présentés couvrent les échanges entre les clients (web/mobile), l’API backend, les services internes et la base de données.
 
 ---
+
+## 2. Vue d’ensemble des composants
+
+La plateforme repose sur les composants suivants :
+
+- client web / mobile
+- API backend (Node.js)
+- service OCR (Python)
+- base de données PostgreSQL
+- APIs tierces (cartes)
+
+Les échanges entre ces composants sont réalisés via des appels API ou des mécanismes internes.
+
+---
+
+## 3. Flux d’authentification
+
+### Description
+
+Ce flux permet à un utilisateur de se connecter à la plateforme et d’obtenir un token d’accès.
+
+### Schéma
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB
+
+    Client->>API: POST /login
+    API->>DB: Vérification identifiants
+    DB-->>API: OK
+    API-->>Client: Access Token + Refresh Token
+```
+
+### Étapes
+
+1. Le client envoie une requête `/login` avec ses identifiants
+2. L’API vérifie les informations dans la base de données
+3. Si les identifiants sont valides :
+   - génération d’un access token (JWT)
+   - génération d’un refresh token
+4. Les tokens sont renvoyés au client
+
+### Sécurité associée
+
+- mots de passe hashés
+- tokens à durée de vie limitée
+- rate limiting sur `/login`
+
+---
+
+## 4. Flux d’accès aux données
+
+### Description
+
+Ce flux permet à un utilisateur d’accéder à ses données (collection, profil, etc.).
+
+### Schéma
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB
+
+    Client->>API: Requête avec token
+    API->>API: Vérification token
+    API->>API: Vérification RBAC
+    API->>DB: Lecture données
+    DB-->>API: Résultat
+    API-->>Client: Réponse
+```
+
+### Étapes
+
+1. Le client envoie une requête avec son token
+2. L’API vérifie le token (authentification)
+3. L’API vérifie les droits (RBAC)
+4. L’API interroge la base de données
+5. Les données sont renvoyées au client
+
+### Sécurité associée
+
+- vérification systématique des droits
+- protection contre les accès non autorisés (IDOR)
+- validation des entrées côté serveur
+
+---
+
+## 5. Flux de scan OCR (fonction critique)
+
+### Description
+
+Ce flux permet à un utilisateur de scanner une carte afin de l’identifier et de l’ajouter à sa collection.
+Il constitue un point critique en raison de son impact sur les ressources (CPU, stockage) et de son exposition aux abus via l’endpoint `/scan`.
+
+### Schéma
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Storage
+    participant OCR
+    participant ExternalAPI
+
+    Client->>API: POST /scan (image)
+    API->>API: Validation fichier
+    API->>Storage: Stockage temporaire
+    OCR->>Storage: Lecture image
+    OCR-->>API: Résultat OCR
+    API->>ExternalAPI: Recherche carte
+    ExternalAPI-->>API: Données carte
+    API-->>Client: Résultat final
+```
+
+### Étapes
+
+1. Le client envoie une image via l’endpoint `/scan`
+2. L’API valide la requête (authentification, taille, format)
+3. L’image est stockée temporairement dans un espace dédié
+4. Le service OCR récupère l’image
+5. Le service OCR extrait les informations (nom, caractéristiques)
+6. L’API utilise ces informations pour interroger une API tierce
+7. Les données de la carte sont renvoyées au client
+8. Les fichiers temporaires sont supprimés
+
+### Sécurité associée
+
+- validation stricte des fichiers (type, taille)
+- limitation des requêtes (rate limiting)
+- stockage temporaire uniquement
+- suppression automatique des fichiers
+
+---
+
+## 6. Flux d’intégration API tierces
+
+### Description
+
+Ce flux permet de récupérer les informations des cartes via des APIs externes.
+
+### Schéma simplifié
+
+```text
+Client → API → API externe → API → Client
+```
+
+### Étapes
+
+1. L’API reçoit une requête (ex : résultat OCR)
+2. L’API interroge une API externe de cartes
+3. L’API récupère :
+   - nom
+   - caractéristiques
+   - image (via URL)
+4. Les données sont renvoyées au client
+
+### Spécificités
+
+- aucune image n’est stockée localement
+- seules les URLs sont utilisées
+- respect des conditions d’utilisation des APIs
+
+---
+
+## 7. Flux de journalisation
+
+### Description
+
+Les événements importants sont enregistrés afin de permettre l’analyse et la détection d’incidents.
+
+### Schéma simplifié
+
+```text
+Services → Logs → Analyse
+```
+
+### Événements concernés
+
+- tentatives de connexion
+- erreurs (401, 403, 500)
+- requêtes critiques (scan, login)
+- actions sensibles
+
+### Fonctionnement
+
+1. chaque service génère des logs (stdout / stderr)
+2. les logs sont accessibles via Docker (MVP)
+3. les événements critiques peuvent être analysés
+
+### Référence
+
+Voir document "Logs & Audit" pour plus de détails.
+
+---
+
+## 8. Flux de gestion des erreurs
+
+### Description
+
+Ce flux permet de gérer les erreurs applicatives et techniques.
+
+### Schéma simplifié
+
+```text 
+Erreur → Log → Réponse sécurisée
+```
+
+### Étapes
+
+1. une erreur survient (API, OCR, DB)
+2. l’erreur est loguée
+3. une réponse adaptée est renvoyée au client
+4. les erreurs critiques peuvent être surveillées
+
+### Objectif
+
+- éviter l’exposition d’informations sensibles
+- faciliter le diagnostic
+
+---
+
+## 9. Points critiques de l’architecture
+
+Les flux identifiés présentent plusieurs points sensibles pouvant impacter la sécurité, la performance et la disponibilité de la plateforme.
+
+Ces points critiques sont pris en compte dans le document "API Security" afin de définir des mécanismes de protection adaptés.
+
+Les principaux points critiques identifiés sont les suivants :
+
+### 9.1 Endpoint `/scan`
+
+- risque d’abus (nombre de requêtes)
+- traitement coûteux (OCR)
+- consommation de stockage temporaire
+
+### 9.2 Volume temporaire OCR
+
+- stockage de fichiers utilisateurs
+- nécessité d’isolation entre services
+- suppression obligatoire après traitement
+
+### 9.3 Authentification
+
+- gestion des tokens
+- protection contre brute force
+
+---
+
+## 10. Cohérence avec les autres documents
+
+Ce document est lié aux documents suivants :
+
+- API Security : sécurisation des endpoints et des flux
+- Logs & Audit : gestion des journaux
+- RGPD : gestion des données personnelles
+
+Les flux décrits ici respectent les principes définis dans ces documents.
+
+---
+
+## 11. Évolution future
+
+Dans le cadre de l’évolution vers Kubernetes (K3s) :
+
+- orchestration des services (API, OCR)
+- meilleure gestion des ressources
+- amélioration de la scalabilité
+- centralisation des logs et monitoring
+
+Les flux resteront identiques mais seront optimisés en termes de performance et de résilience.
