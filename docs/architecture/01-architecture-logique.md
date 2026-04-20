@@ -1,62 +1,94 @@
-# Architecture Logique - Collectionr  
-## 1. Vision et Cohérence Globale (COLLR-146)
-
-Le projet Collectionr est une application de gestion de cartes à collectionner TCG. L'architecture est conçue pour être asynchrone et distribuée afin de supporter des modèles d'IA gourmands en ressources sans bloquer l'expérience utilisateur.
+# Architecture Logique - Collectionr (version simplifiée)
 
 ---
 
-## 2. Couches Logiques (COLLR-141)
+## 1. Vision globale
 
-L'architecture se décompose en quatre couches distinctes :
+Le projet **Collectionr** est une application qui permet de gérer des cartes à collectionner (Pokémon, Magic, etc.).
 
-- Couche Présentation : Interfaces clients mobiles (React Native/Expo) et web (React).
+L’architecture est conçue pour être :
 
-- Couche Métier (Application) : Logique de gestion des collections, authentification et orchestration des tâches via Node.js.
+- **Asynchrone** : les tâches lourdes (comme l’IA) ne bloquent pas l’utilisateur  
+- **Distribuée** : plusieurs services travaillent ensemble  
+- **Modulaire** : chaque partie peut évoluer indépendamment  
 
-- Couche Traitement : Services spécialisés d'IA (Python) et de synchronisation de données (TCG).
-
-- Couche de Données : Persistance via PostgreSQL, stockage de fichiers permanent et gestion de files d'attente Redis.
-
----
-
-## 3. Composants Applicatifs Principaux (COLLR-142)
-
-- Backend Node.js : Gère l'API REST, l'authentification JWT et la distribution des jobs.
-
-- Worker OCR (IA) : Pipeline utilisant YOLOv10 et PaddleOCR pour l'extraction de données.
-
-- Microservice TCG : Gère la mise à jour des catalogues de cartes et les prix du marché.
-
-- Workers TCG (Scraping & API) : Agents dédiés à l'extraction de données externes.
+👉 Objectif :  
+Permettre des traitements complexes (IA, scraping) tout en gardant une application fluide.
 
 ---
 
-## 4. Interactions entre Composants (COLLR-143)
+## 2. Organisation du code (structure propre)
 
-- Le Frontend envoie une image au Backend.
+Pour garder un code clair et facile à maintenir, le projet est organisé en plusieurs couches :
 
-- Le Backend stocke l'image sur le Volume Partagé Permanent et crée une tâche dans Redis.
+- **Domaine (Core)** : contient les règles métier (cartes, collections)  
+- **Application** : gère les actions principales (ajouter une carte, mettre à jour un prix)  
+- **Infrastructure** : gère les outils techniques (base de données, API externes)  
+- **Présentation** : gère ce que voit l’utilisateur (API, interface mobile/web)  
 
-- Le Worker OCR traite l'image et met à jour le statut dans Redis.
-
-- Le Backend notifie le Frontend de la fin du traitement via une connexion SSE.
-
----
-
-## 5. Dépendances Fonctionnelles (COLLR-144)
-
-- Identification de carte : Le Worker OCR dépend de la disponibilité de l'image sur le Volume Partagé et de la présence du job dans Redis.
-
-- Mise à jour des prix : Le Microservice TCG dépend de l'accessibilité des Marketplaces externes et des API tierces.
-
-- Interface utilisateur : Le Frontend dépend de la stabilité du contrat API (OpenAPI/Swagger) défini par le Backend.
+👉 Pourquoi :  
+Cela permet de modifier une partie du projet sans casser le reste.
 
 ---
 
-## 6. Points d'Intégration Externes (COLLR-145)
+## 3. Les principaux composants
 
-- API TCG Tierces : Utilisation d'API comme Cardmarket ou TCGPlayer pour les métadonnées officielles.
+Chaque partie du système a un rôle précis :
 
-- Marketplaces : Scraping des prix de vente pour l'estimation en temps réel.
+- **Backend (Node.js)** : point d’entrée principal, gère les utilisateurs et les actions  
+- **Worker IA (OCR)** : analyse les images pour extraire les informations  
+- **Service TCG** : récupère les données des cartes et les prix  
+- **Redis** : gère les tâches en attente (file d’attente)
 
-- Authentification (Optionnel) : Possibilité d'intégration d'OAuth (Google/Apple) pour simplifier l'accès utilisateur.
+👉 Pourquoi :  
+Chaque service est spécialisé, ce qui rend le système plus robuste.
+
+---
+
+## 4. Comment les services communiquent
+
+Le fonctionnement se fait en plusieurs étapes :
+
+1. L’utilisateur envoie une image  
+2. Le backend enregistre l’image et crée une tâche  
+3. Le service IA traite l’image  
+4. Le résultat est renvoyé à l’utilisateur en temps réel  
+
+👉 Important :  
+L’utilisateur n’attend pas bloqué → tout se fait en arrière-plan.
+
+---
+
+## 5. Infrastructure, suivi et sécurité
+
+Même avec un budget limité, on met en place des bonnes pratiques :
+
+### 📊 Suivi (observabilité)
+- On surveille le système avec des outils comme Grafana  
+- On vérifie que tout fonctionne correctement  
+
+### 💾 Stockage
+- Les données sont stockées en base de données  
+- Les fichiers (images) sont stockés séparément  
+
+### 🔐 Sécurité
+- Connexions sécurisées (HTTPS)  
+- Gestion des accès et des clés API  
+- Respect des bonnes pratiques de sécurité  
+
+### ✅ Qualité
+- Tests automatiques pour éviter les bugs  
+- Déploiement automatisé pour éviter les erreurs humaines  
+
+---
+
+## ✅ Conclusion
+
+Cette architecture permet de :
+
+- gérer des traitements complexes sans ralentir l’application  
+- garder un code propre et évolutif  
+- assurer une bonne fiabilité même avec peu de moyens  
+
+👉 En résumé :  
+Une architecture simple à comprendre, mais solide dans son fonctionnement.
