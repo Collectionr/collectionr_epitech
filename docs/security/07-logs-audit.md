@@ -98,6 +98,28 @@ Ces logs permettent de détecter :
 - problèmes système
 - pannes de services
 - erreurs réseau
+- anomalies liées au stockage temporaire
+- indisponibilité ou dégradation de services techniques
+
+#### Surveillance des composants techniques critiques
+
+Certains composants d’infrastructure font l’objet d’une attention particulière en raison de leur impact direct sur la disponibilité et la sécurité du système.
+
+Cela concerne notamment :
+
+- **Redis**, utilisé pour des mécanismes techniques tels que le cache ou le rate limiting
+- **les volumes partagés**, utilisés pour le stockage temporaire des fichiers liés aux traitements OCR
+
+Les incidents affectant ces composants doivent être journalisés afin de faciliter leur détection et leur diagnostic.
+
+Exemples d’événements surveillés :
+
+- redémarrage ou indisponibilité de Redis
+- erreur de connexion entre l’API et Redis
+- saturation mémoire ou réponse anormale de Redis
+- échec d’écriture ou de lecture sur un volume partagé
+- échec de suppression des fichiers temporaires
+- manque d’espace disque sur le stockage temporaire
 
 ---
 
@@ -147,6 +169,10 @@ La journalisation de ces erreurs permet de détecter :
 ## 5. Architecture de journalisation (MVP)
 
 Dans la phase MVP du projet, les logs sont générés par les conteneurs Docker.
+
+Une attention particulière est portée aux composants techniques critiques, notamment Redis et les volumes partagés utilisés pour les traitements OCR.
+
+Les anomalies liées à leur disponibilité, à leur accès ou à leur capacité de stockage doivent pouvoir être identifiées rapidement via les logs d’infrastructure.
 
 Les services produisent leurs logs via les flux standards :
 
