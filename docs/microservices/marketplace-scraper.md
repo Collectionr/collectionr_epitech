@@ -86,29 +86,6 @@ Le microservice scraper est un composant **indépendant**, connecté uniquement 
 - **Documentation** : [https://api.cardmarket.com/ws/documentation](https://api.cardmarket.com/ws/documentation)
 - **Méthode retenue** : API officielle
 
-Exemple de requête :
-
-```
-GET https://api.cardmarket.com/ws/v2.0/products/singles/1/
-Authorization: OAuth realm="..."
-```
-
-Exemple de réponse :
-
-```json
-{
-  "product": {
-    "idProduct": 1001,
-    "enName": "Charizard",
-    "priceGuide": {
-      "TREND": 45.50,
-      "AVG30": 43.20,
-      "LOW": 30.00
-    }
-  }
-}
-```
-
 ## 3.2 eBay
 
 **eBay** est une marketplace mondiale proposant aussi bien des ventes aux enchères que des prix fixes.
@@ -117,15 +94,6 @@ Exemple de réponse :
 - **Accès** : API Browse (Finding API pour les ventes terminées)
 - **Documentation** : [https://developer.ebay.com](https://developer.ebay.com)
 - **Méthode retenue** : API officielle (Finding API)
-
-Exemple de requête :
-
-```
-GET https://svcs.ebay.com/services/search/FindingService/v1
-    ?OPERATION-NAME=findCompletedItems
-    &keywords=Charizard+Pokemon+PSA+10
-    &SECURITY-APPNAME=YOUR_APP_ID
-```
 
 ## 3.3 TCGPlayer
 
