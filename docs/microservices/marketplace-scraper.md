@@ -22,7 +22,7 @@ Pour un collectionneur, connaître le **prix actuel et l'historique des prix** d
 - Estimer la valeur de sa collection
 - Comparer les prix entre différentes plateformes
 
-Le microservice scraper répond à ce besoin en automatisant la collecte de ces données.
+Le microservice scraper répond à ce besoin en automatisant la collecte de ces données de manière périodique.
 
 ## Qu'est-ce que le scraping ?
 
@@ -39,7 +39,7 @@ Il existe deux approches principales :
 
 ## Position du scraper dans le système
 
-Le microservice scraper est un composant **indépendant** qui s'interface avec le reste du système via la base de données et des appels HTTP.
+Le microservice scraper est un composant **indépendant**, connecté uniquement à PostgreSQL.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -69,11 +69,9 @@ Le microservice scraper est un composant **indépendant** qui s'interface avec l
 
 | Responsabilité             | Description                                             |
 |----------------------------|---------------------------------------------------------|
-| Collecte des prix          | Appeler les APIs des marketplaces selon un planning       |
+| Collecte des prix          | Appeler les APIs des marketplaces selon un planning     |
 | Normalisation des données  | Unifier les formats de prix, devises, états des cartes  |
 | Stockage                   | Écrire les prix dans PostgreSQL                         |
-
-> Le backend NestJS est le **seul** composant à exposer des endpoints REST. Le scraper écrit en base, le backend lit en base.
 
 ---
 
@@ -237,26 +235,6 @@ Cartes standards              →  toutes les 6 heures
 Cartes peu demandées          →  une fois par jour
 ```
 
-## Implémentation en Python avec APScheduler
-
-```python
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-scheduler = AsyncIOScheduler()
-
-# Mise à jour des 100 cartes les plus populaires toutes les heures
-@scheduler.scheduled_job("cron", minute=0)
-async def scrape_popular_cards():
-    await scraper_service.scrape_top_cards(limit=100)
-
-# Mise à jour de toutes les cartes une fois par jour
-@scheduler.scheduled_job("cron", hour=3, minute=0)
-async def scrape_all_cards():
-    await scraper_service.scrape_all()
-
-scheduler.start()
-```
-
 > **Remarque** : on choisit 3h du matin pour le scraping complet afin de minimiser l'impact sur les serveurs externes pendant les heures de forte utilisation.
 
 ---
@@ -351,75 +329,47 @@ Exemple du problème :
 
 ## 7.1 Normalisation des états (conditions)
 
-On définit un ensemble de valeurs standardisées et une table de correspondance :
+Les états standardisés du projet sont : **MINT, NM, LP, MP, HP, DMG, PSA10, PSA9**
 
-```python
-# États standardisés du projet
-STANDARD_CONDITIONS = ["MINT", "NM", "LP", "MP", "HP", "DMG", "PSA10", "PSA9"]
+**Cardmarket :**
 
-# Table de correspondance par source
-CONDITION_MAP = {
-    "cardmarket": {
-        "Mint":        "MINT",
-        "Near Mint":   "NM",
-        "Excellent":   "LP",
-        "Good":        "MP",
-        "Light Played": "HP",
-        "Played":      "DMG",
-    },
-    "ebay": {
-        "Brand New":   "MINT",
-        "NM/Mint":     "NM",
-        "NM-Mint":     "NM",
-        "Lightly Played": "LP",
-        "Moderately Played": "MP",
-        "Heavily Played": "HP",
-    },
-    "tcgplayer": {
-        "Near Mint":   "NM",
-        "Lightly Played": "LP",
-        "Moderately Played": "MP",
-        "Heavily Played": "HP",
-        "Damaged":     "DMG",
-    }
-}
+| Terme source   | État normalisé |
+|----------------|----------------|
+| Mint           | MINT           |
+| Near Mint      | NM             |
+| Excellent      | LP             |
+| Good           | MP             |
+| Light Played   | HP             |
+| Played         | DMG            |
 
-def normalize_condition(source: str, raw_condition: str) -> str:
-    mapping = CONDITION_MAP.get(source, {})
-    return mapping.get(raw_condition, "UNKNOWN")
-```
+**eBay :**
+
+| Terme source        | État normalisé |
+|---------------------|----------------|
+| Brand New           | MINT           |
+| NM/Mint             | NM             |
+| NM-Mint             | NM             |
+| Lightly Played      | LP             |
+| Moderately Played   | MP             |
+| Heavily Played      | HP             |
+
+**TCGPlayer :**
+
+| Terme source        | État normalisé |
+|---------------------|----------------|
+| Near Mint           | NM             |
+| Lightly Played      | LP             |
+| Moderately Played   | MP             |
+| Heavily Played      | HP             |
+| Damaged             | DMG            |
 
 ## 7.2 Normalisation des devises
 
-On convertit toutes les devises en **EUR** comme devise de référence afin de pouvoir comparer des prix entre marketplaces utilisant des devises différentes (USD pour eBay et TCGPlayer, EUR pour Cardmarket).
+On convertit toutes les devises en **EUR** comme devise de référence, afin de pouvoir comparer des prix entre marketplaces utilisant des devises différentes (USD pour eBay et TCGPlayer, EUR pour Cardmarket).
 
-```python
-import httpx
+La conversion s'appuie sur une API de taux de change externe (ex : ExchangeRate API). Pour éviter trop d'appels, les taux sont conservés en mémoire et rafraîchis toutes les heures.
 
-async def convert_to_eur(amount: float, from_currency: str) -> float:
-       """Convertit un montant en EUR via une API de taux de change.
-
-    ATTENTION : cette conversion permet de comparer des montants sur une
-    devise commune, mais elle ne suffit pas à comparer deux cartes entre elles.
-    La langue de la carte (EN, JP, FR) influence fortement son prix de marché :
-    une même carte en japonais peut valoir bien plus ou bien moins que sa
-    version anglaise ou française. Il ne faut JAMAIS fusionner les prix de
-    deux cartes de langues différentes, même après conversion en EUR.
-    """
-    if from_currency == "EUR":
-        return amount
-
-    # Exemple avec l'API ExchangeRate (gratuite)
-    response = await httpx.AsyncClient().get(
-        f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
-    )
-    rates = response.json()["rates"]
-    eur_rate = rates.get("EUR", 1.0)
-
-    return round(amount * eur_rate, 2)
-```
-
-> **Astuce** : Pour éviter trop d'appels à l'API de conversion, on peut stocker temporairement en mémoire les taux de change avec un timestamp et les rafraîchir toutes les heures.
+> **Attention** : la conversion en EUR ne suffit pas à comparer deux cartes entre elles. La langue de la carte influence fortement son prix de marché — voir la section suivante.
 
 ### Limite importante : la langue de la carte
 
@@ -485,24 +435,7 @@ On utilise les niveaux standards :
 | `ERROR`   | Erreur récupérable (une carte n'a pas pu être scrapée) |
 | `CRITICAL`| Erreur grave (le service est inutilisable)       |
 
-## 8.2 Configuration des logs en Python
-
-```python
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),             # Affichage en console
-        logging.FileHandler("scraper.log"),  # Écriture dans un fichier
-    ]
-)
-
-logger = logging.getLogger("scraper")
-```
-
-## 8.3 Table de suivi des erreurs de scraping
+## 8.2 Table de suivi des erreurs de scraping
 
 Pour garder une trace des tentatives de scraping échouées, on ajoute une table `ScrapeLog` :
 
@@ -520,31 +453,9 @@ model ScrapeLog {
 }
 ```
 
-## 8.4 Exemple de gestion d'erreur
+## 8.3 Comportement en cas d'erreur
 
-```python
-async def scrape_card_price(card_id: str, source: str) -> None:
-    log_entry = {"card_id": card_id, "source": source, "status": "error"}
-
-    try:
-        logger.info(f"Scraping {source} pour la carte {card_id}")
-        price_data = await fetch_price(card_id, source)
-        await save_price(price_data)
-
-        log_entry["status"] = "success"
-        logger.info(f"Prix enregistré : {price_data.price} EUR")
-
-    except httpx.TimeoutException:
-        log_entry["error_msg"] = "Timeout lors de la requête"
-        logger.warning(f"Timeout pour {source} / {card_id}")
-
-    except Exception as e:
-        log_entry["error_msg"] = str(e)
-        logger.error(f"Erreur inattendue pour {card_id} : {e}")
-
-    finally:
-        await save_scrape_log(log_entry)
-```
+Chaque tentative de scraping donne lieu à une entrée dans `ScrapeLog`, qu'elle réussisse ou échoue. En cas d'échec, le message d'erreur et le statut sont enregistrés. Le backend continue de retourner la dernière donnée disponible en base — aucune interruption de service n'est provoquée par un échec de scraping.
 
 ---
 
@@ -589,99 +500,18 @@ Si le scraper ne s'est pas encore exécuté pour cette carte, la réponse sera v
 
 # 10. Comparaison des outils de scraping
 
-## Panorama des outils
+Ces bibliothèques ne sont pertinentes que si aucune API officielle n'est disponible. Pour ce projet, elles constituent un recours de dernier ressort.
 
-Quand on parle de scraping HTML (sans API officielle), il existe plusieurs bibliothèques. Voici les trois plus courantes dans l'écosystème JavaScript/TypeScript.
+| Critère               | Axios + Cheerio    | Puppeteer             | Playwright                     |
+|-----------------------|--------------------|-----------------------|--------------------------------|
+| Vitesse               | ★★★★★              | ★★☆☆☆                 | ★★☆☆☆                          |
+| Consommation mémoire  | ★★★★★              | ★★☆☆☆                 | ★★☆☆☆                          |
+| JavaScript dynamique  | ✗ Non              | ✓ Oui                 | ✓ Oui                          |
+| Facilité d'utilisation| ★★★★☆              | ★★★☆☆                 | ★★★★☆                          |
+| Multi-navigateurs     | N/A                | Chrome uniquement     | Chrome, Firefox, Safari        |
+| Adapté pour APIs      | ✓ Oui              | Inutile               | Inutile                        |
 
-## Axios + Cheerio
-
-**Axios** est une bibliothèque HTTP pour récupérer le contenu d'une page.  
-**Cheerio** est une bibliothèque pour analyser et naviguer dans le HTML (similaire à jQuery).
-
-```typescript
-import axios from "axios";
-import * as cheerio from "cheerio";
-
-const { data } = await axios.get("https://exemple-market.com/card/charizard");
-const $ = cheerio.load(data);
-
-const price = $(".product-price").first().text().trim();
-// → "45,50 €"
-```
-
-**Avantages :**
-- Très rapide (pas de navigateur)
-- Léger en mémoire
-- Simple à utiliser
-
-**Inconvénients :**
-- Ne peut pas exécuter le JavaScript de la page
-- Bloqué par les sites qui chargent leurs données dynamiquement
-
-## Puppeteer
-
-**Puppeteer** est une bibliothèque Node.js qui pilote un navigateur Chrome en mode "headless" (sans interface graphique).
-
-```typescript
-import puppeteer from "puppeteer";
-
-const browser = await puppeteer.launch({ headless: true });
-const page = await browser.newPage();
-await page.goto("https://exemple-market.com/card/charizard");
-
-const price = await page.$eval(".product-price", (el) => el.textContent);
-await browser.close();
-```
-
-**Avantages :**
-- Exécute le JavaScript de la page (données dynamiques)
-- Simule un vrai navigateur (contourne certains anti-bots)
-
-**Inconvénients :**
-- Lent (doit démarrer un navigateur)
-- Consomme beaucoup de mémoire
-- Plus complexe à déployer
-
-## Playwright
-
-**Playwright** est similaire à Puppeteer, mais développé par Microsoft. Il supporte Chrome, Firefox et Safari.
-
-```typescript
-import { chromium } from "playwright";
-
-const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
-await page.goto("https://exemple-market.com/card/charizard");
-
-const price = await page.locator(".product-price").textContent();
-await browser.close();
-```
-
-**Avantages :**
-- Multi-navigateurs (Chrome, Firefox, WebKit)
-- API plus moderne et stable que Puppeteer
-- Meilleure gestion des erreurs et des attentes
-
-**Inconvénients :**
-- Lent (navigateur headless)
-- Plus lourd que Axios + Cheerio
-
-## Tableau comparatif
-
-| Critère               | Axios + Cheerio | Puppeteer      | Playwright     |
-|-----------------------|-----------------|----------------|----------------|
-| Vitesse               | ★★★★★           | ★★☆☆☆          | ★★☆☆☆          |
-| Consommation mémoire  | ★★★★★           | ★★☆☆☆          | ★★☆☆☆          |
-| JavaScript dynamique  | ✗ Non           | ✓ Oui          | ✓ Oui          |
-| Facilité d'utilisation| ★★★★☆           | ★★★☆☆          | ★★★★☆          |
-| Multi-navigateurs     | N/A             | Chrome uniquement | Chrome, Firefox, Safari |
-| Adapté pour APIs      | ✓ Oui           | Inutile        | Inutile        |
-
-## Choix retenu pour ce projet
-
-> On choisit **Axios + Cheerio** pour les cas où le scraping HTML est nécessaire, car les marketplaces ciblées (Cardmarket, eBay, TCGPlayer) dispose toutes d'une **API officielle**.
->
-> Axios est suffisant pour effectuer des requêtes HTTP vers ces APIs et traiter les réponses JSON. Puppeteer et Playwright seraient surdimensionnés ici.
+> **Choix retenu** : Axios est suffisant pour interroger les APIs officielles (Cardmarket, eBay, TCGPlayer) et traiter les réponses JSON. Puppeteer et Playwright seraient surdimensionnés pour ce cas d'usage.
 
 ---
 
@@ -695,7 +525,8 @@ Ce flux s'exécute automatiquement, sans aucune interaction utilisateur.
 
 ```
 ┌──────────────────────────────────┐
-│         CRON JOB (1x/jour)       │  1. Déclenchement automatique planifié
+│     CRON JOB (périodique)        │  1. Déclenchement automatique planifié
+│  (1h / 6h / 24h selon la carte)  │     selon la fréquence configurée
 └──────────────────┬───────────────┘
                    │  Job ajouté dans la queue (Redis/BullMQ)
                    ▼
@@ -722,7 +553,7 @@ Ce flux se déclenche lorsqu'un utilisateur consulte les prix d'une carte.
 ```
 ┌──────────┐
 │  Client  │  1. Demande les prix de "swsh3-136"
-└─────┬─────┘
+└─────┬────┘
       │  GET /market/swsh3-136
       ▼
 ┌─────────────────────┐
