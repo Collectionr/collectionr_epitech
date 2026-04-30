@@ -7,12 +7,13 @@ erDiagram
     LICENCE_TCG ||--o{ SET : contains
     SET ||--o{ CARD : contains
     CARD ||--o{ VARIANT : has
-    CARD ||--o{ PRICEHISTORY : "has history"
-    DATASOURCE ||--o{ PRICEHISTORY : provides
+    CARD ||--o{ CARDPRICE : "has price"
+    DATASOURCE ||--o{ CARDPRICE : provides
+    CARDPRICE ||--o{ PRICEHISTORY : "has history"
     ROLE ||--o{ ROLE_PERMISSION : has
     PERMISSION ||--o{ ROLE_PERMISSION : "assigned to"
     ROLE ||--o{ USER : assigned_to
-    VARIANT ||--o{ PRICEHISTORY : "has history"
+    VARIANT ||--o{ CARDPRICE : "has price"
     USER ||--o{ SESSION : has
     USER ||--o{ COLLECTION : creates
     USER ||--o{ AUDITLOG : performs
@@ -27,6 +28,7 @@ erDiagram
     SCANHISTORY ||--o{ GRADINGRESULT : produces
     GRADINGRESULT ||--o{ COLLECTIONITEM : "graded by"
     CARD ||--o{ GRADINGRESULT : "graded"
+    CARD ||--o{ SCRAPELOG : "scrape logs"
 
     LICENCE_TCG {
         uuid id PK
@@ -105,7 +107,7 @@ erDiagram
         boolean isActive
     }
 
-    PRICEHISTORY {
+    CARDPRICE {
         uuid id PK
         uuid cardId FK
         uuid variantId FK "nullable"
@@ -113,6 +115,14 @@ erDiagram
         enum condition
         float price
         string currency
+        datetime recordedAt
+        datetime timestamp
+    }
+
+    PRICEHISTORY {
+        uuid id PK
+        uuid cardPriceId FK
+        datetime recordedAt
         datetime timestamp
     }
 
@@ -184,5 +194,15 @@ erDiagram
         uuid targetId
         json metadata
         datetime timestamp
+    }
+
+    SCRAPELOG {
+        string id PK
+        string cardId
+        string source
+        string status
+        string errorMsg
+        datetime startedAt
+        datetime finishedAt
     }
 ```
