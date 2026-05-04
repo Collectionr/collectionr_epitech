@@ -33,7 +33,7 @@ La journalisation repose sur les principes suivants :
 
 - **Traçabilité :** les événements importants doivent être enregistrés.
 - **Sécurité :** les logs ne doivent pas exposer d’informations sensibles.
-- **Accessibilité :** les logs doivent doivent être consultables pour analyser un incident.
+- **Accessibilité :** les logs doivent être consultables pour analyser un incident.
 - **Conservation limitée :** les logs sont conservés uniquement pendant la durée nécessaire.
 
 ---
@@ -87,11 +87,12 @@ Cela permet de suivre le parcours d’une action utilisateur à travers plusieur
 
 ### 3.2 Logs d’infrastructure
 
-Les logs d’infrastructure concernent les composants techniques :
+Les logs d’infrastructure concernent les composants techniques de la plateforme :
 
 - Docker
 - base de données PostgreSQL
 - Redis
+- volumes partagés utilisés pour les traitements OCR
 
 Ces logs permettent de détecter :
 
@@ -99,27 +100,37 @@ Ces logs permettent de détecter :
 - pannes de services
 - erreurs réseau
 - anomalies liées au stockage temporaire
-- indisponibilité ou dégradation de services techniques
+- dégradation des performances des services techniques
 
-#### Surveillance des composants techniques critiques
+#### Surveillance des composants critiques
 
-Certains composants d’infrastructure font l’objet d’une attention particulière en raison de leur impact direct sur la disponibilité et la sécurité du système.
+Certains composants font l’objet d’une attention particulière en raison de leur impact direct sur la disponibilité et la sécurité du système.
 
-Cela concerne notamment :
+##### Redis
 
-- **Redis**, utilisé pour des mécanismes techniques tels que le cache ou le rate limiting
-- **les volumes partagés**, utilisés pour le stockage temporaire des fichiers liés aux traitements OCR
+Redis est utilisé pour des mécanismes techniques tels que le cache ou le rate limiting.
 
-Les incidents affectant ces composants doivent être journalisés afin de faciliter leur détection et leur diagnostic.
+Les événements suivants doivent être journalisés :
 
-Exemples d’événements surveillés :
+- indisponibilité ou redémarrage du service Redis
+- erreurs de connexion entre l’API et Redis
+- anomalies de performance (temps de réponse anormal)
+- saturation mémoire ou dépassement de capacité
+- échec d’opérations critiques (ex : rate limiting)
 
-- redémarrage ou indisponibilité de Redis
-- erreur de connexion entre l’API et Redis
-- saturation mémoire ou réponse anormale de Redis
-- échec d’écriture ou de lecture sur un volume partagé
+##### Volumes partagés (OCR)
+
+Les volumes partagés sont utilisés pour le stockage temporaire des fichiers liés aux traitements OCR.
+
+Les événements suivants doivent être surveillés :
+
+- erreurs d’écriture ou de lecture des fichiers
 - échec de suppression des fichiers temporaires
-- manque d’espace disque sur le stockage temporaire
+- accumulation anormale de fichiers
+- problèmes de permissions ou d’accès
+- manque d’espace disque
+
+Ces journaux contribuent à la détection rapide des incidents et à la mise en place d’actions correctives afin de garantir la continuité de service.
 
 ---
 
@@ -161,7 +172,6 @@ Exemples :
 La journalisation de ces erreurs permet de détecter :
 
 - tentatives d’accès non autorisées
-- comportements anormaux
 - incidents techniques.
 
 ---
@@ -172,7 +182,7 @@ Dans la phase MVP du projet, les logs sont générés par les conteneurs Docker.
 
 Une attention particulière est portée aux composants techniques critiques, notamment Redis et les volumes partagés utilisés pour les traitements OCR.
 
-Les anomalies liées à leur disponibilité, à leur accès ou à leur capacité de stockage doivent pouvoir être identifiées rapidement via les logs d’infrastructure.
+Les anomalies liées à leur disponibilité, à leur accès ou à leur capacité de stockage doivent pouvoir être identifiées rapidement via les logs d’infrastructure, conformément à la stratégie définie dans la section 3.2.
 
 Les services produisent leurs logs via les flux standards :
 
@@ -239,6 +249,7 @@ Durée indicative :
 
 - logs applicatifs : 30 jours
 - logs d’audit : 90 jours
+- logs d’infrastructure : 30 jours (ou selon contraintes techniques)
 
 Ces durées pourront évoluer selon les besoins du projet.
 
