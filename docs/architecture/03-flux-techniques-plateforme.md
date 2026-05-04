@@ -121,9 +121,12 @@ sequenceDiagram
 ## 5. Flux de scan OCR (fonction critique)
 
 ### Description
-// TODO: à vérifier si on précise en asynchrone
-
 Ce flux permet à un utilisateur de scanner une carte afin de l’identifier et de l’ajouter à sa collection.
+
+Le traitement OCR est réalisé de manière asynchrone via des **workers** (services dédiés exécutant des tâches en arrière-plan et consommant des files de tâches).
+
+Cela permet de ne pas bloquer l’API et d’optimiser la gestion des traitements lourds.
+
 Il constitue un point critique en raison de son impact sur les ressources (CPU, stockage) et de son exposition aux abus via l’endpoint `/scan`.
 
 ### Schéma
