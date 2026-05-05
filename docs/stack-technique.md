@@ -18,7 +18,7 @@
 - [8. Cache Layer & Task Queues](#8-cache-layer--task-queues)
   - [Redis OCR](#redis-ocr-reconnaissance-de-cartes)
   - [Redis Scraping](#redis-scraping-agrégation-des-prix)
-- [9. Python Microservices & ML Pipeline](#15-python-microservices--ml-pipeline)
+- [9. Python Microservices & ML Pipeline](#9-python-microservices--ml-pipeline)
 - [10. Frontend Stack](#16-frontend-stack-en-attente-de-construction)
 
 ---
@@ -328,30 +328,38 @@ schedule:scraping:daily
 
 Le *backend NestJS** n'exécute **pas directement** les tâches de traitement intensif. Il utilise des **microservices Python indépendants** qui consomment les queues Redis et stockent les résultats dans PostgreSQL.
 
-Les **microservices** s'occuperont de **l'api collectionr**, le **scraping des marketplace** ainsi que **l'OCR** 
+Les **microservices** s'occuperront de **l'api collectionr**, le **scraping des marketplace** ainsi que **l'OCR** 
 
-⚠️ **Cette section sera développée lors de la phase de documentation du microservice.**
+### TODO: Documentation des Microservices
 
-**Responsable** : Alexis pour la partie API et Scraping & Youness pour la partie OCR
+**Responsables** :
+- Alexis pour la partie API et Scraping
+- Youness pour la partie OCR
+
+**À documenter** :
+- [ ] Architecture générale des microservices
+- [ ] FastAPI configuration et endpoints
+- [ ] Scraping workers (marketplaces, pricing)
+- [ ] OCR pipeline et ML models
+- [ ] Communication Redis avec le backend NestJS
+- [ ] Stockage des résultats dans PostgreSQL
+- [ ] Error handling et retry logic
+- [ ] Monitoring et logging
 
 # 10. Frontend Stack (En Attente de Construction)
 
+>  **Note** : La stack frontend est définie dans la [section 1](#1-stack). Cette section détaille les aspects à documenter pour l'implémentation.
 
-⚠️ **Cette section sera développée lors de la phase de documentation du frontend.**
+### TODO: Documentation du Frontend
 
-La stack Frontend comprendra :
+**Responsable** : François
 
-* **Web** : React + React Router + TypeScript
-* **Mobile** : React Native + Expo Go + TypeScript
-* **HTTP Client** : Axios
-* **Build Tools** : ...
-
-### À documenter
-
+**À documenter** :
+- [ ] Architecture globale frontend (web + mobile)
 - [ ] Structure des composants React
 - [ ] Organisation des dossiers frontend
-- [ ] Configuration Expo Go
-- [ ] Services frontend (API client, etc.)
+- [ ] Configuration Expo Go et EAS Build
+- [ ] Services frontend (API client, HTTP interceptors)
 - [ ] State management patterns
 - [ ] Authentification côté client
 - [ ] Intégration du scanner mobile (Expo Camera)
