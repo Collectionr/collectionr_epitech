@@ -6,7 +6,7 @@
 2. [Principes généraux](#2-principes-généraux)  
 3. [Types de logs](#3-types-de-logs)  
 4. [Journalisation des erreurs](#4-journalisation-des-erreurs)  
-5. [Architecture de journalisation](#5-architecture-de-journalisation-mvp)  
+5. [Architecture de journalisation](#5-architecture-de-journalisation)
 6. [Sécurité des logs](#6-sécurité-des-logs)  
 7. [Accès aux logs](#7-accès-aux-logs)  
 8. [Conservation des logs](#8-conservation-des-logs)  
@@ -14,7 +14,7 @@
 
 ## 1. Objectif
 
-Ce document définit la stratégie de journalisation et d’audit du projet ESP.
+Ce document définit la stratégie de journalisation et d’audit du projet.
 
 L’objectif est de :
 
@@ -31,10 +31,14 @@ La stratégie couvre les logs applicatifs, les logs d’infrastructure et les lo
 
 La journalisation repose sur les principes suivants :
 
-- **Traçabilité :** les événements importants doivent être enregistrés.
-- **Sécurité :** les logs ne doivent pas exposer d’informations sensibles.
-- **Accessibilité :** les logs doivent être consultables pour analyser un incident.
-- **Conservation limitée :** les logs sont conservés uniquement pendant la durée nécessaire.
+- **Traçabilité :** les événements importants doivent 
+  être enregistrés
+- **Sécurité :** les logs ne doivent pas exposer 
+  d'informations sensibles
+- **Accessibilité :** les logs doivent être consultables 
+  pour analyser un incident
+- **Conservation limitée :** les logs sont conservés 
+  uniquement pendant la durée nécessaire
 
 ---
 
@@ -89,7 +93,7 @@ Cela permet de suivre le parcours d’une action utilisateur à travers plusieur
 
 Les logs d’infrastructure concernent les composants techniques de la plateforme :
 
-- Docker
+- K3s (cluster Kubernetes)
 - base de données PostgreSQL
 - Redis
 - volumes partagés utilisés pour les traitements OCR
@@ -104,9 +108,17 @@ Ces logs permettent de détecter :
 
 #### Surveillance des composants critiques
 
-Certains composants font l’objet d’une attention particulière en raison de leur impact direct sur la disponibilité et la sécurité du système.
+Certains composants font l'objet d'une attention particulière 
+en raison de leur impact direct sur la disponibilité et la 
+sécurité du système.
 
-##### Redis
+Dans le cluster K3s, les logs d'infrastructure incluent 
+également les événements Kubernetes suivants :
+- les événements Kubernetes (kubectl get events) ;
+- les logs des Pods système (CoreDNS, Traefik) ;
+- les alertes de ressources (CPU, mémoire) par namespace.
+
+**Redis**
 
 Redis est utilisé pour des mécanismes techniques tels que le cache ou le rate limiting.
 
@@ -118,7 +130,7 @@ Les événements suivants doivent être journalisés :
 - saturation mémoire ou dépassement de capacité
 - échec d’opérations critiques (ex : rate limiting)
 
-##### Volumes partagés (OCR)
+**Volumes partagés (OCR)**
 
 Les volumes partagés sont utilisés pour le stockage temporaire des fichiers liés aux traitements OCR.
 
@@ -170,45 +182,56 @@ Exemples :
 - 500 Internal Server Error
 
 La journalisation de ces erreurs permet de détecter :
-
-- tentatives d’accès non autorisées
+- tentatives d'accès non autorisées ;
 - incidents techniques.
 
 ---
 
-## 5. Architecture de journalisation (MVP)
+## 5. Architecture de journalisation
 
-Dans la phase MVP du projet, les logs sont générés par les conteneurs Docker.
+L'architecture de journalisation évolue en trois paliers, 
+cohérents avec la progression de l'infrastructure K3s.
 
-Une attention particulière est portée aux composants techniques critiques, notamment Redis et les volumes partagés utilisés pour les traitements OCR.
-
-Les anomalies liées à leur disponibilité, à leur accès ou à leur capacité de stockage doivent pouvoir être identifiées rapidement via les logs d’infrastructure, conformément à la stratégie définie dans la section 3.2.
+### 5.1 Court terme — K3s local
 
 Les services produisent leurs logs via les flux standards :
+- **stdout (standard output)** : messages de fonctionnement 
+  normal (informations, résultats) ;
+- **stderr (standard error)** : erreurs et anomalies rencontrées.
 
-- stdout
-- stderr
+Les logs sont consultables via la commande kubectl logs 
+directement sur le cluster K3s local. Cette approche est 
+suffisante pour la phase de développement et de démonstration.
 
-Les flux standards correspondent aux sorties classiques d’un programme :
-
-- **stdout (standard output)** : utilisé pour les messages de fonctionnement normal (informations, résultats)
-- **stderr (standard error)** : utilisé pour les erreurs et anomalies rencontrées
-
-Cette séparation permet de distinguer facilement les informations des erreurs, ce qui facilite l’analyse des incidents.
-
-Les journaux peuvent être consultés via les outils Docker.
-
-Cette approche est adaptée à une infrastructure simple basée sur Docker Compose.
+Une attention particulière est portée aux composants critiques :
+Redis OCR, Redis TCG et les volumes partagés OCR. Les anomalies 
+liées à leur disponibilité ou leur capacité doivent pouvoir 
+être identifiées rapidement.
 
 #### Format des logs
 
-Les logs applicatifs sont générés dans un format structuré (JSON) afin de faciliter leur analyse et leur intégration avec des outils de centralisation.
+Les logs applicatifs sont générés en format structuré (JSON) 
+afin de faciliter leur analyse :
+- recherche plus efficace ;
+- filtrage avancé par niveau ou par service ;
+- compatibilité native avec Loki et Grafana.
 
-Ce format permet notamment :
+### 5.2 Moyen terme — K3s VPS
 
-- une recherche plus efficace
-- un filtrage avancé
-- une meilleure compatibilité avec des outils comme Grafana Loki ou ELK
+Mise en place d'une stack de centralisation des logs :
+- **Loki** : agrégation et indexation des logs ;
+- **Grafana** : visualisation et recherche avancée ;
+- **Promtail** : collecte des logs depuis les Pods K3s.
+
+Cette stack est déployable nativement sur K3s via Helm.
+
+### 5.3 Long terme — Production
+
+- alertes automatiques via AlertManager sur les événements 
+  critiques ;
+- rétention des logs configurée selon les durées définies 
+  en section 8 ;
+- audit des accès aux logs tracé et journalisé.
 
 ---
 
@@ -225,6 +248,10 @@ Les logs doivent éviter toute exposition de données sensibles.
 
 Les accès aux logs peuvent être tracés afin de détecter toute consultation ou manipulation non autorisée.
 
+Ces règles s'appliquent à tous les environnements 
+du projet et sont vérifiées lors des revues de code 
+via les Pull Requests.
+
 ---
 
 ## 7. Accès aux logs
@@ -236,6 +263,11 @@ Les rôles sont répartis de la manière suivante :
 - équipe Cloud / DevOps : logs d’infrastructure
 - équipe Backend : logs applicatifs
 - équipe sécurité : logs d’audit
+
+Dans l'environnement K3s, l'accès aux logs est contrôlé 
+via le RBAC Kubernetes. Chaque rôle dispose uniquement 
+des permissions kubectl nécessaires à la consultation 
+des logs de son périmètre.
 
 Cette restriction permet d’éviter toute manipulation ou consultation non autorisée.
 
@@ -257,16 +289,15 @@ Ces durées pourront évoluer selon les besoins du projet.
 
 ## 9. Évolution future
 
-Dans le cadre d’une évolution vers une infrastructure Kubernetes (K3s), une solution de centralisation des logs pourra être mise en place.
+Au-delà de l'architecture de journalisation définie en 
+section 5, les évolutions suivantes sont envisagées :
 
-Exemples d’outils possibles :
-
-- Grafana Loki
-- ELK Stack
-
-Ces outils permettront :
-
-- une centralisation des logs
-- une recherche avancée
-- la détection d’incidents
-- une meilleure observabilité du système
+- mise en place d'un système de corrélation des logs 
+  entre les différents services pour faciliter 
+  le diagnostic des incidents complexes ;
+- intégration des logs de sécurité dans un SIEM 
+  (Security Information and Event Management) 
+  si le projet atteint un niveau de maturité suffisant ;
+- révision des durées de conservation définies en 
+  section 8 en fonction des retours d'usage et 
+  des évolutions réglementaires RGPD.
