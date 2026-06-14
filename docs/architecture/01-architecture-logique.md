@@ -1,94 +1,72 @@
-# Architecture Logique - Collectionr (version simplifiée)
+# Architecture Logique - Collectionr (Vision Professionnelle)
 
 ---
 
 ## 1. Vision globale
 
-Le projet **Collectionr** est une application qui permet de gérer des cartes à collectionner (Pokémon, Magic, etc.).
+Le projet **Collectionr** repose sur une architecture moderne, découplée et orientée événements, conçue pour passer d'un prototype à une plateforme industrielle.
 
-L’architecture est conçue pour être :
+L’architecture est articulée autour de trois principes :
 
-- **Asynchrone** : les tâches lourdes (comme l’IA) ne bloquent pas l’utilisateur  
-- **Distribuée** : plusieurs services travaillent ensemble  
-- **Modulaire** : chaque partie peut évoluer indépendamment  
-
-👉 Objectif :  
-Permettre des traitements complexes (IA, scraping) tout en gardant une application fluide.
+- **Asynchronisme complet** : Les traitements lourds (IA, Scraping) sont déportés dans des workers pour ne jamais bloquer l'expérience utilisateur.
+- **Microservices spécialisés** : Chaque composant possède son propre cycle de vie et sa stack technologique adaptée (NestJS pour le métier, Python pour l'IA).
+- **Évolutivité (Scale-out)** : Grâce à K3s, chaque brique peut être dupliquée indépendamment selon la charge.
 
 ---
 
-## 2. Organisation du code (structure propre)
+## 2. Organisation du code (Clean Architecture)
 
-Pour garder un code clair et facile à maintenir, le projet est organisé en plusieurs couches :
+Pour garantir la portabilité et la maintenabilité, le projet suit les principes de la **Clean Architecture** au sein de ses services (notamment le Backend NestJS) :
 
-- **Domaine (Core)** : contient les règles métier (cartes, collections)  
-- **Application** : gère les actions principales (ajouter une carte, mettre à jour un prix)  
-- **Infrastructure** : gère les outils techniques (base de données, API externes)  
-- **Présentation** : gère ce que voit l’utilisateur (API, interface mobile/web)  
-
-👉 Pourquoi :  
-Cela permet de modifier une partie du projet sans casser le reste.
+- **Domaine (Core)** : Logique métier pure, indépendante de toute technologie.
+- **Application** : Cas d'utilisation (ex: "Déclencher un scan", "Valoriser une collection").
+- **Infrastructure** : Adaptateurs techniques (Base de données PostgreSQL, APIs externes eBay/Cardmarket, stockage S3).
+- **Interface (API)** : Exposition des services via REST et notifications asynchrones.
 
 ---
 
 ## 3. Les principaux composants
 
-Chaque partie du système a un rôle précis :
+Le système est divisé en blocs fonctionnels autonomes :
 
-- **Backend (Node.js)** : point d’entrée principal, gère les utilisateurs et les actions  
-- **Worker IA (OCR)** : analyse les images pour extraire les informations  
-- **Service TCG** : récupère les données des cartes et les prix  
-- **Redis** : gère les tâches en attente (file d’attente)
-
-👉 Pourquoi :  
-Chaque service est spécialisé, ce qui rend le système plus robuste.
-
----
-
-## 4. Comment les services communiquent
-
-Le fonctionnement se fait en plusieurs étapes :
-
-1. L’utilisateur envoie une image  
-2. Le backend enregistre l’image et crée une tâche  
-3. Le service IA traite l’image  
-4. Le résultat est renvoyé à l’utilisateur en temps réel  
-
-👉 Important :  
-L’utilisateur n’attend pas bloqué → tout se fait en arrière-plan.
+- **Backend (NestJS)** : Orchestrateur central, gère la sécurité, les utilisateurs et la persistance des métadonnées via **PostgreSQL**.
+- **Worker OCR (Python/YOLO)** : Service spécialisé dans la vision par ordinateur, accédant aux images via un stockage partagé (puis S3 en production).
+- **Service TCG (Scraping & APIs)** : Microservice dédié à la veille tarifaire, récupérant les prix en continu sur les places de marché.
+- **Redis (Broker & Cache)** : 
+    - **Broker** : Gère les files d'attente de tâches (`Redis OCR` et `Redis TCG`).
+    - **Cache** : Stocke temporairement les prix des cartes pour limiter les appels externes et améliorer les performances.
 
 ---
 
-## 5. Infrastructure, suivi et sécurité
+## 4. Flux de données et Communication
 
-Même avec un budget limité, on met en place des bonnes pratiques :
+Le système utilise une architecture **Event-Driven** (pilotée par les événements) :
 
-### 📊 Suivi (observabilité)
-- On surveille le système avec des outils comme Grafana  
-- On vérifie que tout fonctionne correctement  
-
-### 💾 Stockage
-- Les données sont stockées en base de données  
-- Les fichiers (images) sont stockés séparément  
-
-### 🔐 Sécurité
-- Connexions sécurisées (HTTPS)  
-- Gestion des accès et des clés API  
-- Respect des bonnes pratiques de sécurité  
-
-### ✅ Qualité
-- Tests automatiques pour éviter les bugs  
-- Déploiement automatisé pour éviter les erreurs humaines  
+1. **Upload** : L'utilisateur envoie une image au Backend.
+2. **Ingestion** : L'image est stockée et un `job_id` est poussé dans la file Redis.
+3. **Traitement** : Le Worker OCR dépile la tâche, analyse l'image et met à jour le statut en base de données.
+4. **Notification (SSE)** : Le Backend informe le client de la fin du traitement via un flux **Server-Sent Events (SSE)**, permettant une mise à jour instantanée de l'interface.
 
 ---
 
-## ✅ Conclusion
+## 5. Infrastructure, Observabilité et Sécurité
 
-Cette architecture permet de :
+Le passage à une phase professionnelle impose des standards élevés :
 
-- gérer des traitements complexes sans ralentir l’application  
-- garder un code propre et évolutif  
-- assurer une bonne fiabilité même avec peu de moyens  
+### Stratégie de Stockage
+- **Prototype** : Utilisation de **Shared Volumes** Kubernetes pour le partage d'images entre pods.
+- **Production** : Migration vers du **Stockage Objet (S3)** compatible (Scaleway/MinIO) pour une durabilité et une scalabilité illimitée.
 
-👉 En résumé :  
-Une architecture simple à comprendre, mais solide dans son fonctionnement.
+### Observabilité (Stack PLG)
+Suivi proactif de la santé du système via la stack **Prometheus (métriques), Loki (logs) et Grafana (visualisation)**.
+
+### Sécurité & Résilience
+- **Gestion des secrets** : Utilisation des **Kubernetes Secrets** (ou Doppler) pour protéger les clés API.
+- **Circuit Breaker** : Protection du système contre les défaillances des APIs tierces (TCGPlayer, Cardmarket).
+- **Isolation** : Chaque microservice est isolé dans son propre Namespace Kubernetes.
+
+---
+
+## Conclusion
+
+Cette architecture logique assure la transition fluide du prototype vers une solution commerciale. Elle garantit que **Collectionr** reste une plateforme réactive, capable de gérer des milliers de scans simultanés tout en protégeant l'intégrité et la disponibilité des données.
