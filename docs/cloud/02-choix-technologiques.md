@@ -1,147 +1,80 @@
 # 🌐 Choix des solutions Cloud — Collectionr
 
-Ce document explique comment nous avons choisi notre infrastructure Cloud pour le projet.
-
-Notre objectif est simple :  
-👉 faire fonctionner une application complète avec un budget de 0€, tout en gardant de bonnes performances et sans dépendre d’un seul fournisseur.
+Ce document présente l'évolution de notre stratégie d'infrastructure, passant d'un modèle multi-cloud gratuit à une architecture souveraine basée sur K3s pour la phase de prototypage.
 
 ---
 
-## 📖 Lexique simplifié
+## 1. 🏗️ Phase de Prototypage : L'ère K3s
 
-Quelques termes importants à comprendre :
+### 📊 Comparaison des environnements de prototypage
 
-- **IaaS** : location de serveurs sur lesquels on installe tout soi-même  
-- **Vendor Lock-in** : dépendance à un fournisseur (difficile à quitter)  
-- **K3s** : version légère de Kubernetes (outil pour gérer des applications)  
-- **Egress Fees** : coûts pour envoyer des données vers Internet  
+| Solution | Coût | Complexité | Parité Prod | Maintenance | Usage recommandé |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Docker Compose** | 0 € | Très Faible | Faible | Manuelle | Debug rapide de services isolés |
+| **K3s Local** | 0 € | Moyenne | Élevée | Équipe | Développement et tests d'intégration |
+| **K3s + VPS** | 5-15 € / mois | Moyenne | Élevée | Équipe | Prototype partagé et tests utilisateurs |
+| **K8s Managé** | 40 €+ / mois | Faible | Maximale | Hébergeur | Phase de Production (Cible finale) |
 
----
+### 💻 Étape 1 : K3s Local 
+Le développement commence par l'installation de K3s sur les postes locaux ou un serveur de test interne.
 
-## 1. 🎯 Nos critères de choix
+*   **Besoin :** Disposer d'un environnement identique à la production sans aucun coût.
+*   **Solution :** Utiliser K3s (version légère de Kubernetes) pour orchestrer les microservices localement.
+*   **Pourquoi ce choix :** K3s consomme très peu de ressources (moins de 512 Mo de RAM pour le plan de contrôle), ce qui le rend idéal pour des machines de développement.
 
-Pour choisir les bonnes solutions, on s’est basé sur 3 éléments principaux :
+### 🌐 Étape 2 : K3s + VPS 
+Une fois le prototype local stabilisé, nous migrons vers un **VPS (Virtual Private Server)**.
 
-### 💰 Le budget (0€)
-On privilégie uniquement les offres gratuites ou avec crédits offerts.
-
-👉 Pourquoi :  
-On ne peut pas se permettre de payer des services.
-
----
-
-### ⏱️ Le temps et la complexité
-On choisit des outils puissants mais simples à mettre en place.
-
-👉 Pourquoi :  
-Un outil trop complexe ferait perdre du temps au projet.
+*   **Besoin :** Rendre l'application accessible via Internet pour les tests utilisateurs et l'équipe.
+*   **Solution :** Installation de K3s sur un VPS d'entrée de gamme.
+*   **Pourquoi ce choix :** Un VPS offre une IP publique fixe et une disponibilité 24/7 pour un coût très faible (env. 5-10€/mois), tout en conservant la main totale sur l'OS et l'orchestrateur.
 
 ---
 
-### 🔓 L’indépendance (anti dépendance)
-Le projet doit pouvoir fonctionner sur n’importe quel fournisseur.
+## 2. 🛠️ Rôle de Docker et Kubernetes 
 
-👉 Pourquoi :  
-Si un service devient payant ou indisponible, on doit pouvoir migrer rapidement.
+Durant cette phase, ces deux technologies jouent des rôles complémentaires mais distincts :
 
----
-
-## 2. ⚖️ Comparaison des solutions
-
-| Fournisseur | Gratuité | Dépendance | IA & Data | Complexité | Maintenance |
-|------------|--------|-----------|----------|-----------|------------|
-| Azure | 💰 Crédit offert | Moyenne | Très forte | Moyenne | Moyenne |
-| Google Cloud | 💰 Crédit offert | Forte | Très forte | Simple | Faible |
-| AWS | 💰 Gratuit limité | Moyenne | Forte | Complexe | Élevée |
-| Oracle Cloud | 🆓 Gratuit permanent | Faible | Moyenne | Technique | Très faible |
-
-👉 En résumé :  
-Chaque solution a des avantages, mais aucune n’est parfaite seule.
+*   **Docker :** Utilisé pour la **conteneurisation**. Il permet d'empaqueter chaque microservice (Node.js, Python, Scrapers) avec ses dépendances dans une image immuable. Cela garantit que "ça marche sur ma machine" signifie "ça marchera sur le serveur".
+*   **Kubernetes (K3s) :** Utilisé pour l'**orchestration**. Son rôle est de gérer le cycle de vie des conteneurs : démarrage, redémarrage automatique en cas de crash, gestion du réseau interne (DNS, Services) et exposition des APIs via un Ingress Controller.
 
 ---
 
-## 3. 🧩 Notre choix : une architecture hybride
+## 3. 🚀 Stratégie de Portabilité 
 
-Au lieu de choisir un seul fournisseur, on combine plusieurs solutions.
+Pour éviter de rester bloqué chez un hébergeur, nous appliquons une stratégie de portabilité stricte :
 
-👉 Pourquoi :  
-On garde les avantages de chacun sans subir leurs inconvénients.
-
----
-
-### 🏗️ Le cœur du système : Oracle Cloud
-
-Oracle est utilisé pour héberger l’application principale.
-
-- Serveurs gratuits disponibles en permanence
-- Suffisant pour faire tourner toute l’application
-- Pas de dépendance à des services propriétaires
-
-👉 Résultat :  
-L’application reste stable et fonctionne sans coût.
+1.  **Manifestes Standards :** Utilisation de fichiers YAML Kubernetes standards. Aucune ressource spécifique à un fournisseur (comme un LoadBalancer propriétaire) n'est utilisée.
+2.  **Images Multi-Arch :** Construction d'images Docker compatibles x86 et ARM pour pouvoir basculer entre différents types de serveurs sans recompilation.
+3.  **Abstraction du Stockage :** Utilisation de classes de stockage standards pour rester compatible avec n'importe quel fournisseur de volumes persistants.
 
 ---
 
-### 🤖 L’intelligence artificielle : Google Cloud
+## 4. ⚖️ Risques et Dépendances (Vendor Lock-in)
 
-Google est utilisé uniquement pour les services d’IA.
+L'utilisation de K3s auto-hébergé réduit drastiquement le risque de **Vendor Lock-in**.
 
-- Utilisation d’API (Gemini, Vertex AI)
-- Très performantes pour le traitement des données
-
-👉 Risque :  
-Consommer trop de crédits rapidement
-
-👉 Solution :  
-Si les crédits sont épuisés :
-- l’IA s’arrête
-- mais l’application continue de fonctionner normalement
+*   **Risque Faible :** Le code et l'infrastructure sont portables. Si un hébergeur augmente ses prix ou ferme ses services, la migration vers un autre VPS se résume à une réinstallation de K3s (automatisable) et au déploiement des manifestes.
+*   **Indépendance :** Nous ne dépendons pas des services propriétaires (DB managée, Auth managée) des "Big Cloud" (AWS/GCP/Azure).
 
 ---
 
-## 4. ⚙️ Organisation technique
+## 5. 🔮 Phase de Production : Vers le Cloud Managé
 
-### 🔄 Compatibilité des serveurs
+Pour le passage en production réelle (scalabilité, haute disponibilité, support 24/7), nous prévoyons de basculer vers un **Kubernetes Managé**.
 
-Les serveurs Oracle utilisent une architecture différente (ARM).
+### Fournisseurs identifiés
+Nous privilégierons des acteurs offrant un bon rapport performance/prix et une souveraineté des données :
 
-👉 Problème :  
-Les applications ne fonctionnent pas directement dessus
+1.  **Scaleway (Kapsule) :** Excellent support Kubernetes en France, interface simple et prix compétitifs.
+2.  **OVHcloud (Managed Kubernetes) :** Solution souveraine, infrastructure robuste, idéal pour la conformité européenne.
+3.  **DigitalOcean (LKS) :** Très simple à mettre en œuvre, idéal pour un déploiement international rapide.
 
-👉 Solution :  
-On construit des images Docker compatibles avec tous les systèmes
-
----
-
-### 🔐 Sécurité et gestion des coûts
-
-- Les communications entre services sont sécurisées
-- Les accès sont limités et contrôlés
-- Des alertes sont mises en place pour surveiller les dépenses
-
-👉 Exemple :
-- Alerte à 50$, 150$, 250$ sur Google Cloud
-
----
-
-### 🌍 Gestion des données
-
-- On limite les données envoyées entre services
-- On envoie uniquement ce qui est nécessaire
-
-👉 Pourquoi :  
-- réduire les coûts
-- améliorer la vitesse
+### Pourquoi ce choix pour la production ?
+Le passage au managé permet de déléguer la maintenance du "Control Plane" au fournisseur, permettant à l'équipe de se concentrer uniquement sur les fonctionnalités métier tout en garantissant un SLA (niveau de service) élevé.
 
 ---
 
 ## ✅ Conclusion
 
-Cette stratégie permet de :
-
-- utiliser uniquement des ressources gratuites
-- éviter toute dépendance à un fournisseur
-- garder une application stable et évolutive
-
-👉 En résumé :  
-On construit une architecture simple, économique et intelligente, adaptée à un projet étudiant mais proche des pratiques professionnelles.
+Cette stratégie garantit une **maîtrise totale des coûts** pour le prototype tout en préparant techniquement le projet à une **montée en charge industrielle**. L'utilisation de K3s dès le départ évite toute refonte majeure lors du passage au Cloud managé.
