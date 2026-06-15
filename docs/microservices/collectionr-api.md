@@ -46,7 +46,7 @@ les api externes servent uniquement à ajouter les prix.
   "rarity": "Rare Holo",
   "types": ["Fire"],
   "hp": 170,
-  "image": "https://cdn.collectionr/cards/swsh3-136.png"
+  "image": "https://cdn.collectionr.com/cards/swsh3-136.png"
 }
 ```
 

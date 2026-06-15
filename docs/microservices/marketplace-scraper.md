@@ -190,7 +190,7 @@ Exemples :
 |--------------|----------------------------------------|
 | `0 * * * *`  | Toutes les heures                      |
 | `0 6 * * *`  | Tous les jours à 6h00                  |
-| `*/30 * * *` | Toutes les 30 minutes                  |
+| `*/30 * * * *` | Toutes les 30 minutes                |
 | `0 0 * * 1`  | Tous les lundis à minuit               |
 
 ## Stratégie de planification du scraper
