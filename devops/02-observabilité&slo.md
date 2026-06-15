@@ -1,76 +1,51 @@
-# 🛰️ Suivi des performances et fiabilité — Collectionr
+# Suivi des performances et fiabilité — Collectionr
 
-Ce document explique comment on s’assure que l’application fonctionne correctement, reste rapide et évite les pannes.
-
-Même si la technique derrière est complexe, l’objectif reste simple : offrir une expérience fluide et fiable aux utilisateurs.
+Ce document définit nos objectifs de service (SLO) et notre stratégie de surveillance pour garantir une plateforme robuste à coût zéro.
 
 ---
 
-## 1. 🎯 Objectifs de qualité
+## 1. Objectifs de qualité (SLO)
 
-On définit des objectifs précis pour vérifier que tout fonctionne bien.
+Nous mesurons la santé du système via des indicateurs précis, alignés sur les besoins du PoC.
 
-📸 Traitement d’une image (OCR)  
-→ 98% des images doivent être traitées en 2 à 5 secondes
+**Pipeline de Vision (OCR)**
+- **Objectif :** 98% des lots de 9 images traités en moins de 15 secondes.
+- **Justification :** Correspond à la capacité de traitement attendue pour une expérience fluide.
 
-🌐 API (communication avec l’application)  
-→ 99% des requêtes doivent réussir  
-→ Moins de 1% d’erreurs
+**Performance de l'API**
+- **Disponibilité :** 99% de succès sur les requêtes HTTP.
+- **Latence (P95) :** 95% des requêtes doivent recevoir une réponse en moins de 200 ms.
+- **Justification :** Assure une navigation instantanée pour l'utilisateur final.
 
-🔄 Temps réel (connexion SSE)  
-→ La connexion doit rester stable dans 97% des cas  
-→ Pas de coupures inattendues
-
-⏱️ Disponibilité générale  
-→ L’application doit fonctionner 99% du temps  
-→ Cela correspond à environ 7 heures de panne maximum par mois
-
-👉 En résumé :  
-On accepte un peu de maintenance, mais sans impact visible pour les utilisateurs.
+**Disponibilité Globale**
+- **Objectif :** 99% (Uptime).
+- **Maintenance :** Les interruptions pour mise à jour ne doivent pas excéder 7h/mois.
 
 ---
 
-## 2. 🧾 Gestion des logs
+## 2. Gestion des logs (Traçabilité)
 
-Les “logs” sont des messages générés par l’application pour expliquer ce qu’elle fait.
+Dans notre architecture K3s, les logs sont éphémères. Nous devons assurer leur visibilité.
 
-- Tous les services enregistrent leurs actions de manière claire
-- Les logs sont faciles à consulter via Docker
-- Leur taille est limitée pour éviter de saturer le serveur
-- Chaque traitement possède un identifiant unique (`job_id`)
-
-👉 En résumé :  
-Si un problème arrive, on peut rapidement comprendre ce qu’il s’est passé.
+- **Standardisation :** Logs au format JSON pour faciliter une future centralisation.
+- **Consultation :** Utilisation de `kubectl logs` ou d'une interface légère (type Stern) pour le débogage.
+- **Identifiant :** Chaque flux (de l'upload à l'OCR) doit porter le `job_id` pour réconcilier les logs entre le Backend et les Workers.
 
 ---
 
-## 3. 📊 Surveillance du système et expérience utilisateur
+## 3. Surveillance (Monitoring)
 
-On surveille en permanence l’état du système, mais aussi ce que voit l’utilisateur.
+### Métriques Techniques (Prometheus/Grafana)
+- État de santé des Pods (Redémarrages fréquents = problème de mémoire).
+- Profondeur des files d'attente Redis (Si la file augmente, le temps de traitement OCR explose).
 
-### Côté technique
-- Un tableau de bord affiche l’état général du système
-- On surveille la file de tâches (Redis)
-- Si trop de tâches s’accumulent, une alerte est envoyée
-
-### Côté utilisateur
-- L’utilisateur voit les étapes du traitement en direct :
-  - “Scan en cours…”
-  - “Extraction des données…”
-  - “Finalisation…”
-- Des animations de chargement rendent l’attente plus fluide
-
-👉 En résumé :  
-L’utilisateur comprend ce qui se passe au lieu d’attendre sans information.
+### Expérience Utilisateur
+- Suivi du statut en temps réel via SSE (Server-Sent Events).
+- Feedback visuel immédiat lors du "Batch Processing" de plusieurs cartes.
 
 ---
 
-## 4. 🚨 Alertes et maintenance automatique
+## 4. Alerting & Auto-réparation
 
-On met en place des mécanismes pour réagir rapidement en cas de problème.
-
-- Une alerte est envoyée sur Discord si un service ne fonctionne plus
-- Les services redémarrent automatiquement en cas de crash
-
-👉 En résumé :  
-Le système se répare tout seul autant que possible, et l’équipe est immédiatement informée en cas de problème.
+- **Notifications :** Alertes critiques envoyées via Webhooks Discord (solution gratuite).
+- **Self-Healing :** Utilisation des Liveness et Readiness Probes de Kubernetes pour redémarrer automatiquement les services qui ne répondent plus.
