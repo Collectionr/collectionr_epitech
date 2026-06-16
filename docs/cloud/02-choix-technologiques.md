@@ -20,14 +20,14 @@ Pour lancer le projet rapidement et à moindre coût, nous avons opté pour une 
 
 ### Comparaison des environnements de prototypage
 
-Le tableau ci-dessous synthétise les options disponibles pour cette phase de test et de validation :
+Le tableau ci-dessous synthétise les options disponibles pour cette phase de test et de validation, en parfaite cohérence avec les critères de notre benchmark d'architecture :
 
-| Solution | Coût | Complexité | Parité Prod | Maintenance | Usage recommandé |
+| Solution | Coût | Complexité (Effort DevOps) | Parité Prod | Maintenance | Usage recommandé |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Docker Compose** | 0 € | Très Faible | Faible | Manuelle | Debug rapide de services isolés |
 | **K3s Local** | 0 € | Moyenne | Élevée | Équipe | Développement et tests d'intégration |
-| **K3s + VPS** | 20-40 € / mois | Moyenne | Élevée | Équipe | Prototype partagé et tests utilisateurs |
-| **K8s Managé** | 40 €+ / mois | Faible | Maximale | Hébergeur | Phase de Production (Cible finale) |
+| **K3s + VPS** | 20-40 € / mois | Moyen / Élevé | Élevée | Équipe | Phase Bêta (~ 1 000 utilisateurs) |
+| **K8s Managé** | 40 €+ / mois | Élevée | Maximale | Hébergeur (Control Plane) | Production (> 10 000 utilisateurs) |
 
 ### Étape 1 : K3s Local 
 Le développement commence par l'installation de K3s sur les postes locaux ou un serveur de test interne pour garantir une base technique solide dès les premières lignes de code.
@@ -97,6 +97,9 @@ Nous privilégierons des acteurs offrant un bon rapport performance/prix et une 
 
 ### Pourquoi ce choix pour la production ?
 Le passage au managé permet de déléguer la maintenance du "Control Plane" au fournisseur. Cela permet à l'équipe de se concentrer uniquement sur les fonctionnalités métier tout en garantissant un niveau de service (SLA) élevé.
+
+**Impact financier et rentabilité :**
+Cette évolution représente un investissement estimé entre 500 et 2 000 €/mois selon le niveau de trafic et la redondance souhaitée. Elle ne sera envisagée que lorsque la plateforme atteindra un seuil de rentabilité suffisant, estimé à plusieurs milliers d'utilisateurs actifs mensuels.
 
 ---
 
