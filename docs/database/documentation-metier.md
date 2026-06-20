@@ -85,11 +85,13 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 
 **`DATASOURCE`** — Source de données externe pour les prix (ex: Cardmarket, eBay, TCGPlayer). Le flag `isActive` permet de désactiver une source sans la supprimer.
 
-**`PRICEHISTORY`** — Historique des prix par source et par condition. Fonctionne sur deux niveaux :
+**`CARDPRICE`** — Prix d'une carte pour une source (`sourceId`) et une condition données. Fonctionne sur deux niveaux :
 - **Prix carte** : `cardId` renseigné, `variantId` optionnel — prix de base de la carte (ex: Dracaufeu = 50€)
 - **Prix variante** : `cardId` + `variantId` renseignés — prix spécifique à la variante (ex: Dracaufeu Holo = 500€)
 
-Cela permet de comparer les prix entre plateformes, d'afficher l'évolution dans le temps, et d'alimenter l'estimation de prix de la carte.
+Cela permet de comparer les prix entre plateformes et d'alimenter l'estimation de prix de la carte.
+
+**`PRICEHISTORY`** — Historique des valeurs prises par une entrée `CARDPRICE` dans le temps. Chaque mise à jour de prix crée une nouvelle ligne (`cardPriceId` + `recordedAt`), ce qui permet d'afficher l'évolution du prix dans le temps.
 
 ---
 

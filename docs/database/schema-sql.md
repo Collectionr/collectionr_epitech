@@ -19,6 +19,7 @@ erDiagram
     USER ||--o{ AUDITLOG : performs
     USER ||--o{ SCANHISTORY : triggers
     USER ||--o{ WISHLIST : "listed in"
+    USER ||--o{ CONSENT : grants
     COLLECTION ||--o{ COLLECTIONITEM : includes
     COLLECTION ||--o{ COLLECTIONVALUEHISTORY : "tracks value"
     CARD ||--o{ COLLECTIONITEM : "is in"
@@ -59,7 +60,21 @@ erDiagram
         string username
         uuid roleId FK
         boolean isActive
+        string locale
+        datetime lastLoginAt
         datetime createdAt
+        datetime deletedAt
+        boolean isAnonymized
+    }
+
+    CONSENT {
+        uuid id PK
+        uuid userId FK
+        string type
+        boolean granted
+        datetime grantedAt
+        datetime revokedAt
+        string ipAddress
     }
 
     SESSION {
@@ -116,14 +131,12 @@ erDiagram
         float price
         string currency
         datetime recordedAt
-        datetime timestamp
     }
 
     PRICEHISTORY {
         uuid id PK
         uuid cardPriceId FK
         datetime recordedAt
-        datetime timestamp
     }
 
     COLLECTION {
@@ -165,6 +178,7 @@ erDiagram
         uuid userId FK
         string type
         string imageUrl
+        string imageHash
         int detectedCount
         json detectedCards
         string status
@@ -175,7 +189,7 @@ erDiagram
         uuid id PK
         uuid cardId FK
         uuid userId FK
-        uuid scanId FK
+        uuid scanHistoryId FK
         float score
         float centeringScore
         float cornersScore
@@ -194,15 +208,24 @@ erDiagram
         uuid targetId
         json metadata
         datetime timestamp
+        datetime expiresAt
     }
 
     SCRAPELOG {
-        string id PK
-        string cardId
+        uuid id PK
+        uuid cardId FK
         string source
         string status
         string errorMsg
         datetime startedAt
         datetime finishedAt
+    }
+
+    DATARETENTIONPOLICY {
+        uuid id PK
+        string entityType
+        int retentionDays
+        string description
+        datetime updatedAt
     }
 ```
