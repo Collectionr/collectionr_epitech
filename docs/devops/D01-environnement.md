@@ -358,9 +358,9 @@ correspondent aux trois phases du projet.
 
 ## 8. Documents associés
 
-- `CI/CD.md`
-- `A4-architecture-runtime.md`
-- `choix-solutions-cloud.md`
-- `strategie-test.md`
-- `01-principes-securite.md`
-- `07-logs-audit.md`
+- `D02-cicd.md`
+- `A03-architecture-runtime.md`
+- `C02-choix-solutions-cloud.md`
+- `D03-strategie-test.md`
+- `S01-principes-securite.md`
+- `S05-logs-audit.md`
