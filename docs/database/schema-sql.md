@@ -177,7 +177,6 @@ erDiagram
         uuid id PK
         uuid userId FK
         string type
-        string imageUrl
         string imageHash
         int detectedCount
         json detectedCards
