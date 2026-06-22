@@ -1,178 +1,139 @@
-# Microservice Scraper de Marketplaces
+# Microservice TCG — collecte des cartes et des prix
 
 ## Vue d'ensemble
 
-Ce document décrit la conception et l'implémentation du **microservice de scraping de marketplaces** du projet Collectionr.
+Ce document décrit la conception du **Microservice TCG** du projet CollectionR et de ses **workers**,
+conformément à l'architecture runtime ([03-flux-techniques-plateforme.md](../architecture/03-flux-techniques-plateforme.md)).
 
-Son rôle est de **collecter automatiquement les prix des cartes Pokémon TCG** depuis des sites marchands externes et de les stocker en base de données.
+Son rôle est de **synchroniser les métadonnées de cartes** et de **collecter les prix de marché**
+des cartes Pokémon TCG, puis de les stocker dans PostgreSQL.
 
-> **Important** : ce microservice est un **worker en arrière-plan**. Il n'expose aucune API REST. Seul le backend NestJS expose des endpoints.
+> **Important** : le Microservice TCG et ses workers sont des **composants d'arrière-plan**. Ils
+> n'exposent **aucune API REST** aux clients. Seul le backend **NestJS (sur adaptateur Fastify)**
+> expose des endpoints. Les workers sont écrits en **Python** (cohérent avec le Pipeline de Données
+> Python décrit dans [clean-architecture.md](../backend/clean-architecture.md)).
 
 ---
 
-# 1. Introduction
+# 1. Périmètre et workers
 
-## Pourquoi un scraper de prix ?
+Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Redis TCG`) :
 
-Les cartes Pokémon TCG ont des prix qui varient constamment selon l'offre et la demande, la rareté de la carte, son état de conservation, et la plateforme de vente.
+| Worker | Rôle | Sources |
+|--------|------|---------|
+| **Worker TCG API** | Synchronise les **métadonnées** et les **prix agrégés** | TCGdex, pokemontcg.io ; eBay Browse (optionnel) |
+| **Worker TCG Scraping** | Collecte des prix **en dernier recours** (fallback) quand une donnée manque | Scraping HTML encadré (eBay marginal) |
+| **Worker TCG Prediction** | Prédit/estime des prix (IA) à partir de l'historique | Service Python `/predict-price` (cf. clean-architecture) |
 
-Pour un collectionneur, connaître le **prix actuel et l'historique des prix** d'une carte est une information essentielle :
-
-- Savoir si le moment est bon pour acheter ou vendre
-- Estimer la valeur de sa collection
-- Comparer les prix entre différentes plateformes
-
-Le microservice scraper répond à ce besoin en automatisant la collecte de ces données de manière périodique.
-
-## Qu'est-ce que le scraping ?
-
-> Le **web scraping** (ou extraction de données web) est une technique qui consiste à extraire automatiquement des informations depuis des pages web ou des APIs.
-
-Il existe deux approches principales :
-
-1. **Via une API officielle** : le site fournit un accès programmatique à ses données (plus fiable, légal, recommandé)
-2. **Via l'analyse du HTML** : on télécharge la page HTML d'un site et on extrait les données à partir de sa structure (plus fragile, à utiliser seulement si aucune API n'existe)
+> **Note de nommage.** Le worker historiquement appelé « Worker TCG Scraping » dans l'architecture
+> runtime collecte des prix de façon **API-first** ; le scraping HTML n'est qu'un **fallback**. Le
+> nom est conservé pour rester aligné avec l'architecture runtime, mais sa **méthode principale est
+> l'appel d'API**.
 
 ---
 
 # 2. Architecture globale
 
-## Position du scraper dans le système
-
-Le microservice scraper est un composant **indépendant**, connecté uniquement à PostgreSQL.
+## Position dans le système
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    FRONTEND                         │
-└─────────────────────┬───────────────────────────────┘
-                      │ HTTP
-┌─────────────────────▼───────────────────────────────┐
-│               BACKEND NESTJS                        │
-│          (API principale, authentification)         │
-└──────────────────────────┬──────────────────────────┘
-                           │ PostgreSQL (lecture)
-                           │
-┌──────────────────┐    ┌──▼────────────────────────┐
-│    SCRAPER       │    │     BASE DE DONNÉES        │
-│  MICROSERVICE    │───▶│       PostgreSQL           │
-│  (worker)        │    │ (cartes, prix, historique) │
-└──────┬───────────┘    └───────────────────────────-┘
-       │ Appels API officielles
-       ▼
-┌──────────────────────────────────────────────────────┐
-│             MARKETPLACES EXTERNES                    │
-│    Cardmarket API   |   eBay API   |   TCGPlayer     │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                         CLIENTS (web / mobile)             │
+└─────────────────────────────┬────────────────────────────┘
+                              │ HTTP (REST + SSE)
+┌─────────────────────────────▼────────────────────────────┐
+│              BACKEND NESTJS (adaptateur Fastify)           │
+│        API principale, authentification, lecture prix      │
+└──────────────┬─────────────────────────┬──────────────────┘
+               │ planifie (BullMQ)        │ lecture
+               ▼                          ▼
+┌──────────────────────────┐   ┌──────────────────────────────┐
+│   MICROSERVICE TCG        │   │        PostgreSQL            │
+│   (orchestrateur)         │   │  cartes, prix, historique,   │
+│                           │   │  logs de collecte            │
+└──────────────┬───────────┘   └───────────────▲──────────────┘
+               │ Redis TCG (BullMQ)             │ écriture (psycopg 3)
+        ┌──────┴───────────┬───────────────┐    │
+        ▼                  ▼               ▼    │
+┌───────────────┐ ┌────────────────┐ ┌──────────────────┐
+│ Worker TCG API│ │ Worker TCG     │ │ Worker TCG       │
+│  (Python)     │ │ Scraping (Py)  │ │ Prediction (Py)  │
+└──────┬────────┘ └──────┬─────────┘ └────────┬─────────┘
+       │ API ouverte     │ scraping (recours)  │ modèle IA
+       ▼                 ▼                     ▼
+┌──────────────────────────────────────────────────────────┐
+│        SOURCES EXTERNES                                    │
+│  TCGdex · pokemontcg.io  |  eBay Browse  |  (HTML marginal)│
+└──────────────────────────────────────────────────────────┘
 ```
 
-## Responsabilités du scraper
+## Responsabilités
 
-| Responsabilité             | Description                                             |
-|----------------------------|---------------------------------------------------------|
-| Collecte des prix          | Appeler les APIs des marketplaces selon un planning     |
-| Normalisation des données  | Unifier les formats de prix, devises, états des cartes  |
-| Stockage                   | Écrire les prix dans PostgreSQL                         |
+| Responsabilité | Worker | Description |
+|----------------|--------|-------------|
+| Synchronisation cartes | TCG API | Métadonnées + images (URLs uniquement) |
+| Collecte des prix | TCG API | Prix agrégés Cardmarket/TCGPlayer via API ouverte |
+| Fallback prix | TCG Scraping | Scraping HTML encadré, si donnée manquante |
+| Estimation de prix | TCG Prediction | Modèle IA sur l'historique |
+| Normalisation | tous | Devise → EUR, état, **langue**, noms |
+| Stockage | tous | Écriture idempotente en PostgreSQL |
+
+> **Spécificités (alignées sur l'architecture runtime) :** aucune image n'est stockée localement
+> (seules les URLs sont utilisées) ; les workers sont des **Pods K3s indépendants** ; un mécanisme
+> de **retry avec back-off exponentiel** est prévu ; le respect des CGU des APIs tierces est
+> obligatoire.
 
 ---
 
-# 3. Marketplaces ciblées
+# 3. Sources de données (réalité 2026)
 
-## 3.1 Cardmarket
+L'audit de juin 2026 a établi l'état réel d'accès aux sources. La stratégie en découle.
 
-**Cardmarket** (anciennement MagicCardMarket) est la principale marketplace européenne de cartes à collectionner.
+| Source | Type | Accès | Usage CollectionR |
+|--------|------|-------|-------------------|
+| **TCGdex** | API ouverte | Gratuit, sans clé | **Principal** : métadonnées + prix (CM €, TCGP $) |
+| **pokemontcg.io** | API ouverte | Gratuit (clé gratuite : 20 000 req/j) | **Principal** : prix CM + TCGP en un appel |
+| **TCGCSV** | Export bulk | Gratuit, sans clé | Fallback bulk TCGPlayer (pas de Cardmarket, ni par état) |
+| **eBay** | API Browse | OAuth, ~5 000 appels/j/app | Optionnel : **annonces actives** uniquement |
+| **Cardmarket** | API | Vendeurs pro, approbation manuelle | **Écarté** : CGU interdisent l'usage tiers |
+| **TCGPlayer** | API | **Fermée aux nouveaux dev** (fin 2024) | **Écarté** : inaccessible + ToS |
 
-- **Données disponibles** : prix bas, prix moyen, prix tendance, volume de vente
-- **Accès** : API REST officielle (nécessite un compte vendeur et des clés OAuth)
-- **Documentation** : [https://api.cardmarket.com/ws/documentation](https://api.cardmarket.com/ws/documentation)
-- **Méthode retenue** : API officielle
-
-## 3.2 eBay
-
-**eBay** est une marketplace mondiale proposant aussi bien des ventes aux enchères que des prix fixes.
-
-- **Données disponibles** : prix de vente, état de la carte, prix de ventes récentes
-- **Accès** : API Browse (Finding API pour les ventes terminées)
-- **Documentation** : [https://developer.ebay.com](https://developer.ebay.com)
-- **Méthode retenue** : API officielle (Finding API)
-
-## 3.3 TCGPlayer
-
-**TCGPlayer** est la principale marketplace américaine pour les cartes Pokémon TCG.
-
-- **Données disponibles** : prix du marché, prix bas, prix moyen
-- **Accès** : API officielle (nécessite une clé API)
-- **Documentation** : [https://docs.tcgplayer.com](https://docs.tcgplayer.com)
-- **Méthode retenue** : API officielle
-
-### Récapitulatif
-
-| Marketplace  | Région    | Méthode d'accès  | Fiabilité |
-|--------------|-----------|------------------|-----------|
-| Cardmarket   | Europe    | API OAuth         | ★★★★★    |
-| eBay         | Mondiale  | API Finding       | ★★★★☆    |
-| TCGPlayer    | USA       | API REST          | ★★★★★    |
+> **Conséquence clé :** les prix Cardmarket et TCGPlayer sont **déjà fournis légalement** par TCGdex
+> et pokemontcg.io. Scraper directement ces sites serait **non conforme aux CGU et inutile**.
 
 ---
 
-# 4. Stratégie de collecte
+# 4. Stratégie de collecte (API-first multi-méthode)
 
-## 4.1 API vs Scraping HTML
+Par ordre de priorité (cf. [decision-technique.md](decision-technique.md)) :
 
-Il existe deux grandes approches pour collecter des données sur le web.
+1. **API ouverte (source principale)** — `Worker TCG API` interroge TCGdex / pokemontcg.io pour les
+   métadonnées et les prix agrégés.
+2. **eBay Browse API (complément optionnel)** — annonces actives, via OAuth.
+3. **Scraping HTML (dernier recours)** — `Worker TCG Scraping`, **isolé derrière un kill-switch**,
+   à faible volume, **jamais sur Cardmarket ni TCGPlayer**.
+4. **Flux RSS** — uniquement pour une rubrique « actualités / sorties de sets » (les flux RSS de
+   prix n'existent plus en 2026), **jamais pour les prix**.
 
-### API officielle
+### Fallback scraping : outils
 
-Une **API** (Application Programming Interface) est une interface fournie par le site lui-même pour accéder à ses données de manière structurée.
+Conformément à l'architecture runtime, le fallback s'appuie sur la stack Python :
 
-```
-Notre Code  ──── requête HTTP ──▶  Serveur API  ──▶  Données JSON
-```
+- **Pages HTML statiques** : `httpx` + `BeautifulSoup` (ou `selectolax`).
+- **Pages rendues en JavaScript** : `Playwright` (dernier recours).
+- **Cible protégée par fingerprint TLS** : `curl_cffi` ; `nodriver` + proxies résidentiels si défi JS.
 
-**Avantages :**
-- Données structurées et fiables
-- Légalement autorisé
-- Résistant aux changements de design du site
-- Pas de risque de blocage
-
-**Inconvénients :**
-- Nécessite une clé API (parfois payante)
-- Données parfois limitées ou en retard
-
-### Scraping HTML
-
-Le **scraping HTML** consiste à télécharger une page web et à analyser son code HTML pour en extraire les données.
-
-```
-Notre Code  ──── requête HTTP ──▶  Serveur Web  ──▶  Page HTML brute
-                                                        │
-                                          Analyse du HTML (parsing)
-                                                        │
-                                                   Données extraites
-```
-
-**Avantages :**
-- Fonctionne même sans API officielle
-- Accès à toutes les données visibles
-
-**Inconvénients :**
-- Fragile : tout changement dans le HTML casse le scraper
-- Peut être bloqué (anti-bot, CAPTCHA)
-- Légalement ambigu selon les conditions d'utilisation du site
-
-### Décision pour ce projet
-
-> Pour ce projet, on privilégie **les APIs officielles** (Cardmarket, eBay, TCGPlayer).  
-> Le scraping HTML est utilisé en dernier recours uniquement si aucune API n'est disponible.
+> En 2026, les protections anti-bot (Cloudflare/Akamai) rendent le scraping des marketplaces
+> coûteux et fragile. Le fallback est donc une **capacité documentée**, activée à la marge.
 
 ---
 
-# 5. Planification des tâches (Cron Jobs)
+# 5. Planification des tâches (Cron / BullMQ)
 
-## Qu'est-ce qu'un cron job ?
+La planification est portée par le backend NestJS via **BullMQ (Redis TCG)** ; les workers Python
+**consomment** la file.
 
-Un **cron job** est une tâche programmée qui s'exécute automatiquement à intervalles réguliers, selon un calendrier défini.
-
-La syntaxe d'un cron utilise 5 champs :
+Rappel de la syntaxe cron (5 champs) :
 
 ```
 ┌───── minute (0-59)
@@ -180,375 +141,293 @@ La syntaxe d'un cron utilise 5 champs :
 │ │ ┌───── jour du mois (1-31)
 │ │ │ ┌───── mois (1-12)
 │ │ │ │ ┌───── jour de la semaine (0-6, 0=dimanche)
-│ │ │ │ │
-* * * * *  commande
+* * * * *
 ```
 
-Exemples :
+| Expression     | Signification             |
+|----------------|---------------------------|
+| `0 * * * *`    | Toutes les heures         |
+| `0 6 * * *`    | Tous les jours à 6h00     |
+| `*/30 * * * *` | Toutes les 30 minutes     |
+| `0 0 * * 1`    | Tous les lundis à minuit  |
 
-| Expression   | Signification                          |
-|--------------|----------------------------------------|
-| `0 * * * *`  | Toutes les heures                      |
-| `0 6 * * *`  | Tous les jours à 6h00                  |
-| `*/30 * * * *` | Toutes les 30 minutes                |
-| `0 0 * * 1`  | Tous les lundis à minuit               |
-
-## Stratégie de planification du scraper
-
-Pour éviter de surcharger les APIs externes et d'être bloqué, on définit des fréquences raisonnables :
+### Fréquences retenues
 
 ```
 Cartes populaires (top 100)   →  toutes les heures
 Cartes standards              →  toutes les 6 heures
-Cartes peu demandées          →  une fois par jour
+Cartes peu demandées          →  une fois par jour (3h du matin)
 ```
-
-> **Remarque** : on choisit 3h du matin pour le scraping complet afin de minimiser l'impact sur les serveurs externes pendant les heures de forte utilisation.
 
 ---
 
 # 6. Modèle de données
 
-## Tables en base de données
+> Le **schéma est la propriété du backend NestJS (Prisma)** ; le worker Python écrit via `psycopg 3`
+> avec des **UPSERT idempotents**. Les deux représentations doivent rester strictement alignées.
 
-Le scraper utilise deux tables principales pour stocker les données de prix.
-
-### Table `CardPrice`
-
-Stocke le **prix actuel** d'une carte pour une marketplace donnée.
-
-```
-CardPrice
-─────────────────────────
-id           UUID         clé primaire
-card_id      STRING       identifiant de la carte (ex: "swsh3-136")
-source       STRING       marketplace source (ex: "cardmarket")
-condition    STRING       état de la carte (ex: "NM", "LP", "PSA10")
-currency     STRING       devise (ex: "EUR", "USD")
-price        DECIMAL      prix actuel
-url          STRING       lien vers l'annonce
-scraped_at   TIMESTAMP    date et heure de la collecte
-```
-
-### Table `PriceHistory`
-
-Stocke l'**historique** des prix pour analyser les tendances.
-
-```
-PriceHistory
-─────────────────────────
-id           UUID         clé primaire
-card_id      STRING       identifiant de la carte
-recorded_at  TIMESTAMP    date et heure de l'enregistrement
-```
-
-## Schéma Prisma
+### Table `CardPrice` — prix actuel
 
 ```prisma
 model CardPrice {
   id         String   @id @default(uuid())
   cardId     String
-  source     String
-  condition  String
+  source     String   // "tcgdex", "pokemontcg", "ebay"
+  condition  String   // "NM", "LP", "MP", "HP", "DMG", "PSA10"...
+  language   String   // "EN", "FR", "JP" — fait partie de l'identité du prix
   currency   String   @default("EUR")
   price      Decimal  @db.Decimal(10, 2)
   url        String?
   scrapedAt  DateTime @default(now())
 
-  @@unique([cardId, source, condition])
+  @@unique([cardId, source, condition, language])
   @@map("card_prices")
 }
+```
 
+### Table `PriceHistory` — historique
+
+```prisma
 model PriceHistory {
   id         String   @id @default(uuid())
-  cardPriceId     String
+  cardId     String
+  source     String
+  condition  String
+  language   String
+  currency   String   @default("EUR")
+  price      Decimal  @db.Decimal(10, 2)
   recordedAt DateTime @default(now())
 
-  @@index([cardId, source])
+  @@index([cardId, source, language])
   @@map("price_history")
 }
 ```
 
-> **Remarque** : La contrainte `@@unique([cardId, source, condition])` dans `CardPrice` garantit qu'il n'existe qu'un seul prix actuel par carte, par source et par état.
+> **La langue fait partie de l'identité d'un prix.** Une même carte vaut très différemment selon sa
+> langue (ex. Charizard VMAX `swsh3-20` ≈ 45 € en EN, ≈ 8 € en JP). Le champ `language` est donc
+> inclus dans la **contrainte d'unicité** ; l'omettre provoquerait des collisions et des pertes de
+> données.
 
----
-
-# 7. Normalisation des données
-
-## Pourquoi normaliser ?
-
-Chaque marketplace a ses propres formats, conventions et terminologies. Sans normalisation, comparer des prix entre Cardmarket et eBay serait impossible.
-
-Exemple du problème :
-
-| Marketplace  | État de la carte | Devise | Prix  |
-|--------------|-----------------|--------|-------|
-| Cardmarket   | "Near Mint"     | EUR    | 45.50 |
-| eBay         | "NM/Mint"       | USD    | 52.00 |
-| TCGPlayer    | "Near Mint"     | USD    | 49.99 |
-
-## 7.1 Normalisation des états (conditions)
-
-Les états standardisés du projet sont : **MINT, NM, LP, MP, HP, DMG, PSA10, PSA9**
-
-**Cardmarket :**
-
-| Terme source   | État normalisé |
-|----------------|----------------|
-| Mint           | MINT           |
-| Near Mint      | NM             |
-| Excellent      | LP             |
-| Good           | MP             |
-| Light Played   | HP             |
-| Played         | DMG            |
-
-**eBay :**
-
-| Terme source        | État normalisé |
-|---------------------|----------------|
-| Brand New           | MINT           |
-| NM/Mint             | NM             |
-| NM-Mint             | NM             |
-| Lightly Played      | LP             |
-| Moderately Played   | MP             |
-| Heavily Played      | HP             |
-
-**TCGPlayer :**
-
-| Terme source        | État normalisé |
-|---------------------|----------------|
-| Near Mint           | NM             |
-| Lightly Played      | LP             |
-| Moderately Played   | MP             |
-| Heavily Played      | HP             |
-| Damaged             | DMG            |
-
-## 7.2 Normalisation des devises
-
-On convertit toutes les devises en **EUR** comme devise de référence, afin de pouvoir comparer des prix entre marketplaces utilisant des devises différentes (USD pour eBay et TCGPlayer, EUR pour Cardmarket).
-
-La conversion s'appuie sur une API de taux de change externe (ex : ExchangeRate API). Pour éviter trop d'appels, les taux sont conservés en mémoire et rafraîchis toutes les heures.
-
-> **Attention** : la conversion en EUR ne suffit pas à comparer deux cartes entre elles. La langue de la carte influence fortement son prix de marché — voir la section suivante.
-
-### Limite importante : la langue de la carte
-
-La conversion en EUR permet d'**unifier les montants**, mais elle ne dit rien sur la **valeur réelle** d'une carte sur le marché.
-
-En pratique, la langue d'une carte est un facteur de prix à part entière :
-
-| Carte            | Langue | Prix indicatif |
-|------------------|--------|----------------|
-| Charizard VMAX   | EN     | ~45 €          |
-| Charizard VMAX   | JP     | ~8 €           |
-| Charizard VMAX   | FR     | ~40 €          |
-
-> Deux prix en EUR ne sont comparables que si la carte est **la même langue, le même état et la même édition**.
-
-Pour cette raison, la langue doit être conservée dans les données stockées. Elle fait partie de l'identité d'un prix, au même titre que la source (marketplace) ou l'état (NM, LP...).
-
-### Différence entre normalisation de devise et normalisation métier
-
-| Type de normalisation    | Ce qu'elle fait                                      | Ce qu'elle ne fait pas                        |
-|--------------------------|------------------------------------------------------|-----------------------------------------------|
-| Normalisation de devise  | Convertit USD/EUR pour comparer des montants         | Ne rend pas deux cartes comparables entre elles |
-| Normalisation métier     | Standardise l'état, la langue, l'édition             | Ne convertit pas les montants                 |
-
-Les deux sont nécessaires et complémentaires. Une carte normalisée correctement doit avoir : une devise commune (EUR), un état standardisé (NM, LP...), **et une langue identifiée (EN, JP, FR)**.
-
-## 7.3 Normalisation des noms de cartes
-
-Les noms de cartes peuvent différer légèrement selon les sources (accents, casse, caractères spéciaux).
-
-La normalisation consiste à :
-
-1. Mettre le nom en **minuscules**
-2. **Supprimer les accents** et caractères diacritiques
-3. **Supprimer les caractères spéciaux** (tirets, parenthèses, etc.)
-4. Supprimer les espaces superflus
-
-Exemples :
-
-| Nom brut            | Nom normalisé     |
-|---------------------|-------------------|
-| `"Dracaufeu"`       | `"dracaufeu"`     |
-| `"Charizard-EX"`    | `"charizard ex"`  |
-| `"Pikachu (Promo)"` | `"pikachu promo"` |
-
----
-
-# 8. Logs et gestion des erreurs
-
-## Pourquoi c'est important ?
-
-Un scraper tourne en **arrière-plan**, sans intervention humaine. Si quelque chose se passe mal (site inaccessible, format de données changé, quota API dépassé), on doit pouvoir le détecter rapidement.
-
-## 8.1 Niveaux de logs
-
-On utilise les niveaux standards :
-
-| Niveau    | Utilisation                                      |
-|-----------|--------------------------------------------------|
-| `DEBUG`   | Informations de développement (désactivé en prod)|
-| `INFO`    | Événements normaux (scraping démarré, terminé)   |
-| `WARNING` | Situation anormale mais non bloquante            |
-| `ERROR`   | Erreur récupérable (une carte n'a pas pu être scrapée) |
-| `CRITICAL`| Erreur grave (le service est inutilisable)       |
-
-## 8.2 Table de suivi des erreurs de scraping
-
-Pour garder une trace des tentatives de scraping échouées, on ajoute une table `ScrapeLog` :
+### Table `ScrapeLog` — suivi des collectes
 
 ```prisma
 model ScrapeLog {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   cardId     String?
   source     String
-  status     String   // "success" | "error" | "skipped"
+  method     String    // "api" | "scraping"
+  status     String    // "success" | "error" | "skipped"
   errorMsg   String?
-  startedAt  DateTime @default(now())
+  startedAt  DateTime  @default(now())
   finishedAt DateTime?
 
   @@map("scrape_logs")
 }
 ```
 
-## 8.3 Comportement en cas d'erreur
+---
 
-Chaque tentative de scraping donne lieu à une entrée dans `ScrapeLog`, qu'elle réussisse ou échoue. En cas d'échec, le message d'erreur et le statut sont enregistrés. Le backend continue de retourner la dernière donnée disponible en base — aucune interruption de service n'est provoquée par un échec de scraping.
+# 7. Normalisation des données
+
+Une carte correctement normalisée possède : une **devise commune (EUR)**, un **état standardisé**,
+et une **langue identifiée**.
+
+## 7.1 États (conditions)
+
+États standardisés : **MINT, NM, LP, MP, HP, DMG, PSA10, PSA9**. Chaque source est mappée vers ce
+référentiel (ex. « Near Mint » → `NM`, « Lightly Played » → `LP`).
+
+## 7.2 Devises
+
+Toutes les devises sont converties en **EUR** (référence). La conversion USD→EUR s'appuie sur une
+API de taux de change, avec taux mis en cache et rafraîchis périodiquement.
+
+> La conversion en EUR **unifie les montants** mais ne suffit pas à comparer deux cartes : la
+> **langue** et l'**état** doivent être identiques. D'où la présence du champ `language`.
+
+## 7.3 Langue
+
+Valeurs normalisées : `EN`, `FR`, `JP`… Conservée dans chaque enregistrement de prix et dans la clé
+d'unicité (voir §6).
+
+## 7.4 Noms de cartes
+
+Mise en minuscules, suppression des accents/diacritiques et caractères spéciaux, espaces superflus
+(ex. `"Dracaufeu"` → `"dracaufeu"`).
+
+> La validation et la normalisation s'appuient sur **`pydantic`** côté worker Python.
+
+---
+
+# 8. Logs et gestion des erreurs
+
+Niveaux standards : `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. Chaque tentative de collecte
+donne lieu à une entrée `ScrapeLog`. En cas d'échec, le backend continue de servir la **dernière
+donnée disponible** : aucun blocage de service. K3s **redémarre automatiquement** un Pod défaillant.
 
 ---
 
 # 9. Intégration avec le backend NestJS
 
-## Comment le backend utilise les données du scraper
-
-Le scraper écrit les prix dans PostgreSQL. Le backend NestJS lit directement ces données en base lorsqu'un utilisateur consulte les prix d'une carte.
-
-> Le scraping n'est **jamais** déclenché par une requête utilisateur. Il tourne en tâche de fond, de manière périodique.
+- Le backend **NestJS (Fastify)** planifie les jobs via **BullMQ (Redis TCG)** et **lit** les prix
+  en base.
+- Les **workers Python consomment** la file Redis (lib `bullmq` Python) et **écrivent** en
+  PostgreSQL via `psycopg 3`.
+- Le scraping n'est **jamais** déclenché par une requête utilisateur.
 
 ```
-Client  ──▶  GET /market/{cardId}  ──▶  Backend NestJS
-                                              │
-                                    Lecture en base PostgreSQL
-                                       (table card_prices)
-                                              │
-                              Données disponibles ? ──▶ OUI  ──▶ Réponse au client
-                                              │
-                                             NON
-                                              │
-                                    Retourne une réponse vide
-                                    (le prochain cron job remplira)
+Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture PostgreSQL
+                                                   │
+                            données présentes ─────┴──▶ réponse
+                            sinon ──▶ réponse vide (le prochain job remplira)
 ```
 
-## Rôles clairement séparés
+| Composant | Rôle |
+|-----------|------|
+| Microservice TCG | Orchestre les workers, planifie via Redis TCG |
+| Worker TCG API / Scraping / Prediction | Collectent / estiment, écrivent en base |
+| Backend NestJS (Fastify) | Expose les endpoints, lit les données |
+| PostgreSQL | Source de vérité des prix |
+| Redis TCG | File BullMQ (planification), pas de stockage de prix |
 
-| Composant             | Rôle                                                        |
-|-----------------------|-------------------------------------------------------------|
-| Scraper (worker)      | Collecte les prix, écrit en base, tourne en tâche de fond   |
-| Backend NestJS        | Expose les endpoints, lit les données en base               |
-| PostgreSQL            | Source de vérité pour tous les prix                         |
-| Redis                 | Planification des jobs (BullMQ), pas de stockage de prix    |
-
-## Endpoint côté backend
-
-L'endpoint `GET /market/{cardId}` retourne les derniers prix disponibles pour une carte.
-
-Si le scraper ne s'est pas encore exécuté pour cette carte, la réponse sera vide ou indiquera l'absence de données — **aucun scraping n'est déclenché à la demande**.
+> **Réserve technique :** la lib `bullmq` Python est en statut *Alpha* (parité incomplète avec Node).
+> Valider tôt un **POC d'interopérabilité** Node→Python sur une file de test ; prévoir un repli
+> `APScheduler` si l'interop pose problème.
 
 ---
 
-# 10. Comparaison des outils de scraping
+# 10. Alignement K3s (architecture runtime)
 
-Ces bibliothèques ne sont pertinentes que si aucune API officielle n'est disponible. Pour ce projet, elles constituent un recours de dernier ressort.
+Conformément à [03-flux-techniques-plateforme.md](../architecture/03-flux-techniques-plateforme.md),
+chaque composant est un **Pod K3s** :
 
-| Critère               | Axios + Cheerio    | Puppeteer             | Playwright                     |
-|-----------------------|--------------------|-----------------------|--------------------------------|
-| Vitesse               | ★★★★★              | ★★☆☆☆                 | ★★☆☆☆                          |
-| Consommation mémoire  | ★★★★★              | ★★☆☆☆                 | ★★☆☆☆                          |
-| JavaScript dynamique  | ✗ Non              | ✓ Oui                 | ✓ Oui                          |
-| Facilité d'utilisation| ★★★★☆              | ★★★☆☆                 | ★★★★☆                          |
-| Multi-navigateurs     | N/A                | Chrome uniquement     | Chrome, Firefox, Safari        |
-| Adapté pour APIs      | ✓ Oui              | Inutile               | Inutile                        |
+- **Deployments** distincts pour `Worker TCG API`, `Worker TCG Scraping`, `Worker TCG Prediction` et
+  le `Microservice TCG` (orchestrateur).
+- **Secrets Kubernetes** pour les clés/identifiants externes (clé pokemontcg.io, OAuth eBay). TCGdex
+  ne requiert aucune clé.
+- **NetworkPolicies** : les workers communiquent uniquement via Redis TCG ; pas d'accès réseau
+  latéral entre eux.
+- **Redis TCG** déployé comme service interne (file BullMQ).
+- **Ressources** : limites CPU/mémoire par worker ; le `Worker TCG Scraping` (Playwright) est plus
+  gourmand → budget mémoire dédié et **réplicas** seulement si nécessaire.
 
-> **Choix retenu** : Axios est suffisant pour interroger les APIs officielles (Cardmarket, eBay, TCGPlayer) et traiter les réponses JSON. Puppeteer et Playwright seraient surdimensionnés pour ce cas d'usage.
+Exemple (extrait de manifest) :
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-tcg-api
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: worker-tcg-api
+          image: collectionr/worker-tcg-api:latest
+          envFrom:
+            - secretRef:
+                name: tcg-api-secrets   # POKEMONTCG_API_KEY, EBAY_OAUTH...
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+```
 
 ---
 
-# 11. Flux complet du système
+# 11. Conformité et garde-fous légaux
 
-Il y a deux flux distincts et **indépendants** : le flux de scraping (automatique) et le flux utilisateur (à la demande).
+La **validation des CGU des APIs tierces** est un livrable de la refonte.
 
-## Flux 1 : Scraping périodique (automatique)
+- **APIs ouvertes** (TCGdex, pokemontcg.io) : free tier **non-commercial** → adapté à la phase
+  étudiante ; **palier payant à licence commerciale** requis avant toute commercialisation.
+- **Cardmarket** : CGU interdisent de présenter prix/cartes sur un service tiers sans **accord
+  écrit** — réafficher ces prix (même via un agrégateur) en commercial est risqué.
+- **TCGPlayer** : ToS interdit le crawl/scrape ; API fermée → **écarté**.
+- **eBay** : robots.txt `Disallow`, user agreement 2026 interdisant les bots → pas de scraping ; API
+  Browse uniquement (annonces actives).
+- **RGPD** : ne collecter **aucune donnée personnelle de vendeur** (noms, localisation).
+- **Droit *sui generis* des bases de données** (Directive 96/9/CE) : l'exception recherche/
+  enseignement protège la phase étudiante non-marchande, pas un usage commercial.
 
-Ce flux s'exécute automatiquement, sans aucune interaction utilisateur.
+### Garde-fous d'implémentation
+
+- **Abstraction « fournisseur de prix »** (*adapter pattern*) : changer de source sans refonte.
+- **Kill-switch par source** ; scraping désactivable.
+- **Attribution** de la source + **disclaimer** de non-affiliation à Nintendo / The Pokémon Company.
+- **Rate-limiting poli**, User-Agent honnête, respect de `robots.txt`.
+- **Journalisation** (`ScrapeLog`) pour la traçabilité.
+- **Revue juridique obligatoire avant tout passage commercial.**
+
+---
+
+# 12. Stratégie de tests (objectif ≥ 70 % du code métier critique)
+
+Outils : **`pytest`**, **`pytest-cov`** (couverture), **`respx`** (mock des appels `httpx`),
+**`pytest-recording`/VCR** (rejouer des réponses d'API).
+
+Le **code métier critique** à couvrir en priorité :
+
+| Domaine | Exemples de tests |
+|---------|-------------------|
+| Adaptateurs de source | Parsing des réponses TCGdex / pokemontcg.io (champs prix, `updated`) |
+| Normalisation | Mapping des états, conversion devise→EUR, normalisation des noms |
+| Identité du prix | Unicité `(cardId, source, condition, language)`, gestion des collisions |
+| Agrégation | Calcul du prix moyen (`average_price`) exposé par l'API |
+| Résilience | Retry/back-off sur HTTP 429, *kill-switch* scraping, idempotence des UPSERT |
+| Garde-fous | Respect des quotas, attribution, non-collecte de données personnelles |
+
+> Cible : **≥ 70 % de couverture** sur ces modules métier (mesurée via `pytest-cov`). Les appels
+> réseau réels sont **mockés** (pas de dépendance aux APIs tierces dans la CI).
+
+---
+
+# 13. Flux complet du système
+
+## Flux 1 — Collecte périodique (automatique)
 
 ```
-┌──────────────────────────────────┐
-│     CRON JOB (périodique)        │  1. Déclenchement automatique planifié
-│  (1h / 6h / 24h selon la carte)  │     selon la fréquence configurée
-└──────────────────┬───────────────┘
-                   │  Job ajouté dans la queue (Redis/BullMQ)
-                   ▼
-┌──────────────────────────────────┐
-│        SCRAPER (worker)          │  2. Récupère le job et démarre la collecte
-└──────────────────┬───────────────┘
-                   │  Appels vers les APIs officielles
-                   ▼
-┌──────────────────────────────────┐
-│       MARKETPLACES EXTERNES      │  3. Retournent les données brutes
-│  Cardmarket API  |  eBay API     │     (prix, état, devise)
-└──────────────────┬───────────────┘
-                   │  Normalisation (devise → EUR, état standardisé)
-                   ▼
-┌──────────────────────────────────┐
-│          PostgreSQL              │  4. Écriture dans card_prices et price_history
-└──────────────────────────────────┘
+CRON / BullMQ (Redis TCG)
+        │  job planifié
+        ▼
+Microservice TCG ──▶ distribue aux workers
+        │
+        ├─▶ Worker TCG API ───▶ TCGdex / pokemontcg.io ──▶ métadonnées + prix
+        ├─▶ Worker TCG Scraping ─▶ (fallback HTML encadré, si manque)
+        └─▶ Worker TCG Prediction ─▶ estimation IA
+        ▼
+Normalisation (EUR, état, langue) ──▶ PostgreSQL (card_prices, price_history)
 ```
 
-## Flux 2 : Consultation par l'utilisateur
-
-Ce flux se déclenche lorsqu'un utilisateur consulte les prix d'une carte.
+## Flux 2 — Consultation utilisateur
 
 ```
-┌──────────┐
-│  Client  │  1. Demande les prix de "swsh3-136"
-└─────┬────┘
-      │  GET /market/swsh3-136
-      ▼
-┌─────────────────────┐
-│   Backend NestJS    │  2. Lit les dernières données disponibles
-│                     │     depuis PostgreSQL (table card_prices)
-└──────┬──────────────┘
-       │
-       │  Données disponibles → retourne les prix
-       │  Pas de données      → retourne une réponse vide
-       ▼
-┌──────────┐
-│  Client  │  3. Affiche les prix (ou un message d'absence de données)
-└──────────┘
+Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture PostgreSQL ──▶ réponse
 ```
 
-> Le scraping n'est **jamais** déclenché lors de la consultation d'une carte. Les données affichées sont celles de la dernière exécution du cron job.
+> Le scraping n'est **jamais** déclenché à la demande. Les données affichées proviennent de la
+> dernière exécution planifiée.
 
-## Résumé des deux flux
+---
 
-| Flux         | Déclencheur          | Acteurs impliqués                          |
-|--------------|----------------------|--------------------------------------------|
-| Scraping     | Cron job automatique | Scraper → Marketplaces → PostgreSQL        |
-| Consultation | Requête utilisateur  | Client → Backend → PostgreSQL              |
+# 14. Worker TCG Prediction (rappel)
+
+La **prédiction de prix** est assurée par un service/worker **Python d'IA** exposant `/predict-price`
+(voir [clean-architecture.md](../backend/clean-architecture.md)). Il s'appuie sur l'historique
+(`price_history`) pour estimer une valeur. Il doit figurer explicitement dans l'architecture runtime
+au même titre que les deux autres workers TCG.
 
 ---
 
 # Conclusion
 
-Le microservice scraper de marketplaces est un composant clé du projet Collectionr. Il permet de :
+Le Microservice TCG, refondu, repose sur une architecture **conforme au runtime K3s** :
 
-- **Automatiser** la collecte des prix sans intervention humaine
-- **Centraliser** les données de plusieurs marketplaces dans un format unifié
-- **Historiser** les prix pour permettre l'analyse des tendances
-- **Découpler** la logique de scraping du backend principal
+- **API-first** via TCGdex / pokemontcg.io (prix agrégés Cardmarket + TCGPlayer, légalement) ;
+- **scraping HTML en dernier recours encadré** (Python : BeautifulSoup / Playwright / curl_cffi) ;
+- orchestration des **trois workers** (API, Scraping, Prediction) via **Redis TCG (BullMQ)** ;
+- modèle de données intégrant la **langue**, source de vérité **PostgreSQL** ;
+- **garde-fous légaux** explicites et **stratégie de tests ≥ 70 %**.
 
-En privilégiant les **APIs officielles** plutôt que le scraping HTML, on garantit une solution **fiable, stable et respectueuse des conditions d'utilisation** des plateformes tierces.
-
-La combinaison **cron jobs + BullMQ (Redis) + PostgreSQL + NestJS** offre une architecture simple, robuste et extensible, adaptée au niveau d'un projet de fin d'études. Redis assure la planification des tâches, PostgreSQL est la source de vérité pour toutes les données de prix.
+Cette refonte respecte les conditions d'utilisation des APIs tierces tout en garantissant une
+collecte fiable, maintenable et alignée avec l'architecture définie.

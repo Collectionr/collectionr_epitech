@@ -1,27 +1,47 @@
-# Décision technique — Stratégie de collecte des prix
+# Décision technique — Stratégie de collecte des données TCG
 
 ## Contexte
 
-Le microservice scraper a pour objectif de collecter les prix des cartes Pokémon TCG depuis plusieurs marketplaces.
+Le microservice TCG de CollectionR doit collecter deux types de données :
 
-Ces plateformes proposent, pour la plupart, des **APIs officielles** permettant d’accéder à des données structurées (prix, volume, tendances).
+1. les **métadonnées** des cartes Pokémon (nom, set, rareté, image, attaques…) ;
+2. les **prix de marché** de ces cartes.
 
-Cependant, certaines informations peuvent être :
-- absentes des APIs
-- incomplètes
-- ou disponibles uniquement via les pages web
+Historiquement, on supposait pouvoir s'appuyer sur les **APIs officielles** des marketplaces
+(Cardmarket, eBay, TCGPlayer). Une vérification menée en **juin 2026** montre que cette hypothèse
+n'est plus tenable : ces accès sont **fermés ou restreints**.
+
+---
+
+## Constat 2026 : accès aux marketplaces
+
+| Source | État de l'accès (juin 2026) | Conséquence |
+|--------|------------------------------|-------------|
+| **TCGPlayer** (API) | **Fermée aux nouveaux développeurs** depuis fin 2024 (rachat eBay) | Inutilisable pour un nouveau projet |
+| **eBay** (API) | Finding API **décommissionnée** (05/02/2025) ; ventes terminées via *Marketplace Insights* en accès restreint ; Browse API = **annonces actives** seulement | Limité aux annonces actives |
+| **Cardmarket** (API) | Réservée aux **vendeurs professionnels** (approbation manuelle) ; **CGU interdisent** de présenter prix/cartes sur un service tiers sans accord écrit | Inadaptée à l'usage CollectionR |
+| **TCGdex** | **Ouverte, gratuite, sans clé** ; expose métadonnées **et** prix agrégés (Cardmarket + TCGPlayer) | **Source à privilégier** |
+
+> **Conséquence directe :** la stratégie ne peut pas reposer sur un accès direct aux APIs
+> marketplace. Elle s'appuie sur des **APIs ouvertes qui agrègent déjà ces prix**.
 
 ---
 
 ## Décision
 
-### Approche retenue : **API-first avec fallback scraping**
+### Approche retenue : **stratégie multi-méthode, API ouverte d'abord**
 
-La stratégie adoptée est la suivante :
+Par ordre de priorité :
 
-1. **Utilisation prioritaire des APIs officielles**
-2. **Utilisation du scraping HTML uniquement en complément**
-3. **Usage d’un navigateur headless uniquement si nécessaire**
+1. **APIs ouvertes (source principale)** — TCGdex et pokemontcg.io fournissent gratuitement les
+   prix agrégés Cardmarket (EUR) et TCGPlayer (USD), sans clé ou avec une clé gratuite, sans
+   scraping.
+2. **eBay Browse API (complément optionnel)** — pour les **annonces actives** uniquement, dans le
+   cadre du programme développeur.
+3. **Scraping HTML (dernier recours, encadré)** — uniquement si une donnée est introuvable
+   autrement, à faible volume, et **jamais sur Cardmarket ni TCGPlayer** (verrou juridique).
+4. **Flux RSS** — **pas pour les prix** (les flux RSS de prix n'existent plus en 2026). Réservé à
+   une éventuelle rubrique « actualités / sorties de sets ».
 
 ---
 
@@ -29,89 +49,74 @@ La stratégie adoptée est la suivante :
 
 ### Fiabilité
 
-Les APIs fournissent :
-- des données structurées
-- une meilleure stabilité dans le temps
-- une résistance aux changements d’interface
-
-À l’inverse, le scraping HTML est :
-- fragile (dépend du DOM)
-- sensible aux changements front
-- plus coûteux en maintenance
-
----
-
-### Performance
-
-- Les APIs sont plus rapides et optimisées pour la récupération de données
-- Le scraping, notamment avec rendu JavaScript, est plus lent et plus consommateur de ressources
-
----
-
-### Maintenabilité
-
-- API → faible coût de maintenance
-- Scraping → coût élevé (mise à jour régulière nécessaire)
-
----
+- Les APIs ouvertes fournissent des **données structurées** et un champ de fraîcheur (`updated`).
+- Le scraping HTML est **fragile** (dépend du DOM), sensible aux changements front et aux
+  protections anti-bot (Cloudflare, Akamai).
 
 ### Légalité et conformité
 
-- APIs → usage encadré et autorisé
-- Scraping → dépend des conditions d’utilisation des sites
+- TCGdex / pokemontcg.io : usage encadré par leurs CGU (free tier **non-commercial** ; palier payant
+  pour le commercial).
+- Scraper Cardmarket ou TCGPlayer **viole leurs CGU** ; eBay interdit aussi le scraping (robots.txt
+  `Disallow`, user agreement 2026 interdisant les bots). Voir la section **Garde-fous légaux**.
+
+### Performance et maintenabilité
+
+- API → faible coût de maintenance, rapide.
+- Scraping (surtout avec rendu JavaScript) → lent, coûteux en ressources, maintenance élevée.
+
+### Inutilité du scraping direct des marketplaces
+
+> Les prix Cardmarket et TCGPlayer sont **déjà disponibles légalement via TCGdex / pokemontcg.io**.
+> Scraper directement ces sites est donc non seulement risqué mais **largement inutile**.
 
 ---
 
-## Choix des outils
+## Langage du worker : **Python**
 
-### Cas principal : APIs officielles
+Le worker de collecte (`Worker TCG API` et `Worker TCG Scraping`) est écrit en **Python**, pour :
 
-Utilisées pour :
-- Cardmarket
-- eBay
-- TCGPlayer
+- s'aligner sur le **« Pipeline de Données » Python** décrit dans
+  [clean-architecture.md](../backend/clean-architecture.md) (ingestion, normalisation, IA) ;
+- mutualiser le code de normalisation et les modèles d'IA de prédiction de prix ;
+- bénéficier de l'écosystème scraping / anti-bot le plus mature.
 
----
-
-### Scraping HTML (fallback)
-
-#### Cas d’usage :
-- données absentes de l’API
-- vérification ou enrichissement
-
-#### Outils retenus :
-
-**Requests + BeautifulSoup**
-- rapide
-- simple
-- adapté aux pages statiques
+Le backend applicatif reste **NestJS (sur adaptateur Fastify), TypeScript** ; le worker Python est
+un composant **découplé** qui écrit dans PostgreSQL.
 
 ---
 
-### Scraping dynamique (cas exceptionnel)
+## Choix des outils (Python)
 
-#### Cas d’usage :
-- contenu chargé en JavaScript
-- pages nécessitant un rendu navigateur
+| Besoin | Outil retenu | Remarque |
+|--------|--------------|----------|
+| Client HTTP | **httpx** | sync + async, HTTP/2 ; remplace `requests` (gelé) |
+| Parsing HTML | **selectolax** (+ BeautifulSoup4 en repli) | rapide ; bs4 pour le HTML mal formé |
+| Flux RSS (actualités) | **feedparser** | pas pour les prix |
+| Validation / normalisation | **pydantic** | devise, état, langue |
+| Accès PostgreSQL | **psycopg 3** | UPSERT idempotents |
+| Anti-bot (dernier recours) | **curl_cffi**, sinon **nodriver** + proxies | usage ciblé et encadré |
 
-#### Outil retenu :
-
-**Playwright**
-- support JavaScript complet
-- plus moderne et stable que Selenium
+Voir le détail comparatif dans [bibliotheque-scraping.md](bibliotheque-scraping.md).
 
 ---
 
 ## Outils non retenus
 
+### `requests`
+- En **« feature freeze » perpétuel** (correctifs de sécurité uniquement), pas d'async ni HTTP/2.
+- Remplacé par **httpx** pour tout nouveau code.
+
 ### Scrapy
-- trop complexe pour le besoin
-- adapté aux projets de scraping massif
-- non pertinent dans une approche API-first
+- Surdimensionné pour une approche API-first à faible volumétrie.
+- Impose son architecture (spiders, reactor) là où `httpx` + `selectolax` suffisent.
 
 ### Selenium
-- plus lourd que Playwright
-- moins performant et moins moderne
+- Plus lourd et moins moderne que Playwright (qui reste, lui, un **dernier recours** pour le JS).
+
+### `playwright-stealth`
+- Maintenance irrégulière et anti-détection limitée en 2026. Si un navigateur furtif est
+  réellement nécessaire, préférer **nodriver**.
 
 ---
 
@@ -119,8 +124,9 @@ Utilisées pour :
 
 La stratégie retenue permet de :
 
-- maximiser la fiabilité (API-first)
-- limiter la dette technique
-- conserver de la flexibilité via le scraping en fallback
+- **maximiser la fiabilité** (APIs ouvertes agrégeant déjà les prix) ;
+- **rester conforme** (pas de scraping des marketplaces verrouillées) ;
+- **limiter la dette technique** (stack Python cohérente, scraping isolé derrière un *kill-switch*).
 
-> Le scraping est considéré comme un mécanisme secondaire et non comme une source principale de données.
+> Le scraping HTML est un **mécanisme de dernier recours encadré**, pas une source principale de
+> données. Les APIs ouvertes (TCGdex, pokemontcg.io) couvrent l'essentiel du besoin.
