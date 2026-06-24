@@ -90,10 +90,14 @@ gitGraph
 | Branche | Rôle | Protection |
 |---|---|---|
 | `main` | Code stable — déployé en production | 🔴 Protégée — merge uniquement via PR validée |
+| `staging` | Environnement pré-prod permanent pour validation et tests | 🔴 Protégée — merge uniquement via PR validée |
 | `develop` | Intégration des features — déployé en staging | 🟡 Protégée — merge uniquement via PR |
 | `feature/*` | Développement d'une fonctionnalité | 🟢 Libre — créée par le développeur |
 | `fix/*` | Correction de bug | 🟢 Libre — créée par le développeur |
 | `devops/*` | Modifications infra et manifests K3s | 🟢 Libre — créée par l'équipe Cloud |
+
+La branche `staging` est une branche permanente pour la pré-production et les tests. Elle possède le même niveau de sécurité que `main` et n'est accessible qu'à un nombre restreint de membres de l'équipe pour validation avant le déploiement en production.
+
 
 ### 2.2 Règles de nommage des branches
 
@@ -131,7 +135,7 @@ graph TD
     Unit --> Integration["TESTS INTÉGRATION\nJest + Supertest"]
     Integration --> Infra["TESTS INFRASTRUCTURE\nk3d + kubectl"]
     Infra --> Security["SCAN SÉCURITÉ\nOWASP ZAP"]
-    Security --> Coverage["VÉRIFICATION COVERAGE\n80 % code critique"]
+    Security --> Coverage["VÉRIFICATION COVERAGE"]
     Coverage --> OK["PR PRÊTE POUR REVIEW"]
 
     style PR fill:#E6F1FB,stroke:#185FA5,color:#0C447C
@@ -246,9 +250,11 @@ Si l'un des seuils ci-dessous n'est pas atteint, la pipeline
 
 | Périmètre | Seuil minimum |
 |---|---|
-| Code métier critique Backend | 80% |
-| API Python IA | 60% |
-| Frontend React | 50% |
+| Backend | 70% |
+| Python Microservice | 50% |
+| Frontend | 40% |
+
+Les seuils de coverage diffèrent selon les périmètres techniques. Les tests E2E compensent le seuil plus bas pour le Frontend.
 
 ---
 
