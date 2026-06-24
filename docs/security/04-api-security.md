@@ -9,7 +9,7 @@
 5. [Autorisation & RBAC](#5-autorisation--rbac)
 6. [Protection contre les attaques courantes (OWASP)](#6-protection-contre-les-attaques-courantes-owasp-top-10)
 7. [Rate Limiting & protection contre les abus](#7-rate-limiting--protection-contre-les-abus)
-8. [Sécurité du volume partagé OCR](#8-sécurité-api-web-vs-mobile)
+8. [Sécurité du volume partagé OCR](#8-sécurité-du-volume-partagé-ocr)
 9. [Sécurité API Web vs Mobile](#9-sécurité-api-web-vs-mobile)
 10. [Journalisation & monitoring](#10-journalisation--monitoring)
 11. [Sécurité des environnements](#11-sécurité-des-environnements)
@@ -19,7 +19,7 @@
 
 ## 1. Objectif
 
-Ce document définit les exigences de sécurité applicables aux API exposées par la plateforme ESP.
+Ce document définit les exigences de sécurité applicables aux API exposées par la plateforme CollectionR.
 
 L’objectif est de prévenir :
 
@@ -71,10 +71,10 @@ Ces principes sont appliqués à l’ensemble des endpoints.
 
 ### 4.1 Exigences
 
-- Toute action sensible nécessite une authentification
-- Les mots de passe sont hashés (bcrypt ou Argon2)
-- Les tokens sont signés et à durée de vie limitée
-- Les clés sont stockées de manière sécurisée (Secret Manager)
+- toute action sensible nécessite une authentification
+- les mots de passe sont hashés (bcrypt ou Argon2)
+- les tokens sont signés et à durée de vie limitée
+- les clés sont stockées de manière sécurisée (Secret Manager)
 
 ---
 
@@ -106,9 +106,9 @@ Aucun token n’est stocké en localStorage.
 
 ### 5.1 Exigences
 
-- Chaque utilisateur possède un rôle
-- Les rôles définissent les permissions
-- Les contrôles sont effectués côté backend
+- chaque utilisateur possède un rôle
+- les rôles définissent les permissions
+- les contrôles sont effectués côté backend
 
 ---
 
@@ -137,53 +137,130 @@ Les identifiants sont systématiquement validés côté serveur.
 
 ## 6. Protection contre les attaques courantes (OWASP Top 10)
 
+L'OWASP (Open Web Application Security Project) est une 
+organisation internationale qui publie une liste des dix 
+failles de sécurité les plus critiques pour les applications 
+web. Cette section détaille les mesures mises en place pour 
+se protéger contre ces attaques dans le cadre de la 
+plateforme CollectionR.
+
+---
+
 ### 6.1 Injection (SQL / NoSQL)
 
-- Validation systématique côté serveur de toutes les entrées provenant du client (type, format, longueur maximale, valeurs autorisées).
-- Utilisation d’ORM ou de requêtes paramétrées.
-- Aucune concaténation dynamique non contrôlée dans les requêtes.
+**Qu'est-ce que c'est ?**
+Une injection consiste à insérer du code malveillant dans 
+une requête afin de manipuler la base de données ou 
+d'accéder à des données non autorisées.
+
+**Exemple concret :** un utilisateur malveillant tape 
+`' OR 1=1 --` dans un champ de recherche pour récupérer 
+toutes les données de la base.
+
+**Mesures appliquées :**
+- validation systématique côté serveur de toutes les entrées 
+  provenant du client (type, format, longueur maximale, 
+  valeurs autorisées) ;
+- utilisation d'ORM ou de requêtes paramétrées ;
+- aucune concaténation dynamique non contrôlée dans 
+  les requêtes.
 
 ---
 
-### 6.2 Broken Authentication
+### 6.2 Broken Authentication (Authentification compromise)
 
-- Durée de vie courte des tokens
-- Invalidation possible des sessions
-- Limitation des tentatives de connexion
+**Qu'est-ce que c'est ?**
+Une faille d'authentification permet à un attaquant de 
+prendre le contrôle d'un compte utilisateur, par exemple 
+en devinant un mot de passe ou en volant un token de session.
 
----
-
-### 6.3 Sensitive Data Exposure
-
-- Chiffrement TLS obligatoire (HTTPS)
-- Données sensibles non exposées dans les logs
-- Sauvegardes chiffrées.
+**Mesures appliquées :**
+- durée de vie courte des tokens d'accès ;
+- invalidation possible des sessions à tout moment ;
+- limitation des tentatives de connexion (voir section 7).
 
 ---
 
-### 6.4 XSS
+### 6.3 Sensitive Data Exposure (Exposition de données sensibles)
 
-- Validation et nettoyage des entrées utilisateur
-- Protection via frameworks frontend
+**Qu'est-ce que c'est ?**
+Des données sensibles (mots de passe, tokens, données 
+personnelles) sont exposées involontairement, par exemple 
+dans des logs, des réponses API ou des sauvegardes non 
+chiffrées.
+
+**Mesures appliquées :**
+- chiffrement TLS obligatoire sur toutes les communications (HTTPS) ;
+- données sensibles non exposées dans les logs ;
+- sauvegardes chiffrées.
 
 ---
 
-#### 6.5 CSRF (Web)
+### 6.4 XSS — Cross-Site Scripting
 
-- protection activée si cookies utilisés
+**Qu'est-ce que c'est ?**
+Une attaque XSS consiste à injecter du code JavaScript 
+malveillant dans une page web afin qu'il soit exécuté 
+par le navigateur d'un autre utilisateur. Cela peut 
+permettre de voler des cookies, des tokens ou des données 
+personnelles.
+
+**Exemple concret :** un utilisateur malveillant entre 
+`<script>alert('volé')</script>` dans un champ de 
+commentaire. Si ce contenu est affiché sans nettoyage, 
+le script s'exécute dans le navigateur des autres 
+utilisateurs.
+
+**Mesures appliquées :**
+- validation et nettoyage de toutes les entrées utilisateur 
+  avant affichage ;
+- protection assurée par les frameworks frontend modernes 
+  (React notamment) qui échappent automatiquement 
+  le contenu affiché.
 
 ---
 
-#### 6.6 Headers de sécurité HTTP
+### 6.5 CSRF — Cross-Site Request Forgery
 
-Des headers de sécurité sont configurés afin de renforcer la protection côté client :
+**Qu'est-ce que c'est ?**
+Une attaque CSRF force le navigateur d'un utilisateur 
+connecté à envoyer une requête non souhaitée à 
+l'application, à son insu. Par exemple, cliquer sur 
+un lien piégé pourrait déclencher une action sur son compte.
 
-- **Content-Security-Policy (CSP)** : limite les sources de contenu autorisées
-- **X-Content-Type-Options** : empêche l’interprétation incorrecte des fichiers
-- **X-Frame-Options** : protège contre le clickjacking
-- **Strict-Transport-Security (HSTS)** : force l’utilisation de HTTPS
+**Mesures appliquées :**
+- protection CSRF activée lorsque des cookies sont utilisés 
+  pour l'authentification ;
+- non applicable pour les clients mobiles qui n'utilisent 
+  pas de cookies.
 
-Ces mécanismes renforcent la sécurité côté navigateur.
+---
+
+### 6.6 Headers de sécurité HTTP
+
+**Qu'est-ce que c'est ?**
+Les headers HTTP sont des informations envoyées par le 
+serveur au navigateur pour lui indiquer comment se 
+comporter. Certains headers permettent de renforcer 
+la sécurité côté client.
+
+**Headers configurés :**
+
+- **Content-Security-Policy (CSP)** : indique au navigateur 
+  quelles sources de contenu sont autorisées, limitant 
+  ainsi les risques d'injection de scripts malveillants ;
+- **X-Content-Type-Options** : empêche le navigateur 
+  d'interpréter un fichier différemment de ce que 
+  le serveur indique ;
+- **X-Frame-Options** : protège contre le clickjacking, 
+  une technique qui consiste à superposer une page 
+  invisible pour tromper l'utilisateur ;
+- **Strict-Transport-Security (HSTS)** : force le navigateur 
+  à toujours utiliser HTTPS, même si l'utilisateur 
+  tape HTTP manuellement.
+
+Ces mécanismes renforcent la sécurité côté navigateur 
+sans nécessiter d'action de la part de l'utilisateur.
 
 ---
 
@@ -219,9 +296,10 @@ Ce volume constitue un point sensible de l’architecture, car il est utilisé l
 
 Le principe du moindre privilège s’applique à ce volume partagé :
 
-- le backend dépose les fichiers nécessaires au traitement
-- le worker OCR lit les fichiers à traiter et écrit les արդյունats nécessaires
-- les autres services n’ont pas accès à ce volume
+- le backend dépose les fichiers nécessaires au traitement;
+- le worker OCR lit les fichiers à traiter et écrit 
+  les résultats nécessaires ;
+- les autres services n’ont pas accès à ce volume.
 
 Les droits d’accès sont limités afin d’éviter toute lecture, modification ou suppression non autorisée.
 
@@ -280,6 +358,8 @@ La surveillance repose sur :
 - la détection d’événements critiques (ex : erreurs 401/403 répétées)
 - la mise en place possible d’alertes automatiques (ex : Sentry)
 
+Les outils envisagés sont Loki pour la centralisation des logs et Grafana pour la visualisation, déployables nativement sur K3s.
+
 Ces mécanismes permettent d’identifier rapidement les incidents.
 
 Aucune donnée sensible n’est présente dans les logs.
@@ -288,15 +368,36 @@ Aucune donnée sensible n’est présente dans les logs.
 
 ## 11. Sécurité des environnements
 
-- Variables sensibles stockées via Secret Manager
-- Aucune clé ou secret dans le code source
-- Environnements isolés
-- Accès restreint aux ressources cloud via IAM
+Les règles suivantes s'appliquent à tous les environnements 
+du projet :
+
+- variables sensibles injectées via les Secrets Kubernetes 
+  en local et staging, avec évolution prévue vers Vault 
+  ou Doppler en production ;
+- aucune clé ou secret dans le code source ou les images Docker ;
+- environnements dev, staging et production strictement isolés 
+  via des namespaces Kubernetes distincts ;
+- accès restreint aux ressources du cluster via RBAC Kubernetes.
 
 ---
+
 ## 12. Évolution future
 
-En cas de montée en charge ou d’ouverture publique importante :
-- Mise en place d’un WAF (Web Application Firewall).
-- Détection avancée d’abus.
-- Surveillance automatisée des comportements anormaux.
+Les mesures de sécurité API évoluent en parallèle 
+de l'infrastructure :
+
+**Court terme — K3s local**
+- mise en place du rate limiting sur les endpoints critiques ;
+- configuration des NetworkPolicies entre Pods ;
+- gestion des secrets via Secrets Kubernetes.
+
+**Moyen terme — K3s VPS**
+- mise en place d'un Ingress Controller avec règles 
+  de sécurité (Traefik ou Nginx) ;
+- activation des alertes automatiques via AlertManager ;
+- surveillance des comportements anormaux via Grafana.
+
+**Long terme — Production**
+- mise en place d'un WAF (Web Application Firewall) ;
+- détection avancée des abus ;
+- audit de sécurité externe recommandé avant ouverture publique.

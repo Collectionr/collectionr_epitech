@@ -1,5 +1,26 @@
 # Threat Model — Plateforme
 
+## Sommaire
+
+1. [Actifs critiques et périmètre de sécurité](#1-actifs-critiques-et-périmètre-de-sécurité)
+   - [1.1 Actifs critiques](#11-actifs-critiques)
+   - [1.2 Flux et composants couverts](#12-flux-et-composants-couverts)
+   - [1.3 Éléments hors périmètre](#13-éléments-hors-périmètre)
+2. [Menaces identifiées](#2-menaces-identifiées)
+   - [2.1 Menaces techniques](#21-menaces-techniques)
+   - [2.2 Abus métier](#22-abus-métier)
+   - [2.3 Menaces liées aux flux](#23-menaces-liées-aux-flux)
+3. [Mesures de mitigation](#3-mesures-de-mitigation)
+   - [3.1 Mitigations des menaces techniques](#31-mitigations-des-menaces-techniques)
+   - [3.2 Mitigations des abus métier](#32-mitigations-des-abus-métier)
+   - [3.3 Mitigations liées aux flux](#33-mitigations-liées-aux-flux)
+   - [3.4 Mitigations spécifiques à l'orchestration K3s](#34-mitigations-spécifiques-à-lorchestration-k3s)
+4. [Hypothèses et alignement architecture](#4-hypothèses-et-alignement-architecture)
+   - [4.1 Dépendances et liens avec l'architecture](#41-dépendances-et-liens-avec-larchitecture)
+   - [4.2 Validation croisée](#42-validation-croisée)
+5. [Évolution future](#5-évolution-future)
+6. [Documents liés](#6-documents-liés)
+
 ## Objectif du document
 Ce document présente le **threat model de la plateforme**, c’est-à-dire
 l’identification des actifs critiques, des menaces potentielles et des mesures
@@ -82,6 +103,8 @@ techniques spécifiques.
 | Tokens d’authentification | Jetons d’accès aux APIs | Critique |
 | Résultats de traitement | Résultats de pré-analyse et de scoring | Moyen |
 | Logs et audit | Traces d’accès et d’actions sensibles | Élevé |
+| Secrets et clés API | Credentials d'accès aux services externes | Critique |
+| Volume partagé OCR | Fichiers temporaires du pipeline de scan | Élevé |
 
 
 ---
@@ -108,7 +131,7 @@ Les éléments suivants ne sont pas couverts par ce threat model :
 
 ## 2. Menaces identifiées
 >Cette section identifie les principales menaces pesant sur les actifs critiques de la plateforme.
->L'analyse couvre à a fois les menaces techniques et les abus métier liés à l'usage de la plateforme.
+>L'analyse couvre à la fois les menaces techniques et les abus métier liés à l'usage de la plateforme.
 
 ### 2.1 Menaces techniques
 
@@ -122,6 +145,7 @@ Les menaces techniques suivantes ont été identifiées :
 | Information Disclosure | Fuite de données sensibles | Données personnelles |
 | Denial of Service | Saturation API ou services IA | API, traitements |
 | Elevation of Privilege | Contournement des rôles et permissions | Comptes, données |
+| Denial of Service | Saturation API ou services IA | API /scan, Worker OCR, Redis OCR |
 
 ---
 ### 2.2 Abus métier
@@ -139,10 +163,14 @@ ont été identifiés :
 ### 2.3 Menaces liées aux flux
 
 Les flux inter-composants présentent également des risques spécifiques :
-- interception ou altération des flux entre services internes,
-- appels non autorisés aux services internes,
-- exposition involontaire de composants non destinés au public,
-- mauvaise isolation entre environnements.
+- interception ou altération des flux entre services internes ;
+- appels non autorisés aux services internes ;
+- exposition involontaire de composants non destinés au public ;
+- mauvaise isolation entre environnements ;
+- accès non autorisé à l'API server K3s ;
+- mauvaise configuration des NetworkPolicies exposant 
+  des services internes ;
+- secret Kubernetes lisible par un Pod non autorisé.
 
 
 ---
@@ -184,14 +212,33 @@ Les flux inter-composants sont sécurisés par :
 - une gestion sécurisée des secrets.
 
 ---
+### 3.4 Mitigations spécifiques à l'orchestration K3s
+
+L'utilisation de K3s comme orchestrateur introduit des 
+vecteurs d'attaque spécifiques, couverts par les mesures 
+suivantes :
+
+| Menace | Mesure de mitigation |
+|---|---|
+| Accès non autorisé au cluster | RBAC Kubernetes strict par namespace |
+| Communication inter-Pods non sécurisée | NetworkPolicies limitant les flux entre services |
+| Secret exposé dans les manifests | Secrets Kubernetes, évolution vers Vault/Doppler |
+| Conteneur privilégié compromis | Interdiction du mode privilégié sauf justification |
+| Accès au plan de contrôle K3s | Accès restreint au kubeconfig et à l'API server |
+
+---
 
 ## 4. Hypothèses et alignement architecture
->Le présent threat model repose sur les hypothèses d’architecture suivantes :
->- l’API est exposée uniquement via le backend applicatif,
->- les services de traitement internes ne sont pas exposés publiquement,
->- la base de données est isolée dans une zone réseau privée,
->- les accès sont contrôlés via des rôles et permissions,
->- les traitements lourds sont exécutés de manière asynchrone.
+Le présent threat model repose sur les hypothèses d’architecture suivantes :
+- l'API est exposée uniquement via le backend applicatif,
+- les services de traitement internes ne sont pas exposés publiquement,
+- la base de données est isolée dans une zone réseau privée,
+- les accès sont contrôlés via des rôles et permissions,
+- les traitements lourds sont exécutés de manière asynchrone,
+- l'orchestration repose sur K3s avec isolation des services 
+  via namespaces et NetworkPolicies,
+- aucun secret n'est stocké en clair dans les manifests 
+  Kubernetes ou le dépôt Git.
 
 ### 4.1 Dépendances et liens avec l’architecture
 
@@ -215,8 +262,24 @@ sécurité et les choix d’architecture.
 
 ---
 
-## Documents liés
+## 5. Évolution future
+
+Ce threat model sera mis à jour à chaque étape 
+de l'évolution de l'infrastructure :
+
+- **Court terme** : validation des mitigations K3s 
+  local et tests de sécurité basiques.
+- **Moyen terme** : audit des NetworkPolicies et 
+  des RBAC en environnement VPS, intégration des 
+  alertes de sécurité via AlertManager.
+- **Long terme** : audit de sécurité externe recommandé 
+  avant ouverture publique, revue complète du threat 
+  model avant passage en Kubernetes managé.
+
+---
+
+## 6. Documents liés
 - `01-principes-securite.md`
 - `03-api-security.md`
 - `05-upload-security.md`
-- `07-logging-audit.md`
+- `07-logs-audit.md`

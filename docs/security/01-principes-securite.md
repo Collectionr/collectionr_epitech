@@ -1,6 +1,20 @@
 # Principes de sécurité
 
-## Objectif du document
+## Sommaire
+
+1. [Objectif du document](#1-objectif-du-document)
+2. [Périmètre](#2-périmètre)
+3. [Approche générale](#3-approche-générale)
+4. [Principes de sécurité fondamentaux](#4-principes-de-sécurité-fondamentaux)
+5. [Gestion des identités et des accès](#5-gestion-des-identités-et-des-accès)
+6. [Gestion des secrets](#6-gestion-des-secrets)
+7. [Protection des données](#7-protection-des-données)
+8. [Journalisation et traçabilité](#8-journalisation-et-traçabilité)
+9. [Conformité et protection de la vie privée](#9-conformité-et-protection-de-la-vie-privée)
+10. [Évolutivité et amélioration continue](#10-évolutivité-et-amélioration-continue)
+11. [Documents associés](#11-documents-associés)
+
+## 1. Objectif du document
 Ce document définit les **principes de cybersécurité** appliqués à la plateforme
 d’un point de vue **architecture Cloud & DevOps**.
 
@@ -9,7 +23,7 @@ dans les documents suivants (threat model, sécurité API, conformité RGPD, aud
 
 ---
 
-## Périmètre
+## 2. Périmètre
 Les principes décrits dans ce document s’appliquent :
 - à l’architecture cloud de la plateforme,
 - aux APIs exposées aux clients web et mobile,
@@ -21,19 +35,19 @@ Les détails d’implémentation applicative (front-end, back-end, IA) sont hors
 
 ---
 
-## Approche générale
+## 3. Approche générale
 
 La sécurité est intégrée dès la phase de conception selon une approche
 **Security by Design**, complétée par une stratégie de **défense en profondeur**.
 
-L’objectif est de réduire :
-- la surface d’attaque,
-- l’impact d’un incident,
+L'objectif est de réduire :
+- la surface d'attaque,
+- l'impact d'un incident,
 - les risques de fuite ou de compromission des données.
 
 ---
 
-## Principes de sécurité fondamentaux
+## 4. Principes de sécurité fondamentaux
 
 ### Principe du moindre privilège (Least Privilege)
 Chaque composant, service ou utilisateur ne dispose que des **droits strictement nécessaires**
@@ -68,6 +82,14 @@ Les environnements suivants sont strictement isolés :
 
 Aucune donnée de production ne doit être utilisée en environnement de développement.
 Les accès et secrets sont distincts par environnement.
+Les pipelines CI/CD n'ont accès qu'aux secrets et ressources de l'environnement cible. Aucun pipeline de développement ne peut interagir avec l'environnement de production.
+
+### Sécurité de l'orchestration K3s
+L'orchestration repose sur K3s. Les mesures de sécurité suivantes s'appliquent :
+- les communications entre Pods sont restreintes via des NetworkPolicies ;
+- les secrets applicatifs sont gérés via les Secrets Kubernetes, avec une évolution prévue vers Vault ou Doppler ;
+- les droits d'accès au cluster sont définis via RBAC Kubernetes ;
+- aucun conteneur ne s'exécute en mode privilégié sauf nécessité explicitement justifiée.
 
 ---
 
@@ -82,17 +104,31 @@ La défaillance d’un contrôle ne doit pas compromettre l’ensemble du systè
 
 ---
 
-## Gestion des identités et des accès
+## 5. Gestion des identités et des accès
 
-- Authentification centralisée pour les utilisateurs et les services
-- Gestion des rôles et permissions (RBAC)
-- Séparation des rôles techniques et fonctionnels
-- Rotation et gestion sécurisée des secrets
-- Révocation possible des accès
+Ces mesures s'appliquent aussi bien aux utilisateurs humains 
+qu'aux services techniques communiquant entre eux au sein du cluster.
+
+- authentification centralisée pour les utilisateurs et les services ;
+- gestion des rôles et permissions (RBAC) ;
+- séparation des rôles techniques et fonctionnels ;
+- rotation et gestion sécurisée des secrets ;
+- révocation possible des accès.
 
 ---
 
-## Protection des données
+## 6. Gestion des secrets
+Aucun secret ne doit apparaître en clair dans le dépôt Git.
+Les secrets sont gérés selon les règles suivantes :
+
+- variables d'environnement injectées via les Secrets Kubernetes en environnement local et staging ;
+- évolution prévue vers Vault ou Doppler en production ;
+- rotation régulière des secrets critiques (clés API, tokens) ;
+- audit des accès aux secrets tracé et journalisé.
+
+---
+
+## 7. Protection des données
 
 Les données sensibles identifiées incluent notamment :
 - les comptes utilisateurs,
@@ -106,9 +142,11 @@ Les principes suivants s’appliquent :
 - accès limité selon les rôles,
 - traçabilité des accès aux données sensibles.
 
+Dans le contexte de ce projet, une attention particulière est portée aux images uploadées par les utilisateurs dans le cadre du pipeline OCR, car elles transitent entre plusieurs services et doivent être supprimées après traitement.
+
 ---
 
-## Journalisation et traçabilité
+## 8. Journalisation et traçabilité
 
 Les événements de sécurité doivent être journalisés, notamment :
 - tentatives d’authentification,
@@ -121,9 +159,11 @@ Les logs doivent être :
 - protégés contre l’altération,
 - exploitables pour l’audit et l’investigation.
 
+Les outils envisagés pour la centralisation des logs sont Loki et Grafana, déployables nativement sur K3s. Le détail est disponible dans le document 07-logs-audit.md.  
+
 ---
 
-## Conformité et protection de la vie privée
+## 9. Conformité et protection de la vie privée
 
 La plateforme est conçue pour respecter les principes de protection des données personnelles :
 - minimisation des données collectées,
@@ -135,7 +175,7 @@ Ces exigences sont détaillées dans le document dédié à la conformité RGPD.
 
 ---
 
-## Évolutivité et amélioration continue
+## 10. Évolutivité et amélioration continue
 
 Les principes de sécurité définis dans ce document sont appelés à évoluer
 en fonction :
@@ -145,11 +185,15 @@ en fonction :
 
 Toute évolution significative devra être documentée et validée.
 
+Cette démarche d'amélioration continue garantit que la sécurité 
+de la plateforme reste adaptée à son niveau de maturité 
+et aux menaces identifiées à chaque étape du projet.
+
 ---
 
-## Documents associés
+## 11. Documents associés
 - `02-threat-model.md`
 - `04-api-security.md`
 - `05-upload-security.md`
 - `06-rgpd-conformite.md`
-- `07-logging-audit.md`
+- `07-logs-audit.md`
