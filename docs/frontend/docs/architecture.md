@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-03-22
+> **Derniere mise a jour :** 2026-06-25
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Architecture Frontend -- CollectionR
@@ -46,105 +46,95 @@ L'architecture actuelle est adaptee a la phase 1 du projet. La migration vers Fe
 
 ---
 
-## 2. Arborescence du dossier src/
+## 2. Arborescence du monorepo
 
-Cette arborescence est la reference. Chaque nouveau fichier doit respecter cette structure.
+Le frontend est organise en monorepo (workspaces npm) : deux applications distinctes et un package de logique partagee. Cette arborescence est la reference. Chaque nouveau fichier doit y respecter sa place.
 
 ```
-src/
-|-- components/              # Composants UI reutilisables (Atomic Design)
-|   |-- atoms/               # Composants de base (Button, Input, Badge, PriceTag, Icon, Loader)
-|   |-- molecules/           # Groupes de composants (CardPreview, SearchBar, PriceTag, FormField)
-|   |-- organisms/           # Sections completes (CardList, ScanResult, CollectionGrid, AddCardForm)
-|   |-- templates/           # Mises en page (DashboardLayout, CollectionLayout, AuthLayout)
-|   |-- pages/               # Pages reliees au routeur (CollectionPage, CardDetailPage, ScanPage)
+.
+|-- apps/
+|   |-- web/                  # Application web (React + Vite + Tailwind)
+|   |   |-- src/
+|   |   |   |-- components/   # Composants UI web (Atomic Design)
+|   |   |   |-- pages/        # Pages reliees au routeur web
+|   |   |   |-- styles/       # globals.css + tailwind.config.ts
+|   |   |   |-- assets/       # Images, polices, icones web
+|   |   |   |-- App.tsx       # Racine de l'app web
+|   |   |   |-- main.tsx      # Entry point Vite
+|   |   |-- index.html
+|   |   |-- vite.config.ts
+|   |   |-- package.json
+|   |
+|   |-- mobile/               # Application mobile (Expo / React Native + NativeWind -> iOS + Android)
+|       |-- src/
+|       |   |-- components/   # Composants UI mobile (Atomic Design)
+|       |   |-- screens/      # Ecrans relies a la navigation
+|       |   |-- navigation/   # React Navigation (RootNavigator, TabNavigator, AuthNavigator, linking)
+|       |   |-- assets/       # Images, polices, icones mobile
+|       |-- App.tsx           # Entry point Expo
+|       |-- app.json
+|       |-- package.json
 |
-|-- hooks/                   # Custom hooks metier (useCards, useCollection, useCardScanner, usePriceFormatter)
+|-- packages/
+|   |-- shared/               # Logique pure partagee web + mobile (AUCUN composant visuel / JSX)
+|       |-- src/
+|       |   |-- hooks/        # Custom hooks metier (useCards, useCollection, useCardScanner, usePriceFormatter)
+|       |   |-- stores/       # Stores Zustand (useCollectionStore, useAuthStore, useUIStore, useFiltersStore)
+|       |   |-- services/     # Appels API (cardService, collectionService, priceService, scannerService, authService, apiClient)
+|       |   |-- types/        # Interfaces TypeScript (card, collection, user, price, api, navigation)
+|       |   |-- utils/        # Fonctions pures (formatPrice, formatDate, validators, storage)
+|       |   |-- validation/   # Schemas de validation (formulaires, reponses API)
+|       |   |-- constants/    # endpoints, queryKeys, config
+|       |   |-- tokens/       # Design tokens partages (couleurs, typo, espacements)
+|       |-- package.json
 |
-|-- stores/                  # Stores Zustand (useCollectionStore, useAuthStore, useUIStore, useFiltersStore)
-|
-|-- services/                # Appels API (wrappers autour de fetch, consommes par les hooks TanStack Query)
-|   |-- cardService.ts       # Endpoints cartes : getCard, searchCards, getCardsBySet
-|   |-- collectionService.ts # Endpoints collection : getCollection, addCard, removeCard
-|   |-- priceService.ts      # Endpoints prix : getMarketPrice
-|   |-- scannerService.ts    # Endpoint scan : uploadImage, identifyCard
-|   |-- authService.ts       # Endpoints auth : login, register, refreshToken
-|   |-- apiClient.ts         # Instance HTTP configuree (base URL, headers, interceptors)
-|
-|-- types/                   # Interfaces et types TypeScript partages
-|   |-- card.ts              # Card, CardSet, CardRarity, CardCondition
-|   |-- collection.ts        # Collection, CollectionItem
-|   |-- user.ts              # User, AuthTokens
-|   |-- price.ts             # MarketPrice, PriceSource, PriceTrend
-|   |-- api.ts               # ApiResponse, PaginatedResponse, ApiError
-|   |-- navigation.ts        # Types React Navigation (params de chaque ecran)
-|
-|-- utils/                   # Fonctions utilitaires pures
-|   |-- formatPrice.ts       # Formatage de prix (devise, decimales, signe +/-)
-|   |-- formatDate.ts        # Formatage de dates
-|   |-- validators.ts        # Validation de formulaires
-|   |-- storage.ts           # Abstraction AsyncStorage / localStorage
-|
-|-- constants/               # Constantes et configuration
-|   |-- routes.ts            # Noms de routes (web et mobile)
-|   |-- endpoints.ts         # URLs des endpoints API
-|   |-- config.ts            # Variables d'environnement typees
-|   |-- queryKeys.ts         # Cles TanStack Query centralisees
-|
-|-- assets/                  # Ressources statiques
-|   |-- images/              # Images et illustrations
-|   |-- fonts/               # Polices custom
-|   |-- icons/               # Icones SVG ou icon font
-|
-|-- styles/                  # Tokens globaux Tailwind / theme
-|   |-- tailwind.config.ts   # Configuration Tailwind etendue (couleurs, espacements, fonts)
-|   |-- theme.ts             # Tokens de theme exportes pour usage programmatique
-|   |-- globals.css           # Styles globaux (web uniquement)
-|
-|-- navigation/              # Configuration React Navigation (mobile)
-|   |-- RootNavigator.tsx    # Navigateur racine
-|   |-- TabNavigator.tsx     # Navigation par onglets
-|   |-- AuthNavigator.tsx    # Stack d'authentification
-|   |-- linking.ts           # Configuration deep linking
-|
-|-- App.tsx                  # Point d'entree de l'application
-|-- index.ts                 # Entry point (Expo / Vite)
+|-- package.json              # Racine du monorepo (workspaces)
 ```
 
 ---
 
-## 3. Web vs Mobile : partage et specificites
+## 3. Web et Mobile : deux apps, une logique partagee
 
-Le code est partage au maximum entre web et mobile. Les dossiers suivants sont communs aux deux plateformes.
+Le decoupage entre web et mobile se fait PAR DOSSIER, via les deux apps du monorepo -- et non par suffixe de fichier. Il n'y a plus de fichiers `.web.tsx` / `.native.tsx`.
 
-### Dossiers partages (web et mobile)
+### Ce qui est partage : packages/shared
 
-| Dossier | Partage | Notes |
+`packages/shared` contient TOUTE la logique non visuelle, consommee a l'identique par les deux apps :
+
+| Domaine | Contenu |
+|---|---|
+| Hooks | Logique metier reutilisable (useCards, usePriceFormatter...) |
+| Stores | Etat global Zustand |
+| Services | Appels API (identiques web et mobile) |
+| Types | Interfaces TypeScript |
+| Validation | Schemas de validation |
+| Formatage des prix | formatPrice et helpers monetaires |
+| Tokens | Design tokens (couleurs, typo, espacements) |
+
+`packages/shared` ne contient JAMAIS de rendu : aucun composant, aucun JSX.
+
+### Ce qui est specifique a chaque app : le rendu
+
+Le rendu vit dans chaque app, parce que web et mobile ont des ecrans differents, conformes a leurs wireframes respectifs :
+
+| App | Stack | Specificites |
 |---|---|---|
-| `types/` | 100% | Toutes les interfaces sont identiques |
-| `stores/` | 100% | Zustand fonctionne sur les deux plateformes |
-| `services/` | 100% | Les appels API sont identiques |
-| `hooks/` | 90% | Sauf `useCardScanner` (mobile uniquement) |
-| `utils/` | 100% | Fonctions pures, pas de dependance plateforme |
-| `constants/` | 100% | Sauf les routes qui different |
+| `apps/web` | React + Vite + Tailwind | Routeur web, styles globaux CSS |
+| `apps/mobile` | Expo / React Native + NativeWind | React Navigation, ecran de scan (camera, mobile uniquement) |
 
-### Dossiers specifiques
+### Choix delibere : pas de composants UI partages
 
-| Dossier | Specificite | Notes |
-|---|---|---|
-| `navigation/` | Mobile uniquement | React Navigation (pas utilise sur le web) |
-| `styles/globals.css` | Web uniquement | CSS global pour le web |
-| `components/pages/ScanPage` | Mobile uniquement | La camera n'est pas disponible sur desktop |
+Contrairement a certains exemples de monorepo (ex. byCedric/expo-monorepo-example) qui partagent aussi des composants UI entre web et mobile via react-native-web, nous gardons le rendu dans chaque app. Raison : nos wireframes desktop et mobile divergent suffisamment pour qu'un composant reellement commun soit l'exception, pas la regle.
 
-### Resolution par plateforme
+### Coherence visuelle : les design tokens
 
-Quand un composant a un rendu different sur web et mobile, utiliser les extensions de fichier. Metro (mobile) et Vite (web) resolvent automatiquement la bonne version.
+La coherence visuelle entre les deux apps n'est pas assuree par des composants communs, mais par les **design tokens partages** (`packages/shared/tokens`) : memes valeurs de couleurs, typographie et espacements, branchees dans Tailwind cote web et NativeWind cote mobile.
 
-```
-CardPreview.tsx          # Code par defaut (partage)
-CardPreview.web.tsx      # Rendu specifique web
-CardPreview.native.tsx   # Rendu specifique mobile (React Native)
-```
+### Une seule version de React / React Native
+
+Tout le monorepo utilise une seule version de React et de React Native. Deux versions differentes entre apps ou packages provoquent des erreurs runtime (hooks invalides, contextes React dupliques).
+
+> References : [byCedric/expo-monorepo-example](https://github.com/byCedric/expo-monorepo-example), [hugo8barbosa/react-vite-monorepo](https://github.com/hugo8barbosa/react-vite-monorepo).
 
 ---
 
@@ -213,22 +203,52 @@ function CardDetail({ id }: { id: string }) {
 
 ## 6. Alias de chemins
 
-Les imports relatifs profonds (`../../../`) sont interdits. Le projet utilise des alias configures dans `tsconfig.json`.
+Les imports relatifs profonds (`../../../`) sont interdits. Avec le monorepo, deux familles d'alias coexistent : `@shared/*` pour la logique partagee, et `@/*` propre a chaque app pour son rendu.
+
+### Logique partagee : `@shared/*`
+
+Resolu partout vers `packages/shared/src/` :
 
 | Alias | Chemin reel |
 |---|---|
-| `@/components` | `src/components` |
-| `@/hooks` | `src/hooks` |
-| `@/services` | `src/services` |
-| `@/stores` | `src/stores` |
-| `@/types` | `src/types` |
-| `@/utils` | `src/utils` |
-| `@/constants` | `src/constants` |
-| `@/assets` | `src/assets` |
-| `@/styles` | `src/styles` |
-| `@/navigation` | `src/navigation` |
+| `@shared/hooks` | `packages/shared/src/hooks` |
+| `@shared/stores` | `packages/shared/src/stores` |
+| `@shared/services` | `packages/shared/src/services` |
+| `@shared/types` | `packages/shared/src/types` |
+| `@shared/utils` | `packages/shared/src/utils` |
+| `@shared/validation` | `packages/shared/src/validation` |
+| `@shared/constants` | `packages/shared/src/constants` |
+| `@shared/tokens` | `packages/shared/src/tokens` |
+
+### Rendu local a chaque app : `@/*`
+
+Resolu vers le `src/` de l'app courante uniquement (jamais celui de l'autre app) :
+
+| Alias | apps/web | apps/mobile |
+|---|---|---|
+| `@/components` | `apps/web/src/components` | `apps/mobile/src/components` |
+| `@/pages` | `apps/web/src/pages` | -- |
+| `@/screens` | -- | `apps/mobile/src/screens` |
+| `@/styles` | `apps/web/src/styles` | -- |
+| `@/navigation` | -- | `apps/mobile/src/navigation` |
+| `@/assets` | `apps/web/src/assets` | `apps/mobile/src/assets` |
+
+Pour consommer la logique partagee, toujours passer par `@shared/*` ; le `@/*` d'une app ne pointe que vers son propre `src/`.
 
 ```json
+// packages/shared/tsconfig.json -- alias partage, herite par les apps
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["packages/shared/src/*"]
+    }
+  }
+}
+```
+
+```json
+// apps/web/tsconfig.json -- alias local a l'app (idem pour apps/mobile)
 {
   "compilerOptions": {
     "baseUrl": ".",
