@@ -29,9 +29,10 @@ Pour garantir la portabilité et la maintenabilité, le projet suit les principe
 
 Le système est divisé en blocs fonctionnels autonomes :
 
+- **Frontend** : Interface utilisateur réactive, communiquant avec le Backend via des appels REST et des flux SSE.
 - **Backend (NestJS)** : Orchestrateur central, gère la sécurité, les utilisateurs et la persistance des métadonnées via **PostgreSQL**.
 - **Worker OCR (Python/YOLO)** : Service spécialisé dans la vision par ordinateur, accédant aux images via un stockage partagé (puis S3 en production).
-- **Service TCG (Scraping & APIs)** : Microservice dédié à la veille tarifaire, récupérant les prix en continu sur les places de marché.
+- **Service TCG (Scraping & APIs)** : Microservice dédié à la veille tarifaire, récupérant les prix en continu sur les places de marché. Il met à jour régulièrement les prix des cartes dans le cache Redis, qui est ensuite consulté par le Backend pour fournir des informations de prix à jour aux utilisateurs.
 - **Redis (Broker & Cache)** : 
     - **Broker** : Gère les files d'attente de tâches (`Redis OCR` et `Redis TCG`).
     - **Cache** : Stocke temporairement les prix des cartes pour limiter les appels externes et améliorer les performances.
@@ -47,6 +48,17 @@ Le système utilise une architecture **Event-Driven** (pilotée par les événem
 3. **Traitement** : Le Worker OCR dépile la tâche, analyse l'image et met à jour le statut en base de données.
 4. **Notification (SSE)** : Le Backend informe le client de la fin du traitement via un flux **Server-Sent Events (SSE)**, permettant une mise à jour instantanée de l'interface.
 
+```mermaid
+graph LR
+    U((User)) -->|1. Upload| B[Backend]
+    B -->|2. Ingestion| R1[(Redis OCR)]
+    R1 -->|3. Traitement| W[Worker OCR]
+    W -->|ImageProcessed| B
+    B -->|4. Mise à jour| P[(PostgreSQL)]
+    B -->|5. Notification| U
+    B -.->|Consulte les prix| R2[(Redis TCG)]
+    T[Service TCG] -->|Met à jour les prix| R2
+```
 ---
 
 ## 5. Infrastructure, Observabilité et Sécurité
@@ -63,7 +75,7 @@ Suivi proactif de la santé du système via la stack **Prometheus (métriques), 
 ### Sécurité & Résilience
 - **Gestion des secrets** : Utilisation des **Kubernetes Secrets** (ou Doppler) pour protéger les clés API.
 - **Circuit Breaker** : Protection du système contre les défaillances des APIs tierces (TCGPlayer, Cardmarket).
-- **Isolation** : Chaque microservice est isolé dans son propre Namespace Kubernetes.
+- **Isolation** : Chaque microservice est isolé dans son propre Namespace Kubernetes afin de cloisonner logiquement les ressources, de restreindre les flux réseau inter-services et d'atténuer le rayon d'impact en cas de faille de sécurité.
 
 ---
 
