@@ -148,3 +148,14 @@ La stratégie retenue permet de :
 
 > Le scraping HTML est un **mécanisme de dernier recours encadré**, pas une source principale de
 > données. Les APIs ouvertes (TCGdex, pokemontcg.io) couvrent l'essentiel du besoin.
+
+---
+
+## Sources
+
+Vérifications web (juin 2026) :
+
+- **Accès APIs marketplace** : [eBay — newsletter Q3 2024 (dépréciation Finding API)](https://developer.ebay.com/updates/newsletter/q3_2024) · [TCGPlayer — getting started (« no longer granting new API access »)](https://docs.tcgplayer.com/docs/getting-started) · [Cardmarket — Auth Overview (vendeurs pro)](https://api.cardmarket.com/ws/documentation/API:Auth_Overview)
+- **CGU** : [Cardmarket — Conditions générales](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions) · [TCGPlayer — API Terms & Conditions](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions) · [TCGdex — base sous licence MIT](https://github.com/tcgdex/cards-database)
+- **Flux RSS** : [eBay a supprimé ses flux RSS de recherche](https://www.valueaddedresource.net/ebay-rss-feed-stores-search/) · [eBay User Agreement 2026 (interdit robots/bots)](https://www.valueaddedresource.net/ebay-bans-ai-agents-updates-arbitration-user-agreement-feb-2026/) · [MidlevelU v. ACI, 11e Circuit 2021 (pas de licence implicite pour scraper un flux RSS)](https://www.plagiarismtoday.com/2021/03/08/11th-circuit-no-implied-license-for-rss-scraping/)
+- **Outils Python** : voir les sources de [bibliotheque-scraping.md](bibliotheque-scraping.md).

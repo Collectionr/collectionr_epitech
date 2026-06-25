@@ -169,3 +169,11 @@ Réponse :
   et édition identiques.
 - Attribution des sources et **disclaimer de non-affiliation** à Nintendo / The Pokémon Company à
   afficher côté client (cf. garde-fous légaux dans [marketplace-scraper.md](../marketplace/marketplace-scraper.md)).
+
+---
+
+## Sources
+
+- Données de cartes et exemple `swsh3-20` (Charizard VMAX) : **API TCGdex** — voir [externe-api.md](externe-api.md).
+- Modèle de prix, agrégation et CGU : voir [marketplace-scraper.md](../marketplace/marketplace-scraper.md) (§6 et §11).
+- Stack backend (NestJS / Fastify) : voir [clean-architecture.md](../../backend/clean-architecture.md).

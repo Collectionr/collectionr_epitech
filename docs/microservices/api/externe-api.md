@@ -209,3 +209,13 @@ Exemple de paramètre de langue :
 /v2/en/cards/{id}
 /v2/fr/cards/{id}
 ```
+
+---
+
+## Sources
+
+Vérifications web (juin 2026) :
+
+- [TCGdex — FAQ (gratuit, sans clé)](https://tcgdex.dev/faq) · [Markets & Prices (prix Cardmarket/TCGPlayer)](https://tcgdex.dev/markets-prices) · [statut multilingue](https://api.tcgdex.net/status) · [base sous licence MIT](https://github.com/tcgdex/cards-database)
+- Carte d'exemple vérifiée en direct : [`swsh3-20` — Charizard VMAX](https://api.tcgdex.net/v2/en/cards/swsh3-20)
+- CGU des prix (en amont) : [Cardmarket — Conditions générales](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions) · [TCGPlayer — API Terms](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions)
