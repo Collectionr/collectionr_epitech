@@ -239,10 +239,6 @@ PriceHistory
 ─────────────────────────
 id           UUID         clé primaire
 card_id      STRING       identifiant de la carte
-source       STRING       marketplace source
-condition    STRING       état de la carte
-currency     STRING       devise
-price        DECIMAL      prix enregistré
 recorded_at  TIMESTAMP    date et heure de l'enregistrement
 ```
 
@@ -265,11 +261,7 @@ model CardPrice {
 
 model PriceHistory {
   id         String   @id @default(uuid())
-  cardId     String
-  source     String
-  condition  String
-  currency   String   @default("EUR")
-  price      Decimal  @db.Decimal(10, 2)
+  cardPriceId     String
   recordedAt DateTime @default(now())
 
   @@index([cardId, source])

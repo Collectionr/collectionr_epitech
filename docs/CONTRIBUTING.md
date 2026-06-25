@@ -1,201 +1,95 @@
-#  Vue d'ensemble
+# Guide de Contribution — Collectionr TCG
 
-Ce document définit les règles, les outils et les normes partagés par l'ensemble des développeurs du projet. Ces directives s'appliquent indistinctement aux environnements **front-end** et **back-end** afin de garantir l'homogénéité et la qualité de la base de code globale.
+> Ce document décrit les règles de contribution au code source. Pour le détail complet du processus (cycle de vie des tickets, WIP limits, réunions, gouvernance), se référer au **Workflow & Contribution Guide** et au **Governance & Réunions** disponibles sur le OneDrive.
 
 ---
 
-##  Gestion des Versions et Collaboration
+## Format des Branches
 
-Le travail collaboratif repose sur des règles strictes de gestion de version.
-
-### Format des Branches
-
-- **Structure obligatoire** : `COLLR-<NUM-TICKET>/<type>/<nom-de-la-tâche>`
-- **Un seul ticket par branche** : Il est impératif d'associer un seul ticket à chaque branche
-- **Pas de modifications directes sur main** : Les modifications directes sur la branche principale sont interdites
-- **Intégration par Pull Requests** : Les intégrations se font exclusivement par l'intermédiaire de requêtes de fusion (Pull Requests)
-- **Suppression après fusion** : Les branches doivent être supprimées une fois la fusion validée
-
-**Exemples** :
 ```
-COLLR-100/feat/add-dark-mode
-COLLR-101/fix/resolve-authentication-bug
-COLLR-102/docs/update-api-documentation
+COLLR-<NUM-TICKET>/<type>/<description-courte>
 ```
 
-### Conventions de Validation (Commits)
+Exemples :
 
-Les messages de validation doivent préciser la nature de la modification.
-
-**Types prioritaires**  :
-- `feat` → nouvelle fonctionnalité
-- `fix` → correction de bug
-- `test` → ajout de vérifications automatiques
-
-**Périmètres autorisés** :
-- `docs` → documentation
-- `arch` → architecture
-- `cloud` → infrastructure cloud
-- `security` → sécurité
-- `devops` → pipelines, CI/CD
-
-**Format recommandé** :
 ```
-<type>(<scope>): <description>
-
-Exemple:
-feat(docs): add user authentication guide
-fix(security): update dependency vulnerabilities
+COLLR-042/feat/endpoint-scan-unitaire
+COLLR-067/fix/crash-camera-android
+COLLR-089/chore/setup-bullmq-worker
+COLLR-101/refactor/pipeline-ocr-redis
 ```
 
 ---
 
-##  Langage de Programmation et Typage
+## Types de Branches et Commits
 
-Le projet utilise **TypeScript** sur l'intégralité de la base de code.
+| Type | Usage |
+|---|---|
+| `feat` | Nouvelle fonctionnalité |
+| `fix` | Correction de bug |
+| `chore` | Tâche technique sans valeur utilisateur (config, setup) |
+| `refactor` | Refactorisation sans changement de comportement |
+| `docs` | Mise à jour de documentation technique |
+| `test` | Ajout ou modification de tests |
 
-### Typage Strict (Obligatoire)
+---
 
-- Le compilateur TypeScript est configuré de manière **stricte** via l'option `strict: true` dans `tsconfig.json`
-- Cette configuration active tous les contrôles de type stricts possibles
+## Format des Commits
 
-### Interdiction du Type `any` 
-
-- L'utilisation du type `any` est **formellement interdite**
-- En cas d'incertitude sur la structure d'une donnée, utiliser le type `unknown`
-- Le type `unknown` impose une **vérification structurelle** avant toute manipulation
-
-```typescript
-//  Interdit
-function process(data: any): void {
-  data.method();
-}
-
-//  Correct
-function process(data: unknown): void {
-  if (typeof data === 'object' && data !== null) {
-    // manipulation sécurisée de data
-  }
-}
+```
+<type>(<scope>): <description courte en minuscules>
 ```
 
-### Structures de Données
+Exemples :
 
-- Les **objets et structures de données standards** doivent être définis par des **interfaces**
-- L'utilisation des **unions** ou des **intersections** de types nécessite l'emploi du mot-clé `type`
-
-```typescript
-// Interface pour les objets
-interface Utilisateur {
-  id: string;
-  nom: string;
-  email: string;
-}
-
-// Type pour les unions/intersections
-type Resultat = Succes | Erreur;
-type Permissions = Admin & Moderateur;
+```
+feat(scan): ajout endpoint POST /scan/unit
+fix(auth): correction expiration JWT refresh token
+chore(ci): configuration GitHub Actions pipeline backend
+refactor(bullmq): simplification worker OCR pipeline
 ```
 
 ---
 
-##  Normes de Codage et Formatage
+## Règles essentielles
 
-L'uniformité du code entre les différents développeurs est **automatisée par des outils d'analyse**.
-
-### Analyse et Présentation
-
-**ESLint**
-- Appliqué pour garantir le respect de la syntaxe
-- Identifie les mauvaises pratiques
-- Configuration centralisée dans `.eslintrc.json`
-
+- Un ticket = une branche
+- Jamais de push direct sur `main` ou `develop`
+- Toute modification passe par une Pull Request
+- Deux yeux minimum : toute PR doit être approuvée par au moins un pair
+- La branche est supprimée après merge
 
 ---
 
-##  Analyse Continue
+## Checklist avant PR
 
-La vérification de la qualité du code est **centralisée** dans le pipeline de déploiement continu.
-
-### SonarQube
-
-**SonarQube** est intégré au processus de déploiement continu :
-
-- **Analyse approfondie** : À chaque ajout de code sur le serveur, une analyse complète est effectuée
-- **Évaluation de qualité** : Mesure la qualité globale du code
-- **Détection de sécurité** : Identifie les failles de sécurité
-- **Identification de dette technique** : Repère les zones nécessitant une révision ultérieure
-
-**Métriques analysées** :
-- Couverture de tests
-- Complexité cyclomatique
-- Duplications de code
-- Vulnérabilités connues
-- Bugs potentiels
+- [ ] Tests unitaires passants (couverture ≥ 70 %)
+- [ ] ESLint et Prettier sans erreur
+- [ ] Aucun `any` TypeScript introduit
+- [ ] Branche à jour avec `develop`
+- [ ] Ticket Jira passé en "À valider / Tester"
+- [ ] PR référence le ticket (`Closes COLLR-XXX`)
 
 ---
 
-##  Principes de Sécurité Transversaux
+## Workflow
 
-La sécurité s'applique dès la conception de l'architecture.
+```bash
+# 1. Créer une branche depuis develop
+git checkout -b COLLR-<NUM>/<type>/<description>
 
-### Gestion des Accès
+# 2. Commiter
+git commit -m "<type>(<scope>): description"
 
-L'ensemble des accès aux composants et aux données est régi par le **principe du moindre privilège** :
+# 3. Pousser
+git push origin COLLR-<NUM>/<type>/<description>
 
-- Chaque entité ne dispose que des **droits strictement nécessaires** à son fonctionnement
-- Les tokens et credentials sont limités en durée de vie
-- Les accès sont régulièrement audités et révoqués si inutilisés
+# 4. Ouvrir une Pull Request sur GitHub
 
-### Confiance et Isolation
-
-**Principe du Zero Trust**
-- Aucune communication n'est considérée comme fiable par défaut
-- Chaque accès doit être **authentifié**, **autorisé** et **tracé**
-- Validation constante de la confiance
-
-**Isolation des Environnements**
-- Les environnements de **développement**, **test** et **production** font l'objet d'une **isolation stricte**
-- Aucune donnée de production n'est autorisée dans les environnements de développement
-- Les secrets et credentials sont différents par environnement
-- Les accès inter-environnements sont limités et loggés
-
-**Exemples de séparation** :
-```
-Development  → Base de données locale / données test
-Testing      → Base de données dédiée / données anonymisées
-Production   → Accès restreint / données réelles / audit complet
+# 5. Après merge, supprimer la branche
 ```
 
 ---
 
-##  Checklist de Conformité
-
-Avant de soumettre une Pull Request, vérifiez que :
-
-- [ ] La branche suit le format `COLLR-<NUM>/<type>/<nom>`
-- [ ] Les commits suivent le format `<type>(<scope>): <description>`
-- [ ] Tous les types TypeScript sont explicites (pas de `any`)
-- [ ] ESLint passe sans erreurs (vérification locale)
-- [ ] Prettier a formaté le code (vérification locale)
-- [ ] Les tests sont écrits et passent
-- [ ] Pas de secrets ou credentials en dur dans le code
-- [ ] La documentation est à jour si nécessaire
-- [ ] Les règles de sécurité sont respectées
-
----
-
-##  Ressources Complémentaires
-
-- [TypeScript - Handbook](https://www.typescriptlang.org/docs/)
-- [ESLint Documentation](https://eslint.org/docs/rules/)
-- [Prettier Documentation](https://prettier.io/docs/en/index.html)
-- [SonarQube](https://www.sonarqube.org/)
-- [OWASP Security Guidelines](https://owasp.org/)
-- [Zero Trust Architecture](https://www.nist.gov/publications/zero-trust-architecture)
-
----
-
-**Dernière mise à jour** : Mars 2026  
-**Mainteneurs** : Équipe Technique  
-**Remarques** : N'hésitez pas à proposer des améliorations ! 
+**Dernière mise à jour** : Juin 2026
+**Pour aller plus loin** : Workflow & Contribution Guide — OneDrive Collectionr
