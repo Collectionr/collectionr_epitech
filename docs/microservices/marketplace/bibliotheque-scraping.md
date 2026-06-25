@@ -2,8 +2,7 @@
 
 ## Objectif
 
-Cette section identifie, compare et sélectionne les bibliothèques **Python** adaptées au worker de
-collecte du microservice TCG.
+Cette section identifie, compare et sélectionne les bibliothèques **Python** adaptées au **Worker TCG**.
 
 Le projet privilégie les **APIs ouvertes** (TCGdex, pokemontcg.io), qui fournissent déjà les prix
 agrégés. Le **scraping HTML** n'est utilisé qu'en **dernier recours encadré**, et les **flux RSS**
@@ -28,32 +27,34 @@ servent uniquement à une éventuelle rubrique « actualités » (pas aux prix �
 
 ## Bibliothèques principales (Python / usage projet)
 
-### httpx — client HTTP recommandé
+> Classées de la **plus** à la **moins** recommandable pour le Worker TCG.
+
+### 1. httpx — client HTTP recommandé ✅
 
 - **Usage** : interroger les APIs ouvertes et officielles (JSON).
 - **Avantages** : API **sync et async**, **HTTP/2**, timeouts/retries, moderne.
 - **Inconvénients** : signature TLS d'OpenSSL détectable (inadapté seul aux sites anti-bot).
 - **Cas d'usage** : TCGdex, pokemontcg.io, eBay Browse API.
 
-### requests — déconseillé pour du neuf
-
-- **Usage** : scripts ponctuels synchrones.
-- **Inconvénients** : **« feature freeze » perpétuel** (correctifs de sécurité uniquement), pas
-  d'async ni HTTP/2. **Remplacé par `httpx`.**
-
-### selectolax — parseur HTML rapide
+### 2. selectolax — parseur HTML rapide ✅
 
 - **Usage** : parsing HTML à débit élevé (backend `lexbor`).
 - **Avantages** : 5 à 30× plus rapide que BeautifulSoup, sélecteurs CSS.
 - **Inconvénients** : moins tolérant au HTML mal formé.
 
-### BeautifulSoup4 — parseur HTML tolérant (repli)
+### 3. BeautifulSoup4 — parseur HTML tolérant (repli) ✅
 
 - **Usage** : parser du HTML « sale » ou prototypage.
 - **Avantages** : très tolérant, simple.
 - **Inconvénients** : le plus lent. Utilisé en **complément** de selectolax.
 
-### Playwright — navigateur headless (dernier recours)
+### 4. curl_cffi — impersonation TLS (anti-bot ciblé)
+
+- **Usage** : endpoints protégés par fingerprint TLS/HTTP2, sans lancer de navigateur.
+- **Avantages** : imite les empreintes Chrome/Safari ; léger.
+- **Inconvénients** : **n'exécute pas le JavaScript** → ne franchit pas les défis JS / Turnstile.
+
+### 5. Playwright — navigateur headless (dernier recours)
 
 - **Usage** : pages rendues en JavaScript.
 - **Avantages** : support JS complet, multi-navigateurs, async, **plus moderne et stable que
@@ -61,20 +62,20 @@ servent uniquement à une éventuelle rubrique « actualités » (pas aux prix �
 - **Inconvénients** : lourd (CPU/mémoire). Le module `playwright-stealth` est **fragile** et peu
   maintenu en 2026 ; pour une cible réellement protégée, préférer **nodriver**.
 
-### curl_cffi — impersonation TLS (anti-bot ciblé)
-
-- **Usage** : endpoints protégés par fingerprint TLS/HTTP2, sans lancer de navigateur.
-- **Avantages** : imite les empreintes Chrome/Safari ; léger.
-- **Inconvénients** : **n'exécute pas le JavaScript** → ne franchit pas les défis JS / Turnstile.
-
-### feedparser — flux RSS / Atom (actualités)
+### 6. feedparser — flux RSS / Atom (actualités uniquement)
 
 - **Usage** : consommer des flux RSS éditoriaux (sorties de sets, articles).
 - **Avantages** : référence Python, maintenu (v6.0.x).
 - **Inconvénients** : **aucun flux RSS de prix exploitable n'existe** en 2026 — à ne pas utiliser
   pour la collecte de prix.
 
-### Scrapy — framework (non retenu)
+### 7. requests — déconseillé pour du neuf ⚠️
+
+- **Usage** : scripts ponctuels synchrones.
+- **Inconvénients** : **« feature freeze » perpétuel** (correctifs de sécurité uniquement), pas
+  d'async ni HTTP/2. **Remplacé par `httpx`.**
+
+### 8. Scrapy — framework (non retenu) ❌
 
 - **Usage** : scraping à grande échelle.
 - **Avantages** : performant, structuré (pipelines).
@@ -99,13 +100,13 @@ servent uniquement à une éventuelle rubrique « actualités » (pas aux prix �
 | Bibliothèque    | Type                     | HTTP | HTML | JS  | Anti-détection | Async | Statut projet |
 |-----------------|--------------------------|------|------|-----|----------------|-------|---------------|
 | httpx           | Client HTTP              | ✔️   | ❌   | ❌  | ❌             | ✔️    | **Retenu (défaut)** |
-| requests        | Client HTTP              | ✔️   | ❌   | ❌  | ❌             | ❌    | Déconseillé (gelé) |
 | selectolax      | Parseur HTML             | ❌   | ✔️   | ❌  | ❌             | ❌    | **Retenu (défaut)** |
 | BeautifulSoup4  | Parseur HTML             | ❌   | ✔️   | ❌  | ❌             | ❌    | **Retenu (repli)** |
-| Playwright      | Navigateur               | ✔️   | ✔️   | ✔️  | Partiel¹       | ✔️    | Dernier recours |
 | curl_cffi       | Client HTTP (TLS)        | ✔️   | ❌   | ❌  | ✔️ (TLS only)  | ✔️    | Recours ciblé |
+| Playwright      | Navigateur               | ✔️   | ✔️   | ✔️  | Partiel¹       | ✔️    | Dernier recours |
 | nodriver        | Navigateur furtif        | ✔️   | ✔️   | ✔️  | ✔️             | ✔️    | Recours (cibles dures) |
 | feedparser      | Lecteur RSS/Atom         | ✔️   | ❌   | ❌  | ❌             | ❌    | Actualités only |
+| requests        | Client HTTP              | ✔️   | ❌   | ❌  | ❌             | ❌    | Déconseillé (gelé) |
 | Scrapy          | Framework                | ✔️   | ✔️   | ❌  | ❌             | ✔️    | Non retenu |
 
 > ¹ Playwright « vanilla » est facilement détecté par Cloudflare ; `playwright-stealth` est peu
@@ -129,7 +130,7 @@ Le scraping des marketplaces se heurte à des protections avancées :
 
 ## Recommandation pour le projet
 
-### Stack Python retenue
+### Bibliothèques Python retenues
 
 - **APIs ouvertes / officielles** → `httpx` (+ `tenacity`, `aiolimiter`)
 - **Parsing HTML (scraping ponctuel)** → `selectolax`, `BeautifulSoup4` en repli

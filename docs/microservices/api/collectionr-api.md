@@ -12,7 +12,7 @@ lues dans **PostgreSQL**, alimenté par le **Microservice TCG** :
 
 - **métadonnées** synchronisées depuis **TCGdex** (cf. [externe-api.md](externe-api.md)) ;
 - **prix** collectés par le `Worker TCG API` depuis les APIs ouvertes (TCGdex, pokemontcg.io)
-  (cf. [marketplace-scraper.md](marketplace-scraper.md)).
+  (cf. [marketplace-scraper.md](../marketplace/marketplace-scraper.md)).
 
 > L'API CollectionR **lit** la base ; elle ne déclenche jamais de collecte à la demande.
 
@@ -44,7 +44,7 @@ localement, conformément à l'architecture runtime).
 > **`MarketPrice` est un DTO d'API agrégé**, calculé à partir des lignes de la table `card_prices`
 > (et non une table). `average_price` est la **moyenne** des prix collectés pour une carte, une
 > source, un **état** et une **langue** donnés. Voir le modèle `CardPrice` dans
-> [marketplace-scraper.md](marketplace-scraper.md).
+> [marketplace-scraper.md](../marketplace/marketplace-scraper.md).
 
 ```json
 {
@@ -168,4 +168,4 @@ Réponse :
 - La **langue** fait partie de l'identité d'un prix : deux prix ne sont comparables qu'à langue, état
   et édition identiques.
 - Attribution des sources et **disclaimer de non-affiliation** à Nintendo / The Pokémon Company à
-  afficher côté client (cf. garde-fous légaux dans [marketplace-scraper.md](marketplace-scraper.md)).
+  afficher côté client (cf. garde-fous légaux dans [marketplace-scraper.md](../marketplace/marketplace-scraper.md)).

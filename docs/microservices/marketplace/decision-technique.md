@@ -40,8 +40,22 @@ Par ordre de priorité :
    cadre du programme développeur.
 3. **Scraping HTML (dernier recours, encadré)** — uniquement si une donnée est introuvable
    autrement, à faible volume, et **jamais sur Cardmarket ni TCGPlayer** (verrou juridique).
-4. **Flux RSS** — **pas pour les prix** (les flux RSS de prix n'existent plus en 2026). Réservé à
-   une éventuelle rubrique « actualités / sorties de sets ».
+4. **Flux RSS** — **aucun flux RSS de prix gratuit n'existe** (vérifié juin 2026, voir l'encadré
+   ci-dessous). Le RSS est réservé à une éventuelle rubrique « actualités / sorties de sets ».
+
+> **Flux RSS de prix : inexistant (recherche poussée, juin 2026).** Aucune source ne fournit de
+> flux RSS gratuit et légal de prix de cartes Pokémon :
+> - **eBay** a supprimé ses flux RSS de recherche (`?_rss=1`, cassés vers avril 2022, abandonnés
+>   depuis ~janvier 2023) ; même actifs, ils ne donnaient que les **annonces actives**, jamais les
+>   ventes terminées.
+> - **TCGPlayer** n'expose qu'un RSS **éditorial** (articles, decks), pas de prix.
+> - **Cardmarket**, **PriceCharting** et les trackers (PokemonPriceTracker, pkmn.gg…) n'offrent que
+>   des **API**, aucun flux RSS de prix.
+> - Les générateurs RSS tiers (rss.app, rssbay…) ne font que **scraper** eBay — interdit par son
+>   User Agreement (en vigueur 20/02/2026) et juridiquement risqué (pas de licence implicite,
+>   *MidlevelU v. ACI*, 11e Circuit 2021).
+>
+> **Conclusion : la piste RSS pour les prix est abandonnée — les prix passent par API.**
 
 ---
 
@@ -57,6 +71,10 @@ Par ordre de priorité :
 
 - TCGdex / pokemontcg.io : usage encadré par leurs CGU (free tier **non-commercial** ; palier payant
   pour le commercial).
+- **Métadonnées vs prix** : la licence **MIT de TCGdex couvre les métadonnées**, **pas les prix**
+  qu'il relaie (régis par les CGU **Cardmarket / TCGPlayer en amont**). Affichage des prix à des
+  tiers : restreint (Cardmarket exige un accord écrit). Détail des CGU et de « ce qu'on peut faire »
+  dans [marketplace-scraper.md](marketplace-scraper.md) (§11).
 - Scraper Cardmarket ou TCGPlayer **viole leurs CGU** ; eBay interdit aussi le scraping (robots.txt
   `Disallow`, user agreement 2026 interdisant les bots). Voir la section **Garde-fous légaux**.
 
@@ -77,7 +95,7 @@ Par ordre de priorité :
 Le worker de collecte (`Worker TCG API` et `Worker TCG Scraping`) est écrit en **Python**, pour :
 
 - s'aligner sur le **« Pipeline de Données » Python** décrit dans
-  [clean-architecture.md](../backend/clean-architecture.md) (ingestion, normalisation, IA) ;
+  [clean-architecture.md](../../backend/clean-architecture.md) (ingestion, normalisation, IA) ;
 - mutualiser le code de normalisation et les modèles d'IA de prédiction de prix ;
 - bénéficier de l'écosystème scraping / anti-bot le plus mature.
 

@@ -16,7 +16,7 @@ vers la **base de données interne CollectionR (PostgreSQL)** par le `Worker TCG
 > En 2026, les APIs des marketplaces sont fermées ou restreintes : l'API TCGPlayer n'accepte plus
 > de nouveaux développeurs, l'API Cardmarket est réservée aux vendeurs professionnels, et la
 > Finding API d'eBay est décommissionnée. TCGdex agrège légalement métadonnées **et** prix de ces
-> sources en un seul point d'accès gratuit. Voir [decision-technique.md](decision-technique.md).
+> sources en un seul point d'accès gratuit. Voir [decision-technique.md](../marketplace/decision-technique.md).
 
 ---
 
@@ -108,7 +108,7 @@ Chaque carte peut être enrichie d'un champ `pricing` agrégeant les places de m
 
 - **Fraîcheur** : ~horaire (TCGPlayer) à quotidienne (Cardmarket), avec un champ `updated`.
 - **Sans clé API**, gratuit. C'est la **source de prix principale** de CollectionR
-  (voir [marketplace-scraper.md](marketplace-scraper.md)).
+  (voir [marketplace-scraper.md](../marketplace/marketplace-scraper.md)).
 
 ---
 
@@ -170,6 +170,11 @@ Cela garantit :
 
 - La **base de données TCGdex** est publiée sous licence **MIT** : usage commercial, modification et
   redistribution autorisés, **à condition de conserver l'avis de licence et l'attribution**.
+- **Les prix relayés ne sont PAS couverts par la MIT.** TCGdex relaie les cotes Cardmarket (EUR) et
+  TCGPlayer (USD) **sans en détenir les droits** : les **CGU de Cardmarket / TCGPlayer s'appliquent
+  en amont**. Métadonnées = libres (MIT) ; **prix = régime juridique distinct** (affichage à des
+  tiers restreint, surtout en commercial). Voir les garde-fous CGU dans
+  [marketplace-scraper.md](../marketplace/marketplace-scraper.md) (§11).
 - **Important :** les **noms, images et marques Pokémon** restent la propriété de **Nintendo /
   The Pokémon Company**. La licence MIT couvre la base structurée TCGdex, **pas** les droits
   d'auteur sur les visuels et marques.
