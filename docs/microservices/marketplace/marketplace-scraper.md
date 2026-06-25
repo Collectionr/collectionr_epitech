@@ -3,7 +3,7 @@
 ## Vue d'ensemble
 
 Ce document décrit la conception du **Microservice TCG** du projet CollectionR et de ses **workers**,
-conformément à l'architecture runtime ([03-flux-techniques-plateforme.md](../architecture/03-flux-techniques-plateforme.md)).
+conformément à l'architecture runtime ([03-flux-techniques-plateforme.md](../../architecture/03-flux-techniques-plateforme.md)).
 
 Son rôle est de **synchroniser les métadonnées de cartes** et de **collecter les prix de marché**
 des cartes Pokémon TCG, puis de les stocker dans PostgreSQL.
@@ -11,7 +11,7 @@ des cartes Pokémon TCG, puis de les stocker dans PostgreSQL.
 > **Important** : le Microservice TCG et ses workers sont des **composants d'arrière-plan**. Ils
 > n'exposent **aucune API REST** aux clients. Seul le backend **NestJS (sur adaptateur Fastify)**
 > expose des endpoints. Les workers sont écrits en **Python** (cohérent avec le Pipeline de Données
-> Python décrit dans [clean-architecture.md](../backend/clean-architecture.md)).
+> Python décrit dans [clean-architecture.md](../../backend/clean-architecture.md)).
 
 ---
 
@@ -37,35 +37,40 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
 ## Position dans le système
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                         CLIENTS (web / mobile)             │
-└─────────────────────────────┬────────────────────────────┘
-                              │ HTTP (REST + SSE)
-┌─────────────────────────────▼────────────────────────────┐
-│              BACKEND NESTJS (adaptateur Fastify)           │
-│        API principale, authentification, lecture prix      │
-└──────────────┬─────────────────────────┬──────────────────┘
-               │ planifie (BullMQ)        │ lecture
-               ▼                          ▼
-┌──────────────────────────┐   ┌──────────────────────────────┐
-│   MICROSERVICE TCG        │   │        PostgreSQL            │
-│   (orchestrateur)         │   │  cartes, prix, historique,   │
-│                           │   │  logs de collecte            │
-└──────────────┬───────────┘   └───────────────▲──────────────┘
-               │ Redis TCG (BullMQ)             │ écriture (psycopg 3)
-        ┌──────┴───────────┬───────────────┐    │
-        ▼                  ▼               ▼    │
-┌───────────────┐ ┌────────────────┐ ┌──────────────────┐
-│ Worker TCG API│ │ Worker TCG     │ │ Worker TCG       │
-│  (Python)     │ │ Scraping (Py)  │ │ Prediction (Py)  │
-└──────┬────────┘ └──────┬─────────┘ └────────┬─────────┘
-       │ API ouverte     │ scraping (recours)  │ modèle IA
-       ▼                 ▼                     ▼
-┌──────────────────────────────────────────────────────────┐
-│        SOURCES EXTERNES                                    │
-│  TCGdex · pokemontcg.io  |  eBay Browse  |  (HTML marginal)│
-└──────────────────────────────────────────────────────────┘
+                         CLIENTS (web / mobile)
+                                  │  HTTP (REST + SSE)
+                                  ▼
+                  BACKEND NESTJS (adaptateur Fastify)
+                 API · auth · LECTURE des prix en base
+                                  │  planifie (Redis TCG / BullMQ)
+                                  ▼
+                   MICROSERVICE TCG (orchestrateur)
+                                  │  distribue les tâches via Redis TCG
+        ┌─────────────────────────┼─────────────────────────┐
+        ▼                         ▼                          ▼
+ ┌──────────────┐        ┌──────────────────┐      ┌──────────────────┐
+ │ Worker TCG   │        │ Worker TCG       │      │ Worker TCG       │
+ │ API (Python) │        │ Scraping (Python)│      │ Prediction (Py)  │
+ └──────┬───────┘        └────────┬─────────┘      └────────┬─────────┘
+        │ API ouverte             │ scraping (recours)      │ modèle IA
+        ▼                         ▼                         │ (sur historique)
+ ┌──────────────┐        ┌──────────────────┐               │
+ │ TCGdex /     │        │ eBay Browse /    │               │
+ │ pokemontcg.io│        │ HTML (marginal)  │               │
+ └──────┬───────┘        └────────┬─────────┘               │
+        │ ÉCRITURE                │ ÉCRITURE                 │ ÉCRITURE
+        │ (psycopg 3)             │ (psycopg 3)              │ (psycopg 3)
+        └─────────────────────────┼──────────────────────────┘
+                                  ▼
+                  ┌────────────────────────────────────┐
+                  │             PostgreSQL              │ ◀── LECTURE ── Backend
+                  │  cartes · prix · historique · logs  │
+                  └────────────────────────────────────┘
 ```
+
+> **Tous les workers (API, Scraping, Prediction) écrivent dans PostgreSQL** via `psycopg 3`
+> (UPSERT idempotents). PostgreSQL est l'**unique source de vérité** ; le backend NestJS s'y
+> connecte uniquement en **lecture**.
 
 ## Responsabilités
 
@@ -151,13 +156,17 @@ Rappel de la syntaxe cron (5 champs) :
 | `*/30 * * * *` | Toutes les 30 minutes     |
 | `0 0 * * 1`    | Tous les lundis à minuit  |
 
-### Fréquences retenues
+### Fréquence retenue
+
+Une **synchronisation complète une fois par jour** :
 
 ```
-Cartes populaires (top 100)   →  toutes les heures
-Cartes standards              →  toutes les 6 heures
-Cartes peu demandées          →  une fois par jour (3h du matin)
+Toutes les cartes  →  1 fois par jour (cron `0 3 * * *`, à 3 h du matin)
 ```
+
+> L'exécution à 3 h du matin minimise l'impact sur les sources externes et lisse la charge. Une
+> seule fréquence quotidienne suffit au besoin (les cotes Cardmarket/TCGPlayer fournies par les APIs
+> ouvertes sont elles-mêmes mises à jour quotidiennement).
 
 ---
 
@@ -298,7 +307,7 @@ Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture
 
 # 10. Alignement K3s (architecture runtime)
 
-Conformément à [03-flux-techniques-plateforme.md](../architecture/03-flux-techniques-plateforme.md),
+Conformément à [03-flux-techniques-plateforme.md](../../architecture/03-flux-techniques-plateforme.md),
 chaque composant est un **Pod K3s** :
 
 - **Deployments** distincts pour `Worker TCG API`, `Worker TCG Scraping`, `Worker TCG Prediction` et
@@ -335,50 +344,88 @@ spec:
 
 ---
 
-# 11. Conformité et garde-fous légaux
+# 11. Conformité et garde-fous légaux (CGU vérifiées — juin 2026)
 
 La **validation des CGU des APIs tierces** est un livrable de la refonte.
 
-- **APIs ouvertes** (TCGdex, pokemontcg.io) : free tier **non-commercial** → adapté à la phase
-  étudiante ; **palier payant à licence commerciale** requis avant toute commercialisation.
-- **Cardmarket** : CGU interdisent de présenter prix/cartes sur un service tiers sans **accord
-  écrit** — réafficher ces prix (même via un agrégateur) en commercial est risqué.
-- **TCGPlayer** : ToS interdit le crawl/scrape ; API fermée → **écarté**.
-- **eBay** : robots.txt `Disallow`, user agreement 2026 interdisant les bots → pas de scraping ; API
-  Browse uniquement (annonces actives).
-- **RGPD** : ne collecter **aucune donnée personnelle de vendeur** (noms, localisation).
-- **Droit *sui generis* des bases de données** (Directive 96/9/CE) : l'exception recherche/
-  enseignement protège la phase étudiante non-marchande, pas un usage commercial.
+> **Règle d'or :** la licence **MIT de TCGdex couvre les métadonnées, PAS les prix** qu'il relaie.
+> Les prix proviennent de **Cardmarket / TCGPlayer**, dont les **CGU s'appliquent en amont** — y
+> compris quand on passe par un agrégateur (TCGdex, pokemontcg.io).
 
-### Garde-fous d'implémentation
+## Ce que CollectionR peut faire, par source
+
+| Source | Métadonnées | Prix — afficher | Stocker | Usage commercial |
+|--------|-------------|-----------------|---------|------------------|
+| **TCGdex** | ✅ libre (MIT + attribution) | ⚠️ relayés (CGU source en amont) | ✅ métadonnées · ⚠️ prix = cache court | ✅ métadonnées · ⚠️ prix |
+| **pokemontcg.io** | ✅ | ⚠️ relayés ; free tier **non-commercial** | cache | ❌ free tier → payant requis |
+| **Cardmarket** (API) | — | ❌ sans **accord écrit** | ❌ | ❌ (réservé vendeurs pro) |
+| **Cardmarket Price Guide** (dataset gratuit, quotidien) | — | ⚠️ 1re main mais « présentation » soumise à accord écrit | ✅ téléchargeable | ⚠️ accord requis |
+| **eBay Browse** | — | annonces **actives** uniquement | ❌ market-research | restreint |
+| **TCGPlayer** | — | ❌ ToS (store/combine/commercial interdits) | ❌ | ❌ |
+| **PokemonPriceTracker** | — | ✅ **affichage autorisé** (ToS) | ok | ✅ dès le plan API (9,99 $) |
+| **JustTCG / PokeTrace / pokemon-api.com** | — | ✅ sur plan payant | ⚠️ à confirmer par écrit | ✅ plan payant |
+| **TCGCSV / PriceCharting** | — | ❌ (miroir TCGPlayer / affichage tiers interdit) | — | ❌ |
+
+> **Aucune** de ces sources n'autorise la **redistribution des prix bruts** (export, flux, API
+> tierce). C'est exclu partout.
+
+## Synthèse opérationnelle
+
+- **Métadonnées** → **TCGdex (MIT)** : stockage, affichage et redistribution **OK** avec attribution
+  + disclaimer Nintendo. Aucun souci.
+- **Prix — phase étudiante (non-marchande)** : afficher des prix **indicatifs** via TCGdex /
+  pokemontcg.io avec mention claire de la source (« Cardmarket / TCGPlayer, à titre indicatif ») =
+  **risque faible**. Cache court terme uniquement, **pas** de base de prix revendue.
+- **Prix — passage commercial (point GO/NO-GO juridique)** : basculer sur une source à **licence
+  commerciale explicite autorisant l'affichage** — **PokemonPriceTracker** (affichage autorisé,
+  commercial dès le plan API) ou JustTCG / PokeTrace / pokemon-api.com (plans payants). Pour la cote
+  **Cardmarket EUR** de première main, le **Price Guide Cardmarket** (dataset gratuit quotidien) est
+  une piste, mais sa **présentation** à des tiers requiert un **accord écrit** Cardmarket.
+- **À bannir** : scraping de Cardmarket / eBay / TCGPlayer (CGU + anti-bot), **TCGCSV** et
+  **PriceCharting** pour une app grand public, et toute **redistribution de prix bruts**.
+
+## Garde-fous d'implémentation
 
 - **Abstraction « fournisseur de prix »** (*adapter pattern*) : changer de source sans refonte.
 - **Kill-switch par source** ; scraping désactivable.
-- **Attribution** de la source + **disclaimer** de non-affiliation à Nintendo / The Pokémon Company.
+- **Attribution** de la source (si exigée) + **disclaimer** de non-affiliation à Nintendo /
+  The Pokémon Company.
 - **Rate-limiting poli**, User-Agent honnête, respect de `robots.txt`.
 - **Journalisation** (`ScrapeLog`) pour la traçabilité.
+- **RGPD** : ne collecter **aucune donnée personnelle de vendeur** (noms, localisation).
+- **Droit *sui generis* des bases de données** (Directive 96/9/CE) : l'exception recherche/
+  enseignement protège la phase étudiante, pas un usage commercial.
 - **Revue juridique obligatoire avant tout passage commercial.**
 
 ---
 
-# 12. Stratégie de tests (objectif ≥ 70 % du code métier critique)
+# 12. Stratégie de tests
 
-Outils : **`pytest`**, **`pytest-cov`** (couverture), **`respx`** (mock des appels `httpx`),
-**`pytest-recording`/VCR** (rejouer des réponses d'API).
+Alignée sur le **Document QA — Plan de Test (v1.4)** du projet.
 
-Le **code métier critique** à couvrir en priorité :
+- **Couverture cible : ≥ 50 %** du code du **service Python (Worker OCR + Worker TCG)** — seuil
+  officiel fixé par le PAQ (§8.1) et le CDC (§7.1) pour les composants Python (QA §12). Le seuil de
+  **70 %** concerne le **code métier critique du Backend NestJS**, **pas** le worker.
+- **Outils** (QA §11) : **Pytest** (+ `pytest-cov`) pour les tests unitaires Python ; **Jest +
+  Supertest** pour les tests d'intégration côté Backend. Les appels réseau sont **mockés**
+  (`respx` / VCR) — aucune dépendance aux APIs tierces en CI.
+- **Règle PR** (QA §13) : tout nouveau code inclut ses tests dans la **même Pull Request** ; la CI
+  (GitHub Actions) **bloque le merge** si la couverture passe sous le seuil.
 
-| Domaine | Exemples de tests |
-|---------|-------------------|
+Le **code métier critique du Worker TCG** à couvrir en priorité (QA §4.1 — appels API externes et
+normalisation des données) :
+
+| Domaine | Exemples de tests (unitaires, Pytest) |
+|---------|----------------------------------------|
 | Adaptateurs de source | Parsing des réponses TCGdex / pokemontcg.io (champs prix, `updated`) |
-| Normalisation | Mapping des états, conversion devise→EUR, normalisation des noms |
+| Normalisation | Mapping des états, conversion devise→EUR, normalisation des noms, langue |
 | Identité du prix | Unicité `(cardId, source, condition, language)`, gestion des collisions |
 | Agrégation | Calcul du prix moyen (`average_price`) exposé par l'API |
 | Résilience | Retry/back-off sur HTTP 429, *kill-switch* scraping, idempotence des UPSERT |
-| Garde-fous | Respect des quotas, attribution, non-collecte de données personnelles |
 
-> Cible : **≥ 70 % de couverture** sur ces modules métier (mesurée via `pytest-cov`). Les appels
-> réseau réels sont **mockés** (pas de dépendance aux APIs tierces dans la CI).
+> **Tests d'intégration (QA §5)** : le flux `Microservice TCG → Redis TCG → Workers` et l'écriture
+> `Worker → PostgreSQL` sont couverts par des tests d'intégration (Jest + Supertest / base de test),
+> au même titre que les endpoints API du Backend.
 
 ---
 
@@ -413,7 +460,7 @@ Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture
 # 14. Worker TCG Prediction (rappel)
 
 La **prédiction de prix** est assurée par un service/worker **Python d'IA** exposant `/predict-price`
-(voir [clean-architecture.md](../backend/clean-architecture.md)). Il s'appuie sur l'historique
+(voir [clean-architecture.md](../../backend/clean-architecture.md)). Il s'appuie sur l'historique
 (`price_history`) pour estimer une valeur. Il doit figurer explicitement dans l'architecture runtime
 au même titre que les deux autres workers TCG.
 
@@ -426,8 +473,8 @@ Le Microservice TCG, refondu, repose sur une architecture **conforme au runtime 
 - **API-first** via TCGdex / pokemontcg.io (prix agrégés Cardmarket + TCGPlayer, légalement) ;
 - **scraping HTML en dernier recours encadré** (Python : BeautifulSoup / Playwright / curl_cffi) ;
 - orchestration des **trois workers** (API, Scraping, Prediction) via **Redis TCG (BullMQ)** ;
-- modèle de données intégrant la **langue**, source de vérité **PostgreSQL** ;
-- **garde-fous légaux** explicites et **stratégie de tests ≥ 70 %**.
+- modèle de données intégrant la **langue**, source de vérité **PostgreSQL** (tous les workers y écrivent) ;
+- **garde-fous légaux** explicites et **stratégie de tests alignée Doc QA** (≥ 50 % service Python).
 
 Cette refonte respecte les conditions d'utilisation des APIs tierces tout en garantissant une
 collecte fiable, maintenable et alignée avec l'architecture définie.
