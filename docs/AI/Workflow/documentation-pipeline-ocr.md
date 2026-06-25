@@ -4,7 +4,7 @@
 
 Ce document explique deux choses :
 1. Les outils utilisés pour le post-processing du OCR dans le notebook (Google Colab / Jupyter)
-2. Comment le modèle exporté (exemple: format Keras) est ensuite appelé depuis un backend FastAPI
+2. Comment le modèle exporté (format HuggingFace ou ONNX) est ensuite appelé depuis un backend FastAPI
 
 ---
 
@@ -22,26 +22,33 @@ Une fois que le modèle OCR fonctionne bien dans le notebook, on l'exporte dans 
 
 | Bibliothèque | Rôle |
 |---|---|
-| `tensorflow` | Fait fonctionner le modèle |
-| `keras` | Charger et sauvegarder le modèle (`.keras`) |
+| `torch` | Runtime pour les modèles PyTorch (YOLOv10, Florence-2, Qwen2.5-VL, olmOCR) |
+| `transformers` | Chargement des modèles HuggingFace (Florence-2, Qwen2.5-VL, olmOCR) |
+| `onnxruntime` | Inférence depuis un export ONNX (format universel) |
 | `fastapi` | Créer le backend et les routes |
 | `pillow` | Lire et préparer l'image envoyée au backend |
 
 Installation :
 
 ```bash
-pip install tensorflow keras fastapi pillow
+pip install torch transformers onnxruntime fastapi pillow
 ```
 
 ### 2.2 Export du modèle
 
-Exemple avec un modèle Keras (le principe est le même pour d'autres formats comme `.onnx`, `.pt`, `.pb`) :
+Les modèles évalués (Florence-2, Qwen2.5-VL, olmOCR) se sauvegardent au format HuggingFace ou ONNX :
 
 ```python
-model.save("ocr_model.keras")
+# HuggingFace (Florence-2, Qwen2.5-VL, olmOCR)
+model.save_pretrained("./ocr_model")
+processor.save_pretrained("./ocr_model")
+
+# Export ONNX (format universel, compatible TorchScript, TensorRT…)
+import torch
+torch.onnx.export(model, dummy_input, "ocr_model.onnx")
 ```
 
-Ça crée un fichier `ocr_model.keras` qu'on peut ensuite charger n'importe où, sans avoir besoin du notebook.
+Ça crée un dossier `ocr_model/` (HuggingFace) ou un fichier `ocr_model.onnx` qu'on peut ensuite charger dans le backend sans avoir besoin du notebook.
 
 ### 2.3 Utilisation dans FastAPI
 
@@ -49,10 +56,11 @@ Dans le backend, on charge ce fichier une seule fois au démarrage, puis on l'ut
 
 ```python
 from fastapi import FastAPI, UploadFile
-from tensorflow.keras.models import load_model
+from transformers import AutoProcessor, AutoModel
 
 app = FastAPI()
-model = load_model("ocr_model.keras")
+processor = AutoProcessor.from_pretrained("./ocr_model")
+model = AutoModel.from_pretrained("./ocr_model")
 
 @app.get("/health")
 def health():
@@ -92,6 +100,6 @@ Sur la page `/docs`, on voit toutes les routes disponibles (`GET /health`, `POST
 ## Résumé
 
 - Le **post-processing** consiste à scanner différentes cartes et faire un benchmark de chaque modèle selon la documentation du benchmark
-- Le **modèle** est ensuite sauvegardé dans un fichier (ex: `.keras`)
+- Le **modèle** est ensuite sauvegardé au format HuggingFace (`save_pretrained`) ou ONNX (`.onnx`)
 - Le **backend FastAPI** charge ce fichier et expose des routes (`GET`, `POST`) pour l'utiliser
 - La doc `/docs` permet de tester les routes directement dans le navigateur, en local
