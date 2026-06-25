@@ -34,58 +34,58 @@ La plateforme s'appuie sur un **backend NestJS (adaptateur Fastify)** qui expose
 
 ```mermaid
 flowchart TB
-    FE[Frontend web / mobile]
-    BE[Backend NestJS / Fastify]
-    DB[(PostgreSQL — source de vérité)]
+    FE["Frontend (web / mobile)"]
+    BE["Backend NestJS / Fastify"]
+    DB[("PostgreSQL — source de vérité")]
 
-    FE -->|photo / connexion SSE| BE
-    BE <-->|lecture / écriture| DB
+    FE -->|"photo / connexion SSE"| BE
+    BE <-->|"lecture / écriture"| DB
 
-    subgraph TCG[Microservice TCG]
-        MTCG[Microservice TCG - orchestrateur]
-        RTCG[(Redis TCG)]
-        WAPI[Worker TCG API]
-        WSCR[Worker TCG Scraping]
-        WPRED[Worker TCG Prediction]
-        MTCG -->|planification batch| RTCG
-        RTCG -->|tâche API| WAPI
-        RTCG -->|tâche scraping| WSCR
-        RTCG -->|tâche prédiction| WPRED
+    subgraph TCG["Microservice TCG"]
+        MTCG["Microservice TCG (orchestrateur)"]
+        RTCG[("Redis TCG")]
+        WAPI["Worker TCG API"]
+        WSCR["Worker TCG Scraping"]
+        WPRED["Worker TCG Prediction"]
+        MTCG -->|"planification batch"| RTCG
+        RTCG -->|"tâche API"| WAPI
+        RTCG -->|"tâche scraping"| WSCR
+        RTCG -->|"tâche prédiction"| WPRED
     end
-    BE -->|requête TCG| MTCG
-    MTCG -.->|notification TCG| BE
-    WAPI -->|appels API cartes| EXT[API externe TCG - TCGdex / pokemontcg.io]
-    WSCR -->|prix annonces actives| MKT[eBay Browse / HTML marginal]
-    WAPI -->|écriture cartes| DB
-    WSCR -->|écriture prix| DB
-    WPRED -->|écriture prédictions| DB
+    BE -->|"requête TCG"| MTCG
+    MTCG -.->|"notification TCG"| BE
+    WAPI <-->|"appels API / données cartes"| EXT["API externe TCG (TCGdex / pokemontcg.io)"]
+    WSCR <-->|"prix (annonces actives)"| MKT["eBay Browse / HTML (marginal)"]
+    WAPI -->|"enregistre / lit les cartes"| DB
+    WSCR -->|"met à jour / lit les prix"| DB
+    WPRED -->|"écrit les prédictions"| DB
 
-    subgraph OCR[Pipeline OCR]
-        SV[(Shared Volume)]
-        ROCR[(Redis OCR)]
-        WOCR[Worker OCR]
-        ROCR -->|job_id| WOCR
-        WOCR -->|statut| ROCR
-        WOCR <-->|image / résultat JSON| SV
+    subgraph OCR["Pipeline OCR"]
+        SV[("Shared Volume")]
+        ROCR[("Redis OCR")]
+        WOCR["Worker OCR"]
+        ROCR -->|"job_id"| WOCR
+        WOCR -->|"statut"| ROCR
+        WOCR <-->|"image / résultat JSON"| SV
     end
-    BE -->|stocke image + job_id| SV
-    BE -->|crée la queue job_id| ROCR
-    ROCR -.->|notifie le backend| BE
-    BE -->|lit le résultat extrait| SV
+    BE -->|"stocke image + job_id"| SV
+    BE -->|"crée la queue (job_id)"| ROCR
+    ROCR -.->|"notifie le backend"| BE
+    BE -->|"lit le résultat extrait"| SV
 
-    subgraph GRAD[Pipeline Grading IA - bonus V1]
-        MGRAD[Microservice Grading]
-        RGRAD[(Redis Grading)]
-        WGRAD[Worker Grading]
-        VIS[Modèle Vision IA]
-        MGRAD -->|queue grade_job_id| RGRAD
-        RGRAD -->|job ID| WGRAD
-        WGRAD -->|statut| RGRAD
-        WGRAD -->|inférence / score de grade| VIS
+    subgraph GRAD["Pipeline Grading IA (bonus V1)"]
+        MGRAD["Microservice Grading"]
+        RGRAD[("Redis Grading")]
+        WGRAD["Worker Grading"]
+        VIS["Modèle Vision IA"]
+        MGRAD -->|"crée la queue (grade_job_id)"| RGRAD
+        RGRAD -->|"job ID"| WGRAD
+        WGRAD -->|"statut"| RGRAD
+        WGRAD -->|"inférence / score de grade"| VIS
     end
-    BE -->|image + grade_job_id| MGRAD
-    MGRAD -.->|notifie le backend| BE
-    WGRAD -->|écriture résultat grade| DB
+    BE -->|"image + grade_job_id"| MGRAD
+    MGRAD -.->|"notifie le backend"| BE
+    WGRAD -->|"écrit le résultat de grade"| DB
 ```
 
 ---
@@ -155,3 +155,11 @@ docs/microservices/
     ├── externe-api.md               ← API TCGdex (métadonnées + prix)
     └── collectionr-api.md           ← API CollectionR exposée aux clients
 ```
+
+---
+
+## Sources & références
+
+- **Schéma** basé sur l'architecture runtime : [03-flux-techniques-plateforme.md](../architecture/03-flux-techniques-plateforme.md) et la clean architecture backend : [clean-architecture.md](../backend/clean-architecture.md).
+- **Sources externes détaillées** (APIs, CGU, prix, anti-bot, RSS) : voir les sections « Sources » de [marketplace/marketplace-scraper.md](marketplace/marketplace-scraper.md), [marketplace/decision-technique.md](marketplace/decision-technique.md), [marketplace/bibliotheque-scraping.md](marketplace/bibliotheque-scraping.md) et [api/externe-api.md](api/externe-api.md).
+- **Stratégie de tests** : Document QA — Plan de Test v1.4 (document projet).

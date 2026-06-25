@@ -156,3 +156,12 @@ comme **capacité de dernier recours**, encadrée par des garde-fous techniques 
 
 > Synthèse : **APIs d'abord** (`httpx`) ; scraping rare et isolé ; RSS pour les actualités, pas pour
 > les prix.
+
+---
+
+## Sources
+
+Vérifications web (juin 2026) — versions, maintenance, anti-bot :
+
+- [httpx](https://www.python-httpx.org/) · [requests — « feature freeze »](https://requests.readthedocs.io/en/latest/dev/contributing/) · [Playwright Python — release notes](https://playwright.dev/python/docs/release-notes) · [selectolax](https://github.com/rushter/selectolax) · [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) · [feedparser](https://feedparser.readthedocs.io/) · [curl_cffi](https://github.com/lexiforest/curl_cffi)
+- **Benchmark anti-détection 2026** (curl_cffi, nodriver, Playwright stealth) : [ianlpaterson.com — anti-detect browser benchmark](https://ianlpaterson.com/blog/anti-detect-browser-benchmark-patchright-nodriver-curl-cffi/)

@@ -478,3 +478,18 @@ Le Microservice TCG, refondu, repose sur une architecture **conforme au runtime 
 
 Cette refonte respecte les conditions d'utilisation des APIs tierces tout en garantissant une
 collecte fiable, maintenable et alignée avec l'architecture définie.
+
+---
+
+# Sources
+
+Vérifications web (juin 2026) + **Document QA — Plan de Test v1.4** (document projet interne) :
+
+- **TCGdex** : [FAQ](https://tcgdex.dev/faq) · [Markets & Prices](https://tcgdex.dev/markets-prices) · [base sous licence MIT](https://github.com/tcgdex/cards-database)
+- **pokemontcg.io** : [rate limits](https://docs.pokemontcg.io/getting-started/rate-limits/) · [authentification](https://docs.pokemontcg.io/getting-started/authentication/)
+- **eBay** : [dépréciation Finding API (newsletter Q3 2024)](https://developer.ebay.com/updates/newsletter/q3_2024) · [Browse API](https://developer.ebay.com/api-docs/buy/browse/overview.html) · [robots.txt](https://www.ebay.com/robots.txt) · [User Agreement 2026 (interdit les bots)](https://www.valueaddedresource.net/ebay-bans-ai-agents-updates-arbitration-user-agreement-feb-2026/)
+- **Cardmarket** : [API (réservée vendeurs pro)](https://help.cardmarket.com/en/cardmarket-api) · [CGU](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions) · [Price Guide (dataset gratuit, quotidien)](https://www.cardmarket.com/en/Magic/Data/Price-Guide)
+- **TCGPlayer** : [API fermée aux nouveaux dev](https://docs.tcgplayer.com/docs/getting-started) · [API Terms & Conditions](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions)
+- **Agrégateurs** : [JustTCG — Terms](https://justtcg.com/terms) · [PokeTrace — pricing](https://poketrace.com/pricing) · [pokemon-api.com](https://www.pokemon-api.com/) · [PokemonPriceTracker — Terms](https://www.pokemonpricetracker.com/terms) · [TCGCSV](https://tcgcsv.com/) · [PriceCharting — API](https://www.pricecharting.com/api-documentation)
+- **Anti-bot 2026** : [benchmark anti-détection (Paterson)](https://ianlpaterson.com/blog/anti-detect-browser-benchmark-patchright-nodriver-curl-cffi/)
+- **Stratégie de tests** : Document QA — Plan de Test v1.4 (§4, §5, §11, §12, §13).
