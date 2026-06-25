@@ -16,6 +16,7 @@
 7. [Tableau comparatif des métriques par modèle](#7-tableau-comparatif-des-métriques-par-modèle)
 8. [Protocole de test](#8-protocole-de-test)
 9. [Seuils de décision (Étape 3)](#9-seuils-de-décision-étape-3)
+   - 9.1 [Seuils pour le scan de plusieurs cartes (batch)](#91-seuils-pour-le-scan-de-plusieurs-cartes-batch)
 
 ---
 
@@ -331,5 +332,22 @@ Un modèle est considéré **validé sans fine-tuning** s'il atteint simultaném
 
 Si un modèle passe ces seuils → **validation, passage à l'Étape 4**.  
 Si aucun modèle ne les atteint → **fine-tuning du meilleur candidat** sur le dataset Pokémon annoté.
+
+### 9.1 Seuils pour le scan de plusieurs cartes (batch)
+
+Ces seuils s'appliquent lors du traitement d'un lot de cartes en une seule session (scan d'une collection).
+
+| Critère | Seuil minimal | Justification |
+|---|---|---|
+| **Throughput** | ≥ 2 cartes/sec | Objectif : scanner 100 cartes en < 1 min |
+| **Latence P95** (95e percentile) | ≤ 5 000 ms/image | Évite les blocages sur les cartes difficiles |
+| **Consistency (écart-type EM sur le batch)** | ≤ 0.10 | Les performances ne doivent pas s'effondrer sur certaines cartes |
+| **VRAM peak sur un batch de 32 images** | ≤ VRAM allouée + 20 % | Pas de spike mémoire en batch |
+| **Taux d'échec de parsing (batch)** | ≤ 0.05 | ≤ 5 % de cartes retournent un JSON invalide sur un lot |
+| **Dégradation des métriques vs. carte seule** | ≤ 5 % de delta EM | Le batch ne doit pas dégrader la qualité vs. inférence unitaire |
+
+> **Protocole** : mesurer sur un lot de 50 cartes consécutives sans réinitialisation du modèle entre les images.
+
+Un modèle est considéré **validé pour le scan batch** s'il remplit les seuils de la section 9 **et** ceux ci-dessus simultanément.
 
 ---
