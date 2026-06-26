@@ -55,7 +55,7 @@ flowchart TB
     BE -->|"requête TCG"| MTCG
     MTCG -.->|"notification TCG"| BE
     WAPI <-->|"métadonnées + prix (niv. 1)"| EXT["TCGdex (api.tcgdex.net)"]
-    WSCR <-->|"fallback prix (niv. 2-3)"| MKT["eBay Browse API + TCGFast Trader"]
+    WSCR <-->|"fallback prix (niv. 2-4)"| MKT["PokeTrace (niv.2) → eBay Browse (niv.3) → TCGFast (niv.4)"]
     WAPI -->|"enregistre / lit les cartes"| DB
     WSCR -->|"met à jour / lit les prix"| DB
     WPRED -->|"écrit les prédictions"| DB
@@ -95,8 +95,11 @@ flowchart TB
 Orchestre **trois workers** via `Redis TCG` (BullMQ) :
 
 - **Worker TCG API** — synchronise métadonnées + prix agrégés depuis **TCGdex** (niveau 1).
-- **Worker TCG Fallback** — interroge **eBay Browse API** (niveau 2) puis **TCGFast Trader** (niveau 3)
-  quand TCGdex est indisponible. Aucun scraping.
+  Catalogue **français et anglais** dès la V1 (japonais hors périmètre V1).
+- **Worker TCG Fallback** — cascade de fallback quand TCGdex est indisponible :
+  **PokeTrace** (niveau 2 — prix EUR Cardmarket + USD TCGPlayer/eBay, ventilation par état et grade
+  PSA/BGS/CGC, freemium 250 req/jour) → **eBay Browse API** (niveau 3 — annonces actives USD) →
+  **TCGFast Trader** (niveau 4 — prix USD + gradés + historique, 14,99 $/mois). Aucun scraping.
 - **Worker TCG Prediction** — estime les prix (IA) à partir de l'historique (`price_history`).
 
 Les trois écrivent dans **PostgreSQL**. Détails : [`marketplace/marketplace-scraper.md`](marketplace/marketplace-scraper.md),
@@ -136,10 +139,13 @@ Pré-gradation (état/centrage) : le backend envoie l'image au **Microservice Gr
 - **Métadonnées** : TCGdex (**MIT**) — libres avec attribution + disclaimer non-affiliation Nintendo.
 - **Prix TCGdex** : relaie Cardmarket/TCGPlayer → **CGU sources en amont** s'appliquent ; affichage
   indicatif OK en phase étudiante (mention source obligatoire) ; licence commerciale requise au GO.
+- **Prix PokeTrace** : freemium (250 req/jour gratuit, plan Pro 10 000/jour) ; prix EUR Cardmarket
+  + USD TCGPlayer/eBay avec ventilation par état (NM, LP…) et grade (PSA/BGS/CGC) ; vérifier CGU
+  commerciales avant passage GO.
 - **Prix eBay Browse API** : usage conforme au programme développeur officiel (annonces actives).
 - **Prix TCGFast Trader** : usage commercial explicitement autorisé par le plan Trader (14,99 $/mois).
-- **Cascade officielle** : TCGdex (niv. 1) → eBay Browse API (niv. 2) → TCGFast (niv. 3) →
-  cache PostgreSQL (filet permanent).
+- **Cascade officielle** : TCGdex (niv. 1) → PokeTrace (niv. 2) → eBay Browse API (niv. 3) →
+  TCGFast (niv. 4) → cache PostgreSQL (filet permanent).
 - **Sources supprimées** : pokemontcg.io (devenu payant), JustTCG, PokéWallet ; APIs Cardmarket et
   TCGPlayer directes (inaccessibles aux nouveaux développeurs depuis 2024-2025).
 - **À bannir** : scraping de Cardmarket/eBay/TCGPlayer (Cloudflare Enterprise + CGU), redistribution
