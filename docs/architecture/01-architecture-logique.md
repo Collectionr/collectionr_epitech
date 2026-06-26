@@ -2,6 +2,15 @@
 
 ---
 
+## Sommaire
+
+1. [Vision globale](#1-vision-globale)
+2. [Organisation du code](#2-organisation-du-code-clean-architecture)
+3. [Les principaux composants](#3-les-principaux-composants)
+4. [Flux de données et communication](#4-flux-de-données-et-communication)
+5. [Infrastructure, observabilité et sécurité](#5-infrastructure-observabilité-et-sécurité)
+6. [Documents associés](#6-documents-associés) 
+
 ## 1. Vision globale
 
 Le projet **Collectionr** repose sur une architecture moderne, découplée et orientée événements, conçue pour passer d'un prototype à une plateforme industrielle.
@@ -53,27 +62,34 @@ graph LR
     U((User)) -->|1. Upload| B[Backend]
     B -->|2. Ingestion| R1[(Redis OCR)]
     R1 -->|3. Traitement| W[Worker OCR]
-    W -->|ImageProcessed| B
-    B -->|4. Mise à jour| P[(PostgreSQL)]
-    B -->|5. Notification| U
+    W -->|4. Écrit résultat| P[(PostgreSQL)]
+    W -->|4. Notifie statut| R1
+    R1 -->|4. Notifie| B
+    B -->|5. Lit résultat| P
+    B -->|6. Notification| U
     B -.->|Consulte les prix| R2[(Redis TCG)]
     T[Service TCG] -->|Met à jour les prix| R2
 ```
 ---
 
-## 5. Infrastructure, Observabilité et Sécurité
+## 5. Infrastructure, observabilité et sécurité
 
 Le passage à une phase professionnelle impose des standards élevés :
 
-### Stratégie de Stockage
+### Stratégie de stockage
 - **Prototype** : Utilisation de **Shared Volumes** Kubernetes pour le partage d'images entre pods.
 - **Production** : Migration vers du **Stockage Objet (S3)** compatible (Scaleway/MinIO) pour une durabilité et une scalabilité illimitée.
 
-### Observabilité (Stack PLG)
-Suivi proactif de la santé du système via la stack **Prometheus (métriques), Loki (logs) et Grafana (visualisation)**.
-
-### Sécurité & Résilience
-- **Gestion des secrets** : Utilisation des **Kubernetes Secrets** (ou Doppler) pour protéger les clés API.
+### Observabilité 
+ Suivi proactif de la santé du système via la stack
+**Prometheus + Grafana + Loki + Promtail** —
+voir `D04-observabilite-slo.md`..
+ 
+### Sécurité & résilience
+- **Gestion des secrets** : Kubernetes Secrets en
+  développement et staging, avec une évolution vers
+  Vault en production — voir `D01-environnement.md`
+  section 5.2.
 - **Circuit Breaker** : Protection du système contre les défaillances des APIs tierces (TCGPlayer, Cardmarket).
 - **Isolation** : Chaque microservice est isolé dans son propre Namespace Kubernetes afin de cloisonner logiquement les ressources, de restreindre les flux réseau inter-services et d'atténuer le rayon d'impact en cas de faille de sécurité.
 
@@ -82,3 +98,15 @@ Suivi proactif de la santé du système via la stack **Prometheus (métriques), 
 ## Conclusion
 
 Cette architecture logique assure la transition fluide du prototype vers une solution commerciale. Elle garantit que **Collectionr** reste une plateforme réactive, capable de gérer des milliers de scans simultanés tout en protégeant l'intégrité et la disponibilité des données.
+
+
+ 
+## 6. Documents associés
+
+- `A00-overview.md`
+- `A02-flux-techniques.md`
+- `A03-architecture-runtime.md`
+- `C02-choix-solutions-cloud.md`
+- `D01-environnement.md`
+- `D04-observabilite-slo.md`
+- `S01-principes-securite.md` 
