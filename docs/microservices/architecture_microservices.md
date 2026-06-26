@@ -25,7 +25,7 @@ La plateforme s'appuie sur un **backend NestJS (adaptateur Fastify)** qui expose
 | **Pipeline Grading IA** | Pré-gradation (état/centrage) par **vision IA** | **Bonus V1** |
 
 > **Principe clé :** **PostgreSQL est l'unique source de vérité**. Tous les workers y **écrivent** ;
-> le backend s'y connecte en **lecture** pour répondre aux clients. Les workers sont écrits en
+> le backend s'y connecte en **lecture/écriture** (données applicatives) et lit les **tables de prix** pour répondre aux clients. Les workers sont écrits en
 > **Python** (cohérent avec le Pipeline de Données Python) ; ils n'exposent **aucune API REST**.
 
 ---
