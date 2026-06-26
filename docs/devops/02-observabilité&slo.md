@@ -27,7 +27,7 @@
 
 Le projet **Collectionr** est une plateforme de numérisation et de suivi en temps réel des cartes de collections (TCG - Trading Card Games) développée par une équipe pluridisciplinaire de 9 étudiants à Epitech Nice. L'architecture repose sur un modèle de microservices fortement découplés, où le traitement des images (OCR et inférence IA via des modèles YOLO/OpenCV sous Python) et le scraping de prix sur les places de marché sont décorrélés des appels API classiques du backend NestJS grâce à des brokers de messages Redis.
 
-Ce découplage asynchrone, combiné à l'utilisation de volumes persistants partagés pour l'échange d'images, rend la traçabilité des requêtes et le suivi de la performance complexes. Afin de garantir le bon fonctionnement des flux de données et la stabilité globale de l'orchestrateur Kubernetes (K3s), la mise en place d'une observabilité fine est indispensable.
+Ce découplage asynchrone, combiné à l'utilisation d'un volume persistant partagé (Shared Volume) pour l'échange d'images en phase de prototypage (POC) et Bêta, rend la traçabilité des requêtes et le suivi de la performance complexes. Afin de garantir le bon fonctionnement des flux de données et la stabilité globale de l'orchestrateur Kubernetes (K3s), la mise en place d'une observabilité fine est indispensable. (Note : Ce volume partagé sera migré vers un stockage objet compatible S3 en production).
 
 Ce document définit notre stratégie de surveillance, de centralisation des logs et d'auto-réparation afin de garantir le respect de nos objectifs de service (SLO) et d'assurer une résolution proactive des incidents au sein du cluster. Il sert de guide opérationnel pour l'équipe Cloud & Sécurité.
 
@@ -65,9 +65,9 @@ L'accès aux logs est adapté selon l'environnement de déploiement, en cohéren
 - **Debug Interactif en CLI (Stern) :** 
   - *Description :* Stern est un outil en ligne de commande ultra-léger qui permet de regarder en direct les logs de plusieurs pods Kubernetes simultanément (en utilisant des expressions régulières pour filtrer par namespace ou par nom de pod).
   - *Avantages :* Évite d'installer une stack lourde en phase de développement local (K3s local). Effort et consommation de ressources nuls pour le cluster.
-- **Centralisation Légère (Grafana Loki) :**
+- **Centralisation Légère (Grafana Loki vs ELK) :**
   - *Description :* Pour la phase Bêta sur VPS cloud, nous déployons **Grafana Loki** associé à Promtail (ou Grafana Agent) pour collecter et centraliser les logs du cluster.
-  - *Pourquoi ce choix :* Loki est conçu pour être la stack de logs la plus légère et économique du marché. Contrairement à ELK (Elasticsearch), Loki n'indexe pas le contenu du texte des logs, mais uniquement les métadonnées (labels des pods, namespaces, etc.) et compresse le reste. Cela permet de l'exécuter sans surcharger notre VPS à bas coût (20-40 €/mois), préservant ainsi nos contraintes budgétaires.
+  - *Pourquoi ce choix (Arbitrage Loki vs ELK) :* Bien que la stack ELK (Elasticsearch, Logstash, Kibana) soit un standard du marché, elle s'avère incompatible avec les ressources limitées d'un VPS d'entrée de gamme (phase Bêta). Elasticsearch (basé sur Java) requiert à lui seul un minimum de 2 à 4 Go de mémoire vive pour fonctionner de manière stable. Grafana Loki, en revanche, n'indexe pas le contenu textuel brut des logs mais uniquement leurs labels (métadonnées). Cette approche technique permet de diviser la consommation de RAM par 10 (moins de 250 Mo requis pour Loki et son agent), évitant le surcoût de dimensionnement du VPS tout en assurant une centralisation efficace pour un coût d'exploitation proche de zéro. La stack ELK n'est envisagée qu'en Phase 3 (Production) si des besoins avancés de recherche textuelle ou de conformité d'audit l'exigent.
 
 ### 3.3 Identifiant de Corrélation
 Pour suivre un flux d'exécution complexe (par exemple, un utilisateur qui envoie une photo de carte) :
@@ -91,9 +91,9 @@ Pour assurer le respect de nos SLOs et prévenir les pannes, nous surveillons en
 - **Profondeur des files d'attente Redis (Redis OCR & Redis TCG) :**
   - *Métriques :* Taille des listes Redis de tâches en attente (`llen`).
   - *Justification :* Si la file d'attente Redis OCR s'accumule, le temps d'attente des utilisateurs augmente et notre SLO de 15 secondes sera dépassé. Cette métrique servira également de déclencheur pour l'autoscaling horizontal (HPA) à long terme. Si la file Redis TCG s'accumule, cela montre une saturation du worker de scraping.
-- **Espace disque du Shared Volume OCR :**
+- **Espace disque du Shared Volume OCR (Phases 1 & 2 uniquement) :**
   - *Métriques :* Utilisation de l'espace de stockage persistant (PVC Kubernetes) utilisé pour stocker temporairement les images brutes envoyées par les utilisateurs.
-  - *Justification :* Les images brutes s'accumulent vite. Si le disque sature, l'API `/scan` plantera immédiatement. Cette métrique permet d'alerter sur une défaillance de la tâche Cron de purge automatique des images.
+  - *Justification :* Pour le prototype et la Bêta, les images brutes s'accumulent vite sur le volume partagé local. Si le disque sature, l'API `/scan` plantera immédiatement. Cette métrique permet d'alerter sur une défaillance de la tâche Cron de purge automatique des images. En Phase 3 (Production), cette métrique sera remplacée par la surveillance de l'API de stockage objet (S3).
 - **Latence et Taux d'Erreurs API :**
   - *Métriques :* Taux d'erreurs HTTP 5xx et latence des requêtes P95, mesurés via les métriques Ingress (Traefik ou Nginx Ingress Controller).
 
@@ -164,6 +164,7 @@ La stack d'observabilité de Collectionr évolue de façon cohérente avec les e
 
 ### Phase 3 : Kubernetes Managé (Production - >10 000 Utilisateurs)
 - Migration vers des offres de monitoring managées (telles que le Free Tier de Grafana Cloud ou les outils natifs du fournisseur de cloud) pour découpler la surveillance de l'infrastructure de production.
+- **Migration vers le stockage objet (S3) et Observabilité associée :** Remplacement du volume persistant partagé (Shared Volume) par un stockage objet (type AWS S3 ou Scaleway Object Storage) pour l'échange d'images entre le backend et le worker OCR. L'observabilité s'adapte en surveillant le taux d'erreurs d'appels API S3 (GET/PUT), la latence de transfert des fichiers et les quotas de stockage du compartiment, supprimant la dépendance aux disques locaux du cluster.
 - **Autoscaling piloté par les métriques (KEDA / HPA) :** Utilisation des métriques Prometheus de profondeur de file d'attente Redis OCR comme déclencheur pour l'autoscaling horizontal. Si le nombre de scans en attente dépasse un seuil, de nouveaux workers OCR sont automatiquement créés sur des nœuds cloud temporaires, puis détruits lorsque la file d'attente se vide, optimisant ainsi le budget FinOps de production.
 
 ---
