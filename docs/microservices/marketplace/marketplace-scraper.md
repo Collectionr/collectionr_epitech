@@ -69,8 +69,8 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
 ```
 
 > **Tous les workers (API, Scraping, Prediction) écrivent dans PostgreSQL** via `psycopg 3`
-> (UPSERT idempotents). PostgreSQL est l'**unique source de vérité** ; le backend NestJS s'y
-> connecte uniquement en **lecture**.
+> (UPSERT idempotents). PostgreSQL est l'**unique source de vérité** ; le backend NestJS y **lit les prix**,
+> et les **écritures** sur les tables de prix sont réservées aux workers.
 
 ## Responsabilités
 
