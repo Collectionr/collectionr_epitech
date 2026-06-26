@@ -138,17 +138,20 @@ et de production reste **Linux**.
 |---|---|---|
 | Linux | K3s natif | kubectl |
 | Windows 10/11 | K3s via WSL2 | kubectl dans WSL2 |
-| macOS Apple M4 Pro | K3s via Rancher Desktop ou OrbStack | kubectl — images ARM64 requises |
+| macOS Apple Silicon et Intel | K3s via Rancher Desktop ou OrbStack | kubectl |
 
-> **Note ARM64 :** le membre de l'équipe disposant
-> d'un Apple M4 Pro doit utiliser des images Docker
-> compatibles ARM64. Toutes les images du projet sont
-> construites en multi-architecture (amd64 + arm64)
-> via les pipelines CI/CD pour garantir la compatibilité.
+> **Note ARM64 :** les membres de l'équipe disposant d'un poste
+> macOS Apple Silicon doivent utiliser des images Docker compatibles
+> ARM64. Toutes les images du projet sont construites en
+> multi-architecture (amd64 + arm64) via les pipelines CI/CD
+> pour garantir la compatibilité.
 
 > **Note WSL2 :** l'utilisation de K3s sous Windows nécessite
-> WSL2 configuré au préalable. La procédure
-> d'installation est documentée dans le repo `collectionr-devops`.
+> WSL2 configuré au préalable. La procédure d'installation est
+> documentée dans le repo `collectionr-devops`.
+
+> **Note RAM :** voir section 6 pour les contraintes
+> spécifiques aux postes avec 8 Go de RAM.
 
 ## 2.4 Lancement en une commande
 
