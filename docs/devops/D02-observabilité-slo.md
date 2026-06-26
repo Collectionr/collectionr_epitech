@@ -82,6 +82,48 @@ Pour suivre un flux d'exécution complexe (par exemple, un utilisateur qui envoi
 
 La surveillance quantitative repose sur le couple **Prometheus** (collecteur de métriques temporelles) et **Grafana** (tableaux de bord).
 
+```mermaid
+graph TD
+    subgraph K3s [Cluster Kubernetes K3s]
+        
+        subgraph Apps [Microservices Applicatifs]
+            Backend[Backend NestJS<br/>Expose :3000/metrics]
+            WorkerOCR[Worker OCR Python<br/>Expose :8000/metrics]
+            WorkerTCG[Worker TCG Python<br/>Expose :8000/metrics]
+        end
+
+        subgraph Metrics [Flux des Métriques - Pull]
+            Prometheus[Prometheus<br/>Port: 9090]
+        end
+
+        subgraph Logs [Flux des Logs - Push]
+            Promtail[Promtail<br/>Agent sur chaque nœud]
+            Loki[Loki<br/>Port: 3100]
+        end
+
+        subgraph Viz [Visualisation]
+            Grafana[Grafana<br/>Port: 3000]
+        end
+
+        %% Collecte des Métriques (Prometheus vient lire les données)
+        Prometheus -- "Scrape HTTP (Pull)" --> Backend
+        Prometheus -- "Scrape HTTP (Pull)" --> WorkerOCR
+        Prometheus -- "Scrape HTTP (Pull)" --> WorkerTCG
+
+        %% Collecte des Logs (Promtail lit les fichiers locaux des pods)
+        Backend -. "stdout / stderr" .-> Promtail
+        WorkerOCR -. "stdout / stderr" .-> Promtail
+        WorkerTCG -. "stdout / stderr" .-> Promtail
+        
+        %% Envoi des logs vers Loki
+        Promtail -- "Push HTTP" --> Loki
+
+        %% Lecture par Grafana
+        Grafana -- "Requêtes PromQL" --> Prometheus
+        Grafana -- "Requêtes LogQL" --> Loki
+    end
+```
+
 ### 4.1 Métriques d'Infrastructure et Applicatives
 Pour assurer le respect de nos SLOs et prévenir les pannes, nous surveillons en continu les indicateurs techniques suivants :
 
