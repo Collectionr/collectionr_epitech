@@ -38,14 +38,15 @@ Taille du jeu de données (cartes anglaises uniques) :
 
 ### Couverture multilingue (à connaître)
 
-| Langue | Couverture des données | Remarque |
-|--------|------------------------|----------|
-| Anglais (`en`) | ~99 % | Quasi complet |
-| Français (`fr`) | ~95 % | Quasi complet |
-| Japonais (`ja`) | ~42 % | **Partiel** — de nombreuses cartes renvoient `404` |
+| Langue | Couverture des données | Périmètre V1 |
+|--------|------------------------|--------------|
+| Anglais (`en`) | ~99 % | ✅ **In scope V1** |
+| Français (`fr`) | ~95 % | ✅ **In scope V1** |
+| Japonais (`ja`) | ~42 % | ❌ Hors périmètre V1 — de nombreuses cartes renvoient `404` |
 
-> **Attention :** ne pas promettre une parité EN/FR/JP. Pour le japonais, prévoir un repli (afficher
-> la version EN/FR) lorsque la carte n'existe pas dans la langue demandée.
+> **Périmètre V1 : français et anglais.** Le catalogue CollectionR couvre les cartes EN et FR dès
+> la V1. Pour le japonais, prévoir un repli (afficher la version EN/FR) mais il reste hors périmètre
+> V1.
 
 ---
 
@@ -214,10 +215,35 @@ Exemple de paramètre de langue :
 
 ---
 
-## Fallback prix : TCGFast Trader (niveau 3)
+## Fallback prix niveau 2 : PokeTrace
 
-TCGdex est interrogé en priorité, puis eBay Browse API. Si ces deux sources sont simultanément
-indisponibles, le `Worker TCG Fallback` active **TCGFast Trader**.
+PokeTrace est le **premier fallback prix** activé si TCGdex est indisponible. Il est particulièrement
+utile pour maintenir les **prix EUR Cardmarket** avec une granularité par état et grade.
+
+### PokeTrace (`https://poketrace.com`)
+
+- **Tier gratuit : 250 requêtes/jour** — suffisant pour les synchronisations nocturnes sur un
+  catalogue limité.
+- **Plan Pro : 10 000 requêtes/jour** — recommandé en production ou au passage commercial.
+- Données fournies :
+  - **Prix EUR** (Cardmarket) + **prix USD** (TCGPlayer et eBay)
+  - **Ventilation par état** : NM, LP, MP, HP, DMG…
+  - **Ventilation par grade** : PSA 10, PSA 9, BGS 10, BGS 9.5, CGC 10…
+  - Historique des prix
+- **Clé API** stockée dans les Secrets Kubernetes (`POKETRACE_API_KEY`).
+- Rôle dans la cascade : **niveau 2** — activé si TCGdex est indisponible, avant eBay Browse et
+  TCGFast.
+
+> PokeTrace est le seul fallback qui fournit nativement les **prix EUR Cardmarket avec ventilation
+> par état** — ce qui en fait le complément naturel de TCGdex pour la continuité des prix EUR.
+
+---
+
+## Fallback prix niveau 4 : TCGFast Trader
+
+TCGdex est interrogé en priorité (niveau 1), puis PokeTrace (niveau 2), puis eBay Browse API
+(niveau 3). Si ces trois sources sont simultanément indisponibles, le `Worker TCG Fallback` active
+**TCGFast Trader** (niveau 4).
 
 ### TCGFast (`https://tcgfast.com`)
 
@@ -242,5 +268,6 @@ Vérifications web (juin 2026) :
 - [TCGdex — FAQ (gratuit, sans clé)](https://tcgdex.dev/faq) · [Markets & Prices (prix Cardmarket/TCGPlayer)](https://tcgdex.dev/markets-prices) · [statut multilingue](https://api.tcgdex.net/status) · [base sous licence MIT](https://github.com/tcgdex/cards-database)
 - Carte d'exemple vérifiée en direct : [`swsh3-20` — Charizard VMAX](https://api.tcgdex.net/v2/en/cards/swsh3-20)
 - CGU des prix (en amont) : [Cardmarket — Conditions générales](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions) · [TCGPlayer — API Terms](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions)
+- **PokeTrace** : [https://poketrace.com](https://poketrace.com)
 - **TCGFast** : [https://tcgfast.com](https://tcgfast.com)
 - **eBay Browse API** : [Browse API overview](https://developer.ebay.com/api-docs/buy/browse/overview.html)

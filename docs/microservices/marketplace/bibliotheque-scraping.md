@@ -4,9 +4,10 @@
 
 Cette section identifie, compare et sélectionne les bibliothèques **Python** adaptées au **Worker TCG**.
 
-Le projet applique une **cascade de 3 sources API** : **TCGdex** (niveau 1, gratuit, sans clé) →
-**eBay Browse API** (niveau 2, complément officiel) → **TCGFast Trader** (niveau 3, fallback payant
-14,99 $/mois), avec **cache PostgreSQL** comme filet de sécurité permanent. Les **flux RSS** servent
+Le projet applique une **cascade de 4 sources API** : **TCGdex** (niveau 1, gratuit, sans clé,
+catalogue FR + EN) → **PokeTrace** (niveau 2, fallback EUR Cardmarket + USD, freemium 250 req/jour)
+→ **eBay Browse API** (niveau 3, annonces actives USD, officiel) → **TCGFast Trader** (niveau 4,
+fallback payant 14,99 $/mois), avec **cache PostgreSQL** comme filet de sécurité permanent. Les **flux RSS** servent
 uniquement à une éventuelle rubrique « actualités / sorties de sets » (pas aux prix — voir
 [decision-technique.md](decision-technique.md)).
 
@@ -18,7 +19,7 @@ uniquement à une éventuelle rubrique « actualités / sorties de sets » (pas 
 
 | Besoin | Approche recommandée |
 |--------|----------------------|
-| Interroger une API REST/JSON (TCGdex, eBay Browse, TCGFast) | Client HTTP (`httpx`) |
+| Interroger une API REST/JSON (TCGdex, PokeTrace, eBay Browse, TCGFast) | Client HTTP (`httpx`) |
 | Parser une réponse API en format HTML ou XML | Parseur (`selectolax` / `BeautifulSoup4`) |
 | Flux RSS (actualités sets uniquement) | `feedparser` |
 | Retry / back-off (HTTP 429, erreurs transitoires) | `tenacity` |
@@ -94,7 +95,7 @@ uniquement à une éventuelle rubrique « actualités / sorties de sets » (pas 
 
 ### Bibliothèques Python retenues
 
-- **Appels API (TCGdex, eBay Browse, TCGFast)** → `httpx` (+ `tenacity`, `aiolimiter`)
+- **Appels API (TCGdex, PokeTrace, eBay Browse, TCGFast)** → `httpx` (+ `tenacity`, `aiolimiter`)
 - **Parsing de réponses structurées** → `selectolax`, `BeautifulSoup4` en repli
 - **Actualités / sorties de sets (optionnel)** → `feedparser`
 - **Normalisation / DB** → `pydantic`, `psycopg 3`
@@ -102,11 +103,15 @@ uniquement à une éventuelle rubrique « actualités / sorties de sets » (pas 
 ### Stratégie (cascade officielle)
 
 1. **TCGdex** — source principale, gratuite, sans clé, licence MIT pour les métadonnées ; prix
-   Cardmarket (EUR) et TCGPlayer (USD) agrégés avec historique avg1/avg7/avg30.
-2. **eBay Browse API** — complément officiel, annonces actives uniquement, OAuth gratuit.
-3. **TCGFast Trader** (`https://tcgfast.com`) — fallback payant (14,99 $/mois) si niveaux 1 et 2
+   Cardmarket (EUR) et TCGPlayer (USD) agrégés avec historique avg1/avg7/avg30. Catalogue FR + EN.
+2. **PokeTrace** (`https://poketrace.com`) — fallback EUR : prix Cardmarket (EUR) + TCGPlayer/eBay
+   (USD) avec ventilation par état (NM, LP…) et grade (PSA/BGS/CGC). Freemium 250 req/jour, plan
+   Pro 10 000 req/jour. Activé si TCGdex est indisponible.
+3. **eBay Browse API** — complément officiel, annonces actives USD uniquement, OAuth gratuit.
+   Activé si TCGdex et PokeTrace sont indisponibles.
+4. **TCGFast Trader** (`https://tcgfast.com`) — fallback payant (14,99 $/mois) si niveaux 1, 2 et 3
    indisponibles ; prix eBay réels + PSA/BGS/CGC + historique ; SDK Python ; usage commercial OK.
-4. **Cache PostgreSQL** — filet de sécurité permanent si les 3 sources sont indisponibles ;
+5. **Cache PostgreSQL** — filet de sécurité permanent si les 4 sources sont indisponibles ;
    dernières valeurs connues servies avec horodatage, aucune erreur bloquante.
 
 ---
@@ -117,8 +122,9 @@ Le besoin réel de CollectionR (afficher prix et métadonnées) se résout **int
 sans scraping. `httpx` est l'outil central pour les 3 niveaux de la cascade ; `selectolax` et
 `BeautifulSoup4` restent disponibles pour le parsing de réponses structurées si nécessaire.
 
-> Synthèse : **cascade API** (TCGdex → eBay Browse → TCGFast) via `httpx` + cache PostgreSQL ;
-> `feedparser` pour les actualités ; aucun outil de scraping ou de bypass anti-bot nécessaire.
+> Synthèse : **cascade API** (TCGdex → PokeTrace → eBay Browse → TCGFast) via `httpx` + cache
+> PostgreSQL ; PokeTrace assure le premier fallback EUR ; `feedparser` pour les actualités ;
+> aucun outil de scraping ou de bypass anti-bot nécessaire.
 
 ---
 
@@ -127,4 +133,5 @@ sans scraping. `httpx` est l'outil central pour les 3 niveaux de la cascade ; `s
 Vérifications web (juin 2026) — versions et maintenance :
 
 - [httpx](https://www.python-httpx.org/) · [requests — « feature freeze »](https://requests.readthedocs.io/en/latest/dev/contributing/) · [selectolax](https://github.com/rushter/selectolax) · [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) · [feedparser](https://feedparser.readthedocs.io/)
+- **PokeTrace** : [https://poketrace.com](https://poketrace.com)
 - **TCGFast** : [https://tcgfast.com](https://tcgfast.com)

@@ -22,7 +22,8 @@ n'est plus tenable : ces accès sont **fermés ou restreints**.
 | **eBay** (Browse API) | OAuth, programme développeur ouvert, clé gratuite | **Annonces actives uniquement** — complément officiel |
 | **Cardmarket** (API) | Réservée aux **vendeurs professionnels** (approbation manuelle) ; CGU interdisent de présenter prix/cartes sur un service tiers sans accord écrit | Inadaptée à l'usage CollectionR |
 | **TCGdex** | **Ouverte, gratuite, sans clé, licence MIT** ; métadonnées + prix agrégés Cardmarket (EUR) + TCGPlayer (USD) avec historique avg1/avg7/avg30 | **Source principale — niveau 1** |
-| **TCGFast Trader** | API dédiée TCG (`tcgfast.com`), 14,99 $/mois ; prix TCGPlayer + eBay + gradués PSA/BGS/CGC + historique ; SDK Python ; usage commercial autorisé | **Fallback payant — niveau 3** |
+| **PokeTrace** | API dédiée TCG (`poketrace.com`) ; prix EUR (Cardmarket) + USD (TCGPlayer/eBay) avec ventilation par état (NM, LP…) et grade (PSA/BGS/CGC) ; freemium 250 req/jour, plan Pro 10 000/jour | **Fallback EUR — niveau 2** |
+| **TCGFast Trader** | API dédiée TCG (`tcgfast.com`), 14,99 $/mois ; prix TCGPlayer + eBay + gradués PSA/BGS/CGC + historique ; SDK Python ; usage commercial autorisé | **Fallback payant — niveau 4** |
 | **pokemontcg.io** | Migré vers Scrydex, devenu payant | **Écarté** : supprimé |
 | **Scrydex** | Payant, modèle crédits | **Écarté** : coût disproportionné |
 
@@ -38,29 +39,38 @@ n'est plus tenable : ces accès sont **fermés ou restreints**.
 | Niveau | Source | Condition d'activation |
 |--------|--------|------------------------|
 | **1 — Principal** | **TCGdex** (`https://api.tcgdex.net`) | Toujours interrogé en premier |
-| **2 — Complément** | **eBay Browse API** (programme dev eBay) | Si TCGdex ne retourne pas de prix ou carte absente |
-| **3 — Fallback payant** | **TCGFast Trader** (`https://tcgfast.com`) | Si TCGdex ET eBay Browse API simultanément indisponibles |
-| **Filet permanent** | **Cache PostgreSQL** | Si les 3 sources sont indisponibles : dernières valeurs connues servies avec horodatage |
+| **2 — Fallback EUR** | **PokeTrace** (`https://poketrace.com`) | Si TCGdex est indisponible — maintien des prix EUR Cardmarket |
+| **3 — Complément USD** | **eBay Browse API** (programme dev eBay) | Si TCGdex et PokeTrace indisponibles |
+| **4 — Fallback payant** | **TCGFast Trader** (`https://tcgfast.com`) | Si niveaux 1, 2 et 3 simultanément indisponibles |
+| **Filet permanent** | **Cache PostgreSQL** | Si les 4 sources sont indisponibles : dernières valeurs connues servies avec horodatage |
 
 #### Niveau 1 — TCGdex
 
 - Gratuit, sans clé, **licence MIT** pour les métadonnées.
+- Catalogue **français (FR) et anglais (EN)** dès la V1 ; japonais hors périmètre V1.
 - Fournit prix Cardmarket (EUR) et TCGPlayer (USD) agrégés avec historique `avg1` / `avg7` / `avg30`.
 - **Recommandation officielle TCGdex** : mettre les données en cache PostgreSQL localement plutôt que d'appeler l'API en boucle — CollectionR respecte ce principe.
 
-#### Niveau 2 — eBay Browse API
+#### Niveau 2 — PokeTrace (fallback EUR)
+
+- Freemium : **250 requêtes/jour** gratuites ; plan Pro **10 000 requêtes/jour**.
+- Prix **EUR Cardmarket + USD TCGPlayer/eBay** avec **ventilation par état** (NM, LP, MP…) et
+  **grade** (PSA/BGS/CGC) — données plus granulaires que TCGdex sur ce point.
+- **Premier fallback activé** si TCGdex est indisponible, notamment pour maintenir les prix EUR.
+- Clé stockée dans les **Secrets Kubernetes** (`POKETRACE_API_KEY`).
+
+#### Niveau 3 — eBay Browse API
 
 - API officielle, programme développeur eBay, clé OAuth gratuite.
-- **Annonces actives uniquement** (pas de ventes terminées).
+- **Annonces actives uniquement** (pas de ventes terminées), prix USD.
 - Ne jamais scraper eBay hors de cette API officielle (CGU 2026 interdisent les bots).
 
-#### Niveau 3 — TCGFast Trader (fallback payant)
+#### Niveau 4 — TCGFast Trader (fallback payant)
 
 - Plan Trader à **14,99 $/mois** — usage commercial autorisé.
-- Données complémentaires absentes de TCGdex : prix eBay (ventes réelles), **prix gradués PSA /
-  BGS / CGC**, historique.
-- SDK Python disponible. Clé stockée dans les **Secrets Kubernetes**.
-- Activé uniquement si TCGdex ET eBay Browse API sont simultanément indisponibles.
+- Données complémentaires : prix eBay (ventes réelles), **prix gradués PSA / BGS / CGC**, historique.
+- SDK Python disponible. Clé stockée dans les **Secrets Kubernetes** (`TCGFAST_API_KEY`).
+- Activé uniquement si les niveaux 1, 2 et 3 sont simultanément indisponibles.
 
 #### Filet de sécurité — cache PostgreSQL
 
@@ -81,6 +91,7 @@ l'horodatage de la dernière mise à jour. **Aucune erreur bloquante pour l'util
 
 - **TCGdex** : licence MIT pour les métadonnées ; prix agrégés (Cardmarket/TCGPlayer) soumis aux
   CGU de ces sources en amont.
+- **PokeTrace** : freemium — vérifier les CGU commerciales avant passage GO.
 - **eBay Browse API** : usage conforme au programme développeur officiel.
 - **TCGFast** : usage commercial explicitement autorisé par les CGU du plan Trader.
 - **Scraping absent** : Cardmarket et TCGPlayer sont protégés par **Cloudflare Enterprise** en 2026
@@ -125,9 +136,10 @@ sont des composants **découplés** qui écrivent dans PostgreSQL.
 
 | Niveau | Source | URL | Conditions |
 |--------|--------|-----|------------|
-| 1 — Principal | **TCGdex** | `https://api.tcgdex.net` | Gratuit, sans clé, MIT (métadonnées) |
-| 2 — Complément | **eBay Browse API** | Programme dev eBay | OAuth gratuit, annonces actives seulement |
-| 3 — Fallback | **TCGFast Trader** | `https://tcgfast.com` | 14,99 $/mois, commercial OK, SDK Python |
+| 1 — Principal | **TCGdex** | `https://api.tcgdex.net` | Gratuit, sans clé, MIT (métadonnées) ; FR + EN |
+| 2 — Fallback EUR | **PokeTrace** | `https://poketrace.com` | Freemium 250 req/j, Pro 10 000 req/j |
+| 3 — Complément USD | **eBay Browse API** | Programme dev eBay | OAuth gratuit, annonces actives USD |
+| 4 — Fallback payant | **TCGFast Trader** | `https://tcgfast.com` | 14,99 $/mois, commercial OK, SDK Python |
 | Filet | **Cache PostgreSQL** | — | Dernières valeurs connues + horodatage |
 
 Voir le détail dans [bibliotheque-scraping.md](bibliotheque-scraping.md).
@@ -159,9 +171,10 @@ La stratégie retenue permet de :
 - **rester conforme** (aucun scraping de marketplace) ;
 - **limiter la dette technique** (stack réduite : httpx + pydantic + psycopg 3).
 
-> TCGdex couvre l'essentiel du besoin. eBay Browse API enrichit avec les annonces actives. TCGFast
-> couvre le fallback et les besoins PSA/BGS/CGC. Le cache PostgreSQL garantit la continuité de
-> service en toutes circonstances.
+> TCGdex couvre l'essentiel du besoin (FR + EN). PokeTrace assure le premier fallback avec les prix
+> EUR Cardmarket et la granularité par état/grade. eBay Browse enrichit avec les annonces actives USD.
+> TCGFast couvre le fallback final et les besoins PSA/BGS/CGC. Le cache PostgreSQL garantit la
+> continuité de service en toutes circonstances.
 
 ---
 
@@ -170,6 +183,7 @@ La stratégie retenue permet de :
 Vérifications web (juin 2026) :
 
 - **TCGdex** : [FAQ](https://tcgdex.dev/faq) · [Markets & Prices](https://tcgdex.dev/markets-prices) · [licence MIT](https://github.com/tcgdex/cards-database)
+- **PokeTrace** : [https://poketrace.com](https://poketrace.com)
 - **eBay** : [dépréciation Finding API (Q3 2024)](https://developer.ebay.com/updates/newsletter/q3_2024) · [Browse API](https://developer.ebay.com/api-docs/buy/browse/overview.html) · [User Agreement 2026](https://www.valueaddedresource.net/ebay-bans-ai-agents-updates-arbitration-user-agreement-feb-2026/)
 - **TCGFast** : [https://tcgfast.com](https://tcgfast.com)
 - **Cardmarket** : [API (réservée vendeurs pro)](https://help.cardmarket.com/en/cardmarket-api) · [CGU](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions)

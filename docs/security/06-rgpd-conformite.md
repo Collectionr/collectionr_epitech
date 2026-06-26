@@ -322,7 +322,8 @@ des requêtes de recherche de cartes leur sont transmises.
 
 ### API utilisées en V1
 
-- pokemontcg.io — données et visuels des cartes Pokémon ;
+- pTCGdex (api.tcgdex.net) — métadonnées, visuels et prix agrégés des cartes Pokémon.
+  Licence MIT pour les métadonnées. Aucune donnée personnelle transmise;
 - toute API complémentaire intégrée ultérieurement fera l'objet 
   d'un avenant à ce document.
 
@@ -379,7 +380,7 @@ que les données qu'elles contiennent.
 
 ### API tierces et transferts hors UE
 
-Certaines API tierces utilisées par CollectionR, notamment pokemontcg.io, 
+Certaines API tierces utilisées par CollectionR, notamment TCGdex, 
 peuvent disposer de serveurs localisés hors de l'Union Européenne 
 (potentiellement aux États-Unis).
 

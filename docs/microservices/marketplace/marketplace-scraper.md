@@ -21,13 +21,14 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
 
 | Worker | Rôle | Sources |
 |--------|------|---------|
-| **Worker TCG API** | Synchronise les **métadonnées** et les **prix agrégés** | TCGdex (niveau 1) → eBay Browse API (niveau 2) → TCGFast (niveau 3) |
-| **Worker TCG Fallback** | Interroge eBay Browse API et TCGFast quand TCGdex est indisponible | eBay Browse API, TCGFast Trader (14,99 $/mois) |
+| **Worker TCG API** | Synchronise les **métadonnées** et les **prix agrégés** | TCGdex (niveau 1) — catalogue FR + EN |
+| **Worker TCG Fallback** | Interroge PokeTrace, eBay Browse API et TCGFast quand TCGdex est indisponible | PokeTrace (niv. 2) → eBay Browse API (niv. 3) → TCGFast Trader (niv. 4) |
 | **Worker TCG Prediction** | Prédit/estime des prix (IA) à partir de l'historique | Service Python `/predict-price` (cf. clean-architecture) |
 
 > **Note sur le Worker TCG Fallback.** Ce worker, anciennement nommé « Worker TCG Scraping », ne
-> réalise **aucun scraping**. Il appelle exclusivement les APIs officielles de niveau 2 (eBay Browse)
-> et niveau 3 (TCGFast) en relais de TCGdex. Le nom a été mis à jour pour refléter son rôle réel.
+> réalise **aucun scraping**. Il appelle exclusivement les APIs officielles de niveau 2 (PokeTrace),
+> niveau 3 (eBay Browse) et niveau 4 (TCGFast) en relais de TCGdex. Le nom a été mis à jour pour
+> refléter son rôle réel.
 
 ---
 
@@ -51,12 +52,12 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
  │ Worker TCG   │        │ Worker TCG       │      │ Worker TCG       │
  │ API (Python) │        │ Fallback (Python) │      │ Prediction (Py)  │
  └──────┬───────┘        └────────┬─────────┘      └────────┬─────────┘
-        │ TCGdex (niv. 1)        │ eBay Browse + TCGFast   │ modèle IA
-        ▼                         ▼  (niv. 2 + 3)          │ (sur historique)
+        │ TCGdex (niv. 1)        │ PokeTrace+eBay+TCGFast  │ modèle IA
+        ▼                         ▼  (niv. 2 + 3 + 4)      │ (sur historique)
  ┌──────────────┐        ┌──────────────────┐               │
- │ TCGdex       │        │ eBay Browse API  │               │
- │ api.tcgdex.  │        │ + TCGFast Trader │               │
- │ net          │        │ (fallback payant) │               │
+ │ TCGdex       │        │ PokeTrace (n.2)  │               │
+ │ api.tcgdex.  │        │ eBay Browse (n.3)│               │
+ │ net  FR+EN   │        │ TCGFast (n.4)    │               │
  └──────┬───────┘        └────────┬─────────┘               │
         │ ÉCRITURE                │ ÉCRITURE                 │ ÉCRITURE
         │ (psycopg 3)             │ (psycopg 3)              │ (psycopg 3)
@@ -78,7 +79,7 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
 |----------------|--------|-------------|
 | Synchronisation cartes | TCG API | Métadonnées + images (URLs uniquement) |
 | Collecte des prix — niv. 1 | TCG API | Prix agrégés Cardmarket/TCGPlayer via TCGdex |
-| Collecte des prix — niv. 2-3 | TCG Fallback | eBay Browse API puis TCGFast si TCGdex indisponible |
+| Collecte des prix — niv. 2-4 | TCG Fallback | PokeTrace → eBay Browse → TCGFast si TCGdex indisponible |
 | Estimation de prix | TCG Prediction | Modèle IA sur l'historique |
 | Normalisation | tous | Devise → EUR, état, **langue**, noms |
 | Stockage | tous | Écriture idempotente en PostgreSQL |
@@ -94,18 +95,19 @@ L'audit de juin 2026 a établi l'état réel d'accès aux sources. La stratégie
 
 | Source | Type | Accès | Usage CollectionR |
 |--------|------|-------|-------------------|
-| **TCGdex** | API ouverte | Gratuit, sans clé, licence MIT | **Niveau 1 — Principal** : métadonnées + prix agrégés (CM €, TCGP $) |
-| **eBay Browse API** | API officielle | OAuth, programme dev eBay, clé gratuite | **Niveau 2 — Complément** : annonces actives uniquement |
-| **TCGFast Trader** | API dédiée TCG | 14,99 $/mois, usage commercial OK, SDK Python | **Niveau 3 — Fallback payant** : prix TCGPlayer + eBay + PSA/BGS/CGC + historique |
+| **TCGdex** | API ouverte | Gratuit, sans clé, licence MIT | **Niveau 1 — Principal** : métadonnées + prix agrégés (CM €, TCGP $) ; catalogue FR + EN |
+| **PokeTrace** | API dédiée TCG | Freemium 250 req/j, Pro 10 000 req/j | **Niveau 2 — Fallback EUR** : prix EUR Cardmarket + USD TCGPlayer/eBay, par état et grade |
+| **eBay Browse API** | API officielle | OAuth, programme dev eBay, clé gratuite | **Niveau 3 — Complément USD** : annonces actives uniquement |
+| **TCGFast Trader** | API dédiée TCG | 14,99 $/mois, usage commercial OK, SDK Python | **Niveau 4 — Fallback payant** : prix TCGPlayer + eBay + PSA/BGS/CGC + historique |
 | **Cache PostgreSQL** | Base locale | — | **Filet permanent** : dernières valeurs connues + horodatage |
 | **pokemontcg.io** | API | Migré vers Scrydex, payant | **Écarté** : supprimé |
 | **Cardmarket** | API | Vendeurs pro, approbation manuelle | **Écarté** : CGU interdisent l'usage tiers |
 | **TCGPlayer** | API | **Fermée aux nouveaux dev** (fin 2024) | **Écarté** : inaccessible + ToS |
 
 > **Conséquence clé :** les prix Cardmarket et TCGPlayer sont **déjà fournis légalement** par TCGdex.
-> TCGFast complète avec les prix eBay réels et les gradations PSA/BGS/CGC. Cardmarket et TCGPlayer
-> sont protégés par **Cloudflare Enterprise** — leur scraping est à la fois interdit par CGU et
-> inutile.
+> PokeTrace assure le premier fallback avec les prix EUR Cardmarket par état et grade. TCGFast
+> complète avec les prix eBay réels et les gradations PSA/BGS/CGC. Cardmarket et TCGPlayer sont
+> protégés par **Cloudflare Enterprise** — leur scraping est à la fois interdit par CGU et inutile.
 
 ---
 
@@ -114,14 +116,18 @@ L'audit de juin 2026 a établi l'état réel d'accès aux sources. La stratégie
 Cascade par ordre de priorité (cf. [decision-technique.md](decision-technique.md)) :
 
 1. **TCGdex (niveau 1 — principal)** — `Worker TCG API` interroge TCGdex pour les métadonnées et
-   les prix agrégés Cardmarket (EUR) + TCGPlayer (USD) avec historique avg1/avg7/avg30. Toujours
-   consulté en premier. Recommandation officielle TCGdex : mettre les données en cache PostgreSQL.
-2. **eBay Browse API (niveau 2 — complément officiel)** — `Worker TCG Fallback`, annonces actives
-   via OAuth ; utilisé si TCGdex ne retourne pas de prix ou si la carte est absente.
-3. **TCGFast Trader (niveau 3 — fallback payant)** — `Worker TCG Fallback`, plan Trader 14,99 $/mois.
+   les prix agrégés Cardmarket (EUR) + TCGPlayer (USD) avec historique avg1/avg7/avg30. Catalogue
+   **français (FR) et anglais (EN)** dès la V1. Toujours consulté en premier.
+2. **PokeTrace (niveau 2 — fallback EUR)** — `Worker TCG Fallback`, activé si TCGdex est
+   indisponible. Fournit prix EUR Cardmarket + USD TCGPlayer/eBay avec **ventilation par état** (NM,
+   LP…) et **grade** (PSA/BGS/CGC). Freemium 250 req/jour ; plan Pro 10 000 req/jour.
+   Clé : `POKETRACE_API_KEY` en Secrets Kubernetes.
+3. **eBay Browse API (niveau 3 — complément USD)** — `Worker TCG Fallback`, annonces actives via
+   OAuth ; utilisé si TCGdex et PokeTrace sont simultanément indisponibles.
+4. **TCGFast Trader (niveau 4 — fallback payant)** — `Worker TCG Fallback`, plan Trader 14,99 $/mois.
    Apporte : prix eBay (ventes réelles), **prix gradués PSA/BGS/CGC**, historique. SDK Python. Activé
-   uniquement si TCGdex ET eBay Browse sont simultanément indisponibles. Clé en Secrets Kubernetes.
-4. **Cache PostgreSQL (filet de sécurité permanent)** — si les 3 sources sont indisponibles, le
+   uniquement si niveaux 1, 2 et 3 sont simultanément indisponibles. Clé : `TCGFAST_API_KEY`.
+5. **Cache PostgreSQL (filet de sécurité permanent)** — si les 4 sources sont indisponibles, le
    backend sert les dernières valeurs connues avec horodatage, sans erreur bloquante.
 
 ---
@@ -286,7 +292,7 @@ Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture
 |-----------|------|
 | Microservice TCG | Orchestre les workers, planifie via Redis TCG |
 | Worker TCG API | Collecte via TCGdex (niveau 1), écrit en base |
-| Worker TCG Fallback | Collecte via eBay Browse + TCGFast (niveaux 2-3), écrit en base |
+| Worker TCG Fallback | Collecte via PokeTrace + eBay Browse + TCGFast (niveaux 2-4), écrit en base |
 | Worker TCG Prediction | Estime les prix (IA), écrit en base |
 | Backend NestJS (Fastify) | Expose les endpoints, lit les données |
 | PostgreSQL | Source de vérité des prix + cache permanent |
@@ -305,8 +311,8 @@ chaque composant est un **Pod K3s** :
 
 - **Deployments** distincts pour `Worker TCG API`, `Worker TCG Fallback`, `Worker TCG Prediction` et
   le `Microservice TCG` (orchestrateur).
-- **Secrets Kubernetes** pour les clés/identifiants externes (OAuth eBay, clé TCGFast). TCGdex ne
-  requiert aucune clé.
+- **Secrets Kubernetes** pour les clés/identifiants externes (OAuth eBay, `POKETRACE_API_KEY`,
+  `TCGFAST_API_KEY`). TCGdex ne requiert aucune clé.
 - **NetworkPolicies** : les workers communiquent uniquement via Redis TCG ; pas d'accès réseau
   latéral entre eux.
 - **Redis TCG** déployé comme service interne (file BullMQ).
@@ -329,7 +335,7 @@ spec:
           image: collectionr/worker-tcg-api:latest
           envFrom:
             - secretRef:
-                name: tcg-api-secrets   # EBAY_OAUTH_TOKEN, TCGFAST_API_KEY
+                name: tcg-api-secrets   # POKETRACE_API_KEY, EBAY_OAUTH_TOKEN, TCGFAST_API_KEY
           resources:
             requests: { cpu: "100m", memory: "128Mi" }
             limits:   { cpu: "500m", memory: "256Mi" }
@@ -350,6 +356,7 @@ La **validation des CGU des APIs tierces** est un livrable de la refonte.
 | Source | Métadonnées | Prix — afficher | Stocker | Usage commercial |
 |--------|-------------|-----------------|---------|------------------|
 | **TCGdex** | ✅ libre (MIT + attribution) | ⚠️ relayés (CGU source en amont) | ✅ métadonnées · ⚠️ prix = cache court | ✅ métadonnées · ⚠️ prix |
+| **PokeTrace** | — | ✅ freemium (vérifier CGU commerciales) | ⚠️ à confirmer | ⚠️ vérifier avant GO |
 | **eBay Browse** | — | annonces **actives** uniquement | ❌ market-research | restreint (programme dev) |
 | **TCGFast Trader** | — | ✅ usage commercial autorisé (plan Trader) | ✅ selon CGU plan | ✅ plan Trader |
 | **Cardmarket** (API) | — | ❌ sans **accord écrit** | ❌ | ❌ (réservé vendeurs pro) |
@@ -366,7 +373,8 @@ La **validation des CGU des APIs tierces** est un livrable de la refonte.
   mention claire de la source (« Cardmarket / TCGPlayer, à titre indicatif ») = **risque faible**.
   Cache court terme uniquement, **pas** de base de prix revendue.
 - **Prix — passage commercial (point GO/NO-GO juridique)** : **TCGFast Trader** autorise l'usage
-  commercial explicitement. C'est la source à activer dès le passage commercial.
+  commercial explicitement (plan Trader). **PokeTrace Pro** : vérifier les CGU commerciales.
+  Activer TCGFast comme source commerciale principale dès le passage GO.
 - **À bannir** : scraping de Cardmarket / eBay / TCGPlayer (CGU + Cloudflare Enterprise 2026),
   et toute **redistribution de prix bruts**.
 
@@ -401,7 +409,7 @@ Le **code métier critique du Worker TCG** à couvrir en priorité (QA §4.1) :
 
 | Domaine | Exemples de tests (unitaires, Pytest) |
 |---------|----------------------------------------|
-| Adaptateurs de source | Parsing des réponses TCGdex / eBay Browse / TCGFast (champs prix, `updated`) |
+| Adaptateurs de source | Parsing des réponses TCGdex / PokeTrace / eBay Browse / TCGFast (champs prix, `updated`) |
 | Normalisation | Mapping des états, conversion devise→EUR, normalisation des noms, langue |
 | Identité du prix | Unicité `(cardId, source, condition, language)`, gestion des collisions |
 | Agrégation | Calcul du prix moyen (`average_price`) exposé par l'API |
@@ -425,7 +433,7 @@ Microservice TCG ──▶ distribue aux workers
         │
         ├─▶ Worker TCG API ──▶ TCGdex (niv. 1) ──▶ métadonnées + prix
         │       │ si indisponible ──▶
-        ├─▶ Worker TCG Fallback ──▶ eBay Browse (niv. 2) / TCGFast (niv. 3)
+        ├─▶ Worker TCG Fallback ──▶ PokeTrace (niv. 2) / eBay Browse (niv. 3) / TCGFast (niv. 4)
         └─▶ Worker TCG Prediction ──▶ estimation IA
         ▼
 Normalisation (EUR, état, langue) ──▶ PostgreSQL (card_prices, price_history)
@@ -457,7 +465,7 @@ au même titre que les deux autres workers TCG.
 
 Le Microservice TCG, refondu, repose sur une architecture **conforme au runtime K3s** :
 
-- **Cascade API 3 niveaux** : TCGdex (principal) → eBay Browse API (complément) → TCGFast (fallback) ;
+- **Cascade API 4 niveaux** : TCGdex (principal, FR + EN) → PokeTrace (fallback EUR) → eBay Browse API (USD) → TCGFast (fallback payant) ;
 - **cache PostgreSQL permanent** comme filet de sécurité — aucune erreur bloquante pour l'utilisateur ;
 - orchestration des **trois workers** (API, Fallback, Prediction) via **Redis TCG (BullMQ)** ;
 - modèle de données intégrant la **langue**, source de vérité **PostgreSQL** ;
@@ -473,6 +481,7 @@ collecte fiable, maintenable et alignée avec l'architecture définie.
 Vérifications web (juin 2026) + **Document QA — Plan de Test v1.4** (document projet interne) :
 
 - **TCGdex** : [FAQ](https://tcgdex.dev/faq) · [Markets & Prices](https://tcgdex.dev/markets-prices) · [base sous licence MIT](https://github.com/tcgdex/cards-database)
+- **PokeTrace** : [https://poketrace.com](https://poketrace.com)
 - **TCGFast** : [https://tcgfast.com](https://tcgfast.com)
 - **eBay** : [dépréciation Finding API (newsletter Q3 2024)](https://developer.ebay.com/updates/newsletter/q3_2024) · [Browse API](https://developer.ebay.com/api-docs/buy/browse/overview.html) · [User Agreement 2026 (interdit les bots)](https://www.valueaddedresource.net/ebay-bans-ai-agents-updates-arbitration-user-agreement-feb-2026/)
 - **Cardmarket** : [API (réservée vendeurs pro)](https://help.cardmarket.com/en/cardmarket-api) · [CGU](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions)
