@@ -11,10 +11,11 @@ rythme de travail de l'équipe (1 jour par semaine, rendu avril
 une mise en production progressive.
 
 Elle est cohérente avec les documents suivants :
-- `CI/CD` — pipeline d'exécution automatique des tests ;
-- `A4 Architecture Runtime` — Liveness et Readiness Probes ;
-- `Observabilité & SLO` — objectifs de performance à valider ;
-- `Threat Model` — menaces à couvrir par les tests de sécurité.
+- `D02-cicd.md` — pipeline d'exécution automatique des tests ;
+- `A03-architecture-runtime.md` — Liveness et Readiness Probes ;
+- `D04-observabilite-slo.md` — objectifs de performance à valider 
+  par les tests de charge ;
+- `S02-threat-model.md` — menaces à couvrir par les tests de sécurité.
 
 ---
 
@@ -163,21 +164,23 @@ ont le plus de valeur.
 
 | Périmètre | Coverage cible | Justification |
 |---|---|---|
-| Code métier critique Backend | 80% minimum | Routes API, auth, logique OCR — zone à risque élevé |
-| API Python IA | 60% minimum | Code IA plus complexe à tester unitairement |
-| Frontend React | 50% minimum | Les E2E compensent le manque de tests unitaires |
+| Code métier critique Backend | 70% minimum | Routes API, auth, logique OCR — zone à risque élevé |
+| API Python IA | 50% minimum | Code IA plus complexe à tester unitairement |
+| Frontend React | 40% minimum | Les E2E compensent le manque de tests unitaires |
 | Code utilitaire / helpers | Pas de seuil | Faible risque, coût de test élevé |
 
 Ces seuils sont vérifiés automatiquement via GitHub Actions 
 à chaque Pull Request. Une PR dont le coverage descend 
 en dessous du seuil cible est bloquée jusqu'à correction.
 
-> **Note :** Cette approche est cohérente avec la réalité du projet : 
-> CollectionR est un prototype académique évoluant vers 
-> une V1. Viser 100% de coverage ralentirait le 
-> développement sans apporter de valeur proportionnelle. 
-> Les efforts de test sont concentrés là où le risque 
-> métier est le plus élevé.
+> **Note :** Les seuils définis reflètent une approche pragmatique 
+> adaptée au rythme de l'équipe (1 jour par semaine, rendu avril 2027) 
+> et concentrent les efforts de test là où le risque métier est 
+> le plus élevé. Un coverage à 100% n'est ni un objectif réaliste 
+> ni un indicateur de qualité suffisant — il donnerait une fausse 
+> impression de sécurité tout en ralentissant le développement. 
+> Ces seuils seront réévalués à chaque sprint selon les retours 
+> de l'équipe.
 
 ---
 
@@ -240,8 +243,7 @@ Quatre scénarios ont été validés par l'équipe :
 |---|---|---|
 | 🔴 Critique | Login / Logout | L'utilisateur se connecte avec ses identifiants et se déconnecte |
 | 🔴 Critique | Scan et ajout collection | L'utilisateur scanne une carte Pokémon et elle apparaît dans sa collection |
-| 🟡 Important | Consultation et partage | L'utilisateur consulte sa collection et la partage avec un ami |
-| 🟢 Optionnel | Mise à jour prix | L'utilisateur consulte le prix mis à jour d'une carte |
+| 🟡 Important | Consultation collection | L'utilisateur consulte sa collection et voit les prix |
 
 ### 6.2 Calendrier d'implémentation
 
@@ -331,7 +333,7 @@ Les tests d'infrastructure sont exécutés dans
 GitHub Actions sur un runner Linux. Cela garantit 
 des résultats cohérents indépendamment de l'OS 
 utilisé par chaque membre de l'équipe (Linux, 
-Windows WSL2, macOS ARM64).
+Windows WSL2, macOS (Apple Silicon et Intel)).
 
 ---
 
@@ -403,9 +405,10 @@ l'infrastructure et du développement.
 
 ## 11. Documents associés
 
-- `CI/CD.md`
-- `04-architecture-runtime.md`
-- `02-observabilite-slo.md`
-- `01-principes-securite.md`
-- `04-api-security.md`
-- `02-threat-model.md`
+- `A00-overview.md`
+- `A03-architecture-runtime.md`
+- `D02-cicd.md`
+- `D04-observabilite-slo.md`
+- `S01-principes-securite.md`
+- `S02-threat-model.md`
+- `S03-api-security.md`
