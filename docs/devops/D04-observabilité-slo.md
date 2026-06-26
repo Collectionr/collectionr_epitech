@@ -190,10 +190,10 @@ Pour éviter que l'instabilité inhérente aux workers d'IA ou de scraping ne fa
 La stack d'observabilité de Collectionr évolue de façon cohérente avec notre stratégie d'environnements (D01-environnement.md) :
 
 ```text
-[ Dev / Local ] -----------------> [ Bêta / VPS ] --------------------> [ Production / K8s Managé ]
-• kubectl / Stern                  • Loki + Prometheus Self-Hosted      • Prometheus/Grafana Cloud (Free Tier)
-• Logs stdout JSON                 • Alerting Discord Webhooks          • Autoscaling horizontal (HPA) via KEDA
-• Empreinte : Matériel local       • CPU/RAM VPS : Allocation minimale  • Services de monitoring managés
+[ Dev / Local ] ------------------------------------> [ Bêta / VPS ] ------------------------------------> [ Production / K8s Managé ]
+• kubectl / Stern                            • Prometheus + Grafana self-hosted sur K3s multi-nœuds     • Prometheus/Grafana Cloud (Free Tier)
+• Logs stdout JSON                           • Alerting Discord Webhooks                                • Autoscaling horizontal (HPA) via KEDA
+• Empreinte : Matériel local                 • CPU/RAM VPS : Allocation minimale                        • Services de monitoring managés
 ```
 
 ### Phase 1 : K3s Local (Prototype)
