@@ -135,8 +135,8 @@ Conformément à l'architecture runtime, le fallback s'appuie sur la stack Pytho
 
 # 5. Planification des tâches (Cron / BullMQ)
 
-La planification est portée par le backend NestJS via **BullMQ (Redis TCG)** ; les workers Python
-**consomment** la file.
+La planification est **déclenchée** par le backend NestJS (cron) ; le **Microservice TCG** publie les jobs dans **BullMQ (Redis TCG)**,
+et les workers Python **consomment** la file.
 
 Rappel de la syntaxe cron (5 champs) :
 
