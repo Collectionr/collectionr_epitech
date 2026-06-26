@@ -139,7 +139,7 @@ déployés dans le cluster et leurs relations :
 
 ```mermaid
 graph TD
-    Ingress["🌐 Ingress Traefik
+    Ingress["Ingress Traefik
     Point d'entrée unique HTTPS"]
 
     Frontend["Frontend
@@ -188,6 +188,42 @@ graph TD
     style Frontend fill:#E6F1FB,stroke:#185FA5,color:#0C447C
     style Backend fill:#E6F1FB,stroke:#185FA5,color:#0C447C
     style MicroTCG fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+```
+Le schéma suivant complète la vue précédente en y ajoutant
+la couche d'observabilité déployée dans le cluster :
+
+```mermaid
+graph LR
+    A[Frontend] --> B[Backend NestJS]
+    B --> C[Redis OCR]
+    B --> D[Redis TCG]
+    C --> E[Worker OCR Python]
+    D --> F[Worker TCG Scraping]
+    E --> G[Stockage Partagé]
+    B --> H[PostgreSQL]
+    
+    subgraph k8s[Kubernetes K3s]
+    B
+    C
+    D
+    E
+    F
+    G
+    H
+    end
+    
+    subgraph observability[Observabilité]
+    I[Prometheus<br>Collecte les métriques] --> J[Grafana<br>Visualise les métriques<br>et les logs]
+    K[Loki<br>Agrège les logs] --> J
+    L[Promtail<br>Envoie les logs à Loki] --> K
+    end
+    
+    B --> I
+    E --> I
+    F --> I
+    B --> L
+    E --> L
+    F --> L
 ```
 
 ### 4.2 Pipeline Grading IA (V2)
@@ -341,41 +377,63 @@ Exemples de noms DNS internes :
 
 ## 6. Gestion des ressources
 
-La définition des limites de ressources par Pod est 
-essentielle pour garantir la stabilité du cluster. 
-Sans limites définies, un Worker OCR sous charge pourrait 
-consommer toute la mémoire disponible et impacter 
-l'ensemble des services.
+La définition des limites de ressources par Pod est
+essentielle pour garantir la stabilité du cluster.
+Sans limites définies, un Worker OCR sous charge pourrait
+consommer toute la mémoire disponible et provoquer
+un OOMKill sur les autres Pods.
 
 ### 6.1 Limites par service
 
+Les valeurs suivantes sont calibrées pour l'environnement
+de développement local, y compris sur les postes à 8 Go
+de RAM. Elles seront ajustées lors des tests de charge
+en staging.
+
 | Service | CPU request | CPU limit | RAM request | RAM limit |
 |---|---|---|---|---|
-| Frontend | 100m | 500m | 128Mi | 256Mi |
-| Backend | 250m | 1000m | 256Mi | 512Mi |
-| Microservice TCG | 100m | 500m | 128Mi | 256Mi |
-| Worker OCR | 500m | 2000m | 512Mi | 1Gi |
-| Worker TCG API | 100m | 500m | 128Mi | 256Mi |
-| Worker TCG Scraping | 100m | 500m | 128Mi | 256Mi |
-| Redis OCR | 100m | 500m | 256Mi | 512Mi |
-| Redis TCG | 100m | 500m | 256Mi | 512Mi |
-| PostgreSQL | 250m | 1000m | 512Mi | 1Gi |
+| Frontend | 25m | 100m | 64Mi | 128Mi |
+| Backend NestJS | 50m | 300m | 128Mi | 256Mi |
+| Microservice TCG | 50m | 200m | 128Mi | 256Mi |
+| Worker OCR Python | 100m | 400m | 256Mi | 512Mi |
+| Worker TCG Scraping | 50m | 200m | 128Mi | 256Mi |
+| Redis OCR | 25m | 100m | 64Mi | 128Mi |
+| Redis TCG | 25m | 100m | 64Mi | 128Mi |
+| PostgreSQL | 100m | 300m | 256Mi | 512Mi |
 
-> Ces valeurs sont indicatives pour la phase de 
-> développement. Elles seront ajustées lors des 
-> tests de charge en staging.
+> **Total estimé :** ~800m requests / ~1,7 Go requests RAM —
+> raisonnable sur 8 Go. Le profil `--light` (voir `D01-environnement.md`
+> section 2.4) permet de réduire davantage l'empreinte mémoire
+> en ne démarrant que les composants nécessaires.
 
-### 6.2 Unités de mesure
+### 6.2 Exemple de configuration YAML
 
-Pour rappel, les unités utilisées dans Kubernetes sont 
+Chaque manifest Kubernetes doit inclure un bloc `resources`
+explicite. Sans ce bloc, K3s alloue à la volée et peut
+provoquer un OOMKill sans avertissement.
+
+```yaml
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+```
+
+Les valeurs ci-dessus correspondent au Backend NestJS.
+Adapter selon le composant en se référant au tableau 6.1.
+
+### 6.3 Unités de mesure
+
+Pour rappel, les unités utilisées dans Kubernetes sont
 les suivantes :
 
-- **m** (millicores) : 1000m = 1 CPU. Un service à 
+- **m** (millicores) : 1000m = 1 CPU. Un service à
   250m utilise un quart de CPU au maximum.
-- **Mi** (mebibytes) : unité de mémoire. 
-  512Mi ≈ 537 Mo.
+- **Mi** (mebibytes) : unité de mémoire. 512Mi ≈ 537 Mo.
 - **Gi** (gibibytes) : 1Gi ≈ 1,07 Go.
-
 ---
 
 ## 7. Résilience et redémarrage automatique
@@ -537,8 +595,10 @@ progressivement sans réécriture des manifests existants.
 
 ## 11. Documents associés
 
-- `00-overview.md`
-- `A2-architecture-logique.md`
-- `A3-flux-techniques.md`
-- `01-principes-securite.md`
-- `07-logs-audit.md`
+- `A00-overview.md`
+- `A01-architecture-logique.md`
+- `A02-flux-techniques.md`
+- `S01-principes-securite.md`
+- `S05-logs-audit.md`
+- `D01-environnement.md`
+- `D04-observabilite-slo.md`
