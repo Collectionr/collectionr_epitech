@@ -560,7 +560,7 @@ nécessaires à son rôle :
 Aucun secret n'est stocké en clair dans les manifests 
 Kubernetes ou le dépôt Git. Les secrets sont injectés 
 via les Secrets Kubernetes en local et staging, avec 
-une évolution prévue vers Vault ou Doppler en production.
+une évolution prévue vers Vault en production.
 
 ---
 
