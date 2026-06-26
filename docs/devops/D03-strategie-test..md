@@ -148,9 +148,10 @@ une équipe étudiante.
 | Unitaires Backend | Jest | Standard Node.js, intégré NestJS, gratuit |
 | Unitaires IA | Pytest | Standard Python, simple et documenté |
 | Unitaires Frontend | Jest + React Testing Library | Intégré à React, gratuit |
-| Intégration Backend | Jest + Supertest | Permet de tester les endpoints HTTP directement |
+| Intégration Backend | Jest + light-my-request | Compatible NestJS Fastify natif — pas de port réseau ouvert |
 | Infrastructure K3s | k3d + kubectl | Crée un cluster K3s léger dans Docker pour les tests |
 | E2E | Playwright | Plus moderne que Cypress, gratuit, multi-navigateur |
+| Charge workers | Locust + script Redis | Simulation de charge sur les files Redis OCR et TCG — staging uniquement |
 | Sécurité | OWASP ZAP | Référence open source pour les scans de sécurité API |
 
 ---
@@ -252,12 +253,12 @@ du développement. Ils nécessitent que le Frontend
 et le Backend soient suffisamment stables pour 
 ne pas casser à chaque modification.
 
-- **Phase de développement V1** : pas de E2E — 
+- **Phase de développement V1** : pas de tests de charge —
   focus sur les tests unitaires et d'intégration ;
-- **Fin de beta** : implémentation des scénarios 
-  Login et Scan (priorité critique) ;
-- **Début V1 stable** : ajout des scénarios Consultation 
-  et Partage.
+- **Fin de beta** : tests de charge Locust sur les workers
+  OCR en staging — validation du SLO 15 secondes ;
+- **Début V1 stable** : tests de charge complets sur
+  tous les workers.
 
 ### 6.3 Responsabilité
 
