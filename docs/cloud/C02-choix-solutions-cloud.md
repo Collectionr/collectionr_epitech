@@ -11,6 +11,7 @@ Ce document présente l'évolution de notre stratégie d'infrastructure, passant
 5. [Risques et Dépendances (Vendor Lock-in)](#5-risques-et-dépendances-vendor-lock-in)
 6. [Phase de Production : Vers le Cloud Managé](#6-phase-de-production--vers-le-cloud-managé)
 7. [Conclusion](#conclusion)
+8. [Documents associés](#8-documents-associés)
 
 ---
 
@@ -71,7 +72,7 @@ Chaque namespace dispose de ses propres secrets, configurations et accès RBAC. 
 Pour assurer la pérennité du projet, nous avons mis en place une stratégie de portabilité stricte. L'objectif est de pouvoir migrer d'un hébergeur à un autre sans aucune friction technique :
 
 1.  **Manifestes Standards :** Utilisation de fichiers YAML Kubernetes standards. Aucune ressource spécifique à un fournisseur (comme un LoadBalancer propriétaire) n'est utilisée.
-2.  **Images Multi-Arch :** les images Docker sont construites en multi-architecture (x86-64 et ARM64) afin de garantir la compatibilité avec l'ensemble des postes de l'équipe (macOS Apple M4 Pro) et les serveurs de production.
+2.  **Images Multi-Arch :** les images Docker sont construites en multi-architecture (x86-64 et ARM64) afin de garantir la compatibilité avec l'ensemble des postes de l'équipe (macOS Apple Silicon et Intel) et les serveurs de production.
 3.  **Abstraction du Stockage :** Utilisation de classes de stockage standards pour rester compatible avec n'importe quel fournisseur de volumes persistants.
 
 ---
@@ -92,8 +93,12 @@ Lorsque le projet atteindra sa maturité pour un usage intensif, nous prévoyons
 ### Fournisseurs identifiés
 Nous privilégierons des acteurs offrant un bon rapport performance/prix et une souveraineté des données :
 
-1.  **Scaleway (Kapsule) :** Excellent support Kubernetes en France, interface simple et prix compétitifs.
-2.  **OVHcloud (Managed Kubernetes) :** Solution souveraine, infrastructure robuste, idéal pour la conformité européenne.
+1. **Hetzner :** excellente performance/prix, localisé en
+   Allemagne et Finlande, conforme RGPD.
+2. **Scaleway (Kapsule) :** support Kubernetes en France,
+   interface simple et prix compétitifs.
+3. **OVHcloud (Managed Kubernetes) :** solution souveraine,
+   infrastructure robuste, idéal pour la conformité européenne.
 
 ### Pourquoi ce choix pour la production ?
 Le passage au managé permet de déléguer la maintenance du "Control Plane" au fournisseur. Cela permet à l'équipe de se concentrer uniquement sur les fonctionnalités métier tout en garantissant un niveau de service (SLA) élevé.
@@ -103,8 +108,17 @@ Cette évolution représente un investissement estimé entre 500 et 2 000 €/mo
 
 ---
 
-## Conclusion
+## 7. Conclusion
 
 Cette stratégie garantit une maîtrise totale des coûts pour le prototype tout en préparant techniquement le projet à une montée en charge industrielle. L'utilisation de K3s dès le départ évite toute refonte majeure lors du passage au Cloud managé.
 
 Le détail des coûts par palier et la comparaison complète des solutions sont disponibles dans le document Benchmark Docker vs K3s.
+
+## 8. Documents associés
+
+- `A00-overview.md`
+- `A03-architecture-runtime.md`
+- `C01-principe-cloud.md`
+- `D01-environnement.md`
+- `D02-cicd.md`
+- `B01-benchmark-k3s.md`
