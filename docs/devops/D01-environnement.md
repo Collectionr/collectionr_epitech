@@ -255,7 +255,7 @@ développement et staging seront pleinement validés.
 | Coût estimé | 140-350 € / mois (K3s VPS) |
 | Données | Données utilisateurs réelles |
 | Accès | Public — exposition Internet via Traefik |
-| Secrets | Vault ou Doppler |
+| Secrets | Vault|
 | Logs | Loki + Promtail |
 | Métriques | Prometheus + Grafana + AlertManager |
 | SLA cible | 99,9 % de disponibilité |
@@ -302,7 +302,7 @@ sans exception.
 |---|---|---|
 | Développement | Secrets Kubernetes locaux | Jamais de secrets en clair dans Git |
 | Staging | Secrets Kubernetes sur VPS | Rotation régulière recommandée |
-| Production | Vault ou Doppler | Audit des accès tracé et journalisé |
+| Production | Vault | Audit des accès tracé et journalisé |
 
 ### 5.3 Variables de configuration
 
@@ -383,7 +383,7 @@ que l'infrastructure K3s définie dans `C02-choix-solutions-cloud.md`.
 
 - déploiement du namespace `production` sur K3s VPS multi-nœuds
   ou K8s managé ;
-- migration des secrets vers Vault ou Doppler ;
+- migration des secrets vers Vault ;
 - AlertManager activé et SLA 99,9 % monitoré via Grafana.
 
 ---
