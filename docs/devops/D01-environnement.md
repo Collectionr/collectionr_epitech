@@ -219,15 +219,16 @@ garantissant la conformité RGPD.
 | Scaleway | France | 4 vCPU / 8 Go RAM | 20-30 € / mois |
 | OVH | France | 4 vCPU / 8 Go RAM | 20-35 € / mois |
 
-### 3.3 Critères de passage dev → staging
+### 3.3 Critères de passage develop → staging
 
 Un environnement de staging n'a de valeur que si
-les critères de qualité minimaux sont atteints en
-développement. Le passage en staging est conditionné
-par :
+les critères de qualité minimaux sont atteints sur
+la branche `develop`. Le passage en staging est
+conditionné par :
 
 - tous les tests unitaires et d'intégration passent en CI/CD ;
-- le coverage code métier critique atteint 80 % ;
+- le coverage atteint les seuils définis par périmètre
+  (voir `D03-strategie-test.md` section 4) ;
 - les tests d'infrastructure K3s sont validés ;
 - au moins deux membres de l'équipe ont validé
   les fonctionnalités en local.
