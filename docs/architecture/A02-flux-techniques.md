@@ -13,6 +13,7 @@
 9. [Points critiques de l’architecture](#9-points-critiques-de-larchitecture)
 10. [Cohérence avec les autres documents](#10-cohérence-avec-les-autres-documents)
 11. [Évolution future](#11-évolution-future)
+12. [Documents associés](#12-documents-associés)
 
 ---
 
@@ -136,6 +137,7 @@ Ce flux permet à un utilisateur de scanner une carte afin de l’identifier et 
 Il constitue un point critique en raison de son impact sur les ressources (CPU, stockage) et de son exposition aux abus via l’endpoint `/scan`.
 
 ### Schéma
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -143,7 +145,7 @@ sequenceDiagram
     participant Redis OCR
     participant Shared Volume
     participant Worker OCR
-    participant API Externe
+    participant PostgreSQL
 
     Client->>Backend: POST /scan (image)
     Backend->>Backend: Validation fichier
@@ -152,15 +154,13 @@ sequenceDiagram
     Backend-->>Client: job_id (suivi SSE)
     Redis OCR->>Worker OCR: Tâche OCR
     Worker OCR->>Shared Volume: Lit image via job_id
-    Worker OCR->>Shared Volume: Écrit résultat JSON
+    Worker OCR->>PostgreSQL: Écrit résultat structuré
     Worker OCR->>Redis OCR: Envoie le statut
     Redis OCR-->>Backend: Notifie le Backend
-    Backend->>Shared Volume: Lit le résultat extrait
-    Backend->>API Externe: Recherche carte
-    API Externe-->>Backend: Données carte
+    Backend->>PostgreSQL: Lit le résultat
     Backend-->>Client: Résultat via SSE
+    Worker OCR->>Shared Volume: Supprime image temporaire
 ```
-
 ### Étapes
 
 1. Le client envoie une image via l’endpoint `/scan`
@@ -269,7 +269,7 @@ Services → stdout/stderr → kubectl logs → Loki (évolution) → Grafana
 
 ### Référence
 
-Voir document "Logs & Audit" pour plus de détails.
+Voir `S05-logs-audit.md` pour plus de détails.
 
 ---
 
@@ -320,7 +320,7 @@ Les principaux points critiques identifiés sont les suivants :
 Mitigation : rate limiting strict, validation du fichier 
 avant stockage, suppression automatique après traitement.
 
-### 9.3 Authentification
+### 9.2 Authentification
 
 - gestion des tokens JWT ;
 - protection contre le brute force.
@@ -328,7 +328,7 @@ avant stockage, suppression automatique après traitement.
 Mitigation : rate limiting sur /login, tokens à durée 
 de vie limitée, refresh token sécurisé.
 
-### 9.4 Connexion SSE
+### 9.3 Connexion SSE
 
 - connexion persistante entre le client et le backend ;
 - risque de surcharge si trop de connexions simultanées ;
@@ -337,7 +337,7 @@ de vie limitée, refresh token sécurisé.
 Mitigation : limite du nombre de connexions simultanées 
 par utilisateur, timeout configuré côté serveur.
 
-### 9.5 Microservice TCG
+### 9.4 Microservice TCG
 
 - dépendance aux APIs externes ;
 - risque de rate limiting par les APIs tierces ;
@@ -353,9 +353,9 @@ les appels externes.
 
 Ce document est lié aux documents suivants :
 
-- API Security : sécurisation des endpoints et des flux
-- Logs & Audit : gestion des journaux
-- RGPD : gestion des données personnelles
+- `S03-api-security.md` — sécurisation des endpoints et des flux
+- `S05-logs-audit.md` — gestion des journaux
+- `S04-rgpd-conformite.md` — gestion des données personnelles
 
 La cohérence entre ces documents est vérifiée à chaque 
 évolution de l'architecture. Toute modification d'un flux 
@@ -388,3 +388,13 @@ Les flux fonctionnels (authentification, OCR, accès aux données, intégration 
 - Les flux restent identiques, l'infrastructure devient managée par le cloud provider
 - L'autoscaling horizontal des workers OCR et IA est activé
 - La haute disponibilité est garantie par le control plane managé
+
+## 12. Documents associés
+
+- `A00-overview.md`
+- `A01-architecture-logique.md`
+- `A03-architecture-runtime.md`
+- `S03-api-security.md`
+- `S04-rgpd-conformite.md`
+- `S05-logs-audit.md`
+- `D04-observabilite-slo.md`
