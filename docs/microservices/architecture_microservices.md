@@ -45,17 +45,17 @@ flowchart TB
         MTCG["Microservice TCG (orchestrateur)"]
         RTCG[("Redis TCG")]
         WAPI["Worker TCG API"]
-        WSCR["Worker TCG Scraping"]
+        WSCR["Worker TCG Fallback"]
         WPRED["Worker TCG Prediction"]
         MTCG -->|"planification batch"| RTCG
         RTCG -->|"tâche API"| WAPI
-        RTCG -->|"tâche scraping"| WSCR
+        RTCG -->|"tâche fallback"| WSCR
         RTCG -->|"tâche prédiction"| WPRED
     end
     BE -->|"requête TCG"| MTCG
     MTCG -.->|"notification TCG"| BE
-    WAPI <-->|"appels API / données cartes"| EXT["API externe TCG (TCGdex / pokemontcg.io)"]
-    WSCR <-->|"prix (annonces actives)"| MKT["eBay Browse / HTML (marginal)"]
+    WAPI <-->|"métadonnées + prix (niv. 1)"| EXT["TCGdex (api.tcgdex.net)"]
+    WSCR <-->|"fallback prix (niv. 2-3)"| MKT["eBay Browse API + TCGFast Trader"]
     WAPI -->|"enregistre / lit les cartes"| DB
     WSCR -->|"met à jour / lit les prix"| DB
     WPRED -->|"écrit les prédictions"| DB
@@ -94,10 +94,9 @@ flowchart TB
 
 Orchestre **trois workers** via `Redis TCG` (BullMQ) :
 
-- **Worker TCG API** — synchronise métadonnées + prix agrégés depuis les **APIs ouvertes** (TCGdex,
-  pokemontcg.io).
-- **Worker TCG Scraping** — collecte de prix **API-first**, scraping HTML en **dernier recours**
-  encadré (eBay marginal ; jamais Cardmarket/TCGPlayer).
+- **Worker TCG API** — synchronise métadonnées + prix agrégés depuis **TCGdex** (niveau 1).
+- **Worker TCG Fallback** — interroge **eBay Browse API** (niveau 2) puis **TCGFast Trader** (niveau 3)
+  quand TCGdex est indisponible. Aucun scraping.
 - **Worker TCG Prediction** — estime les prix (IA) à partir de l'historique (`price_history`).
 
 Les trois écrivent dans **PostgreSQL**. Détails : [`marketplace/marketplace-scraper.md`](marketplace/marketplace-scraper.md),
@@ -135,9 +134,16 @@ Pré-gradation (état/centrage) : le backend envoie l'image au **Microservice Gr
 ## Conformité (CGU) — l'essentiel
 
 - **Métadonnées** : TCGdex (**MIT**) — libres avec attribution + disclaimer non-affiliation Nintendo.
-- **Prix** : relayés (Cardmarket/TCGPlayer) → **CGU sources en amont** ; affichage à des tiers
-  restreint, **palier payant à licence commerciale** requis pour le commercial.
-- **À bannir** : scraping Cardmarket/eBay/TCGPlayer, redistribution des prix bruts.
+- **Prix TCGdex** : relaie Cardmarket/TCGPlayer → **CGU sources en amont** s'appliquent ; affichage
+  indicatif OK en phase étudiante (mention source obligatoire) ; licence commerciale requise au GO.
+- **Prix eBay Browse API** : usage conforme au programme développeur officiel (annonces actives).
+- **Prix TCGFast Trader** : usage commercial explicitement autorisé par le plan Trader (14,99 $/mois).
+- **Cascade officielle** : TCGdex (niv. 1) → eBay Browse API (niv. 2) → TCGFast (niv. 3) →
+  cache PostgreSQL (filet permanent).
+- **Sources supprimées** : pokemontcg.io (devenu payant), JustTCG, PokéWallet ; APIs Cardmarket et
+  TCGPlayer directes (inaccessibles aux nouveaux développeurs depuis 2024-2025).
+- **À bannir** : scraping de Cardmarket/eBay/TCGPlayer (Cloudflare Enterprise + CGU), redistribution
+  des prix bruts.
 - Détail complet : [`marketplace/marketplace-scraper.md`](marketplace/marketplace-scraper.md) (§11).
 
 ---

@@ -13,49 +13,60 @@ n'est plus tenable : ces accès sont **fermés ou restreints**.
 
 ---
 
-## Constat 2026 : accès aux marketplaces
+## Constat 2026 : accès aux sources de données
 
 | Source | État de l'accès (juin 2026) | Conséquence |
 |--------|------------------------------|-------------|
 | **TCGPlayer** (API) | **Fermée aux nouveaux développeurs** depuis fin 2024 (rachat eBay) | Inutilisable pour un nouveau projet |
-| **eBay** (API) | Finding API **décommissionnée** (05/02/2025) ; ventes terminées via *Marketplace Insights* en accès restreint ; Browse API = **annonces actives** seulement | Limité aux annonces actives |
-| **Cardmarket** (API) | Réservée aux **vendeurs professionnels** (approbation manuelle) ; **CGU interdisent** de présenter prix/cartes sur un service tiers sans accord écrit | Inadaptée à l'usage CollectionR |
-| **TCGdex** | **Ouverte, gratuite, sans clé** ; expose métadonnées **et** prix agrégés (Cardmarket + TCGPlayer) | **Source à privilégier** |
+| **eBay** (Finding API) | **Décommissionnée** le 05/02/2025 | Remplacée par Browse API |
+| **eBay** (Browse API) | OAuth, programme développeur ouvert, clé gratuite | **Annonces actives uniquement** — complément officiel |
+| **Cardmarket** (API) | Réservée aux **vendeurs professionnels** (approbation manuelle) ; CGU interdisent de présenter prix/cartes sur un service tiers sans accord écrit | Inadaptée à l'usage CollectionR |
+| **TCGdex** | **Ouverte, gratuite, sans clé, licence MIT** ; métadonnées + prix agrégés Cardmarket (EUR) + TCGPlayer (USD) avec historique avg1/avg7/avg30 | **Source principale — niveau 1** |
+| **TCGFast Trader** | API dédiée TCG (`tcgfast.com`), 14,99 $/mois ; prix TCGPlayer + eBay + gradués PSA/BGS/CGC + historique ; SDK Python ; usage commercial autorisé | **Fallback payant — niveau 3** |
+| **pokemontcg.io** | Migré vers Scrydex, devenu payant | **Écarté** : supprimé |
+| **Scrydex** | Payant, modèle crédits | **Écarté** : coût disproportionné |
 
-> **Conséquence directe :** la stratégie ne peut pas reposer sur un accès direct aux APIs
-> marketplace. Elle s'appuie sur des **APIs ouvertes qui agrègent déjà ces prix**.
+> **Conséquence directe :** la stratégie s'appuie sur une **cascade de 3 sources API** avec
+> **cache PostgreSQL** comme filet de sécurité permanent.
 
 ---
 
 ## Décision
 
-### Approche retenue : **stratégie multi-méthode, API ouverte d'abord**
+### Approche retenue : **cascade API 3 niveaux + cache permanent**
 
-Par ordre de priorité :
+| Niveau | Source | Condition d'activation |
+|--------|--------|------------------------|
+| **1 — Principal** | **TCGdex** (`https://api.tcgdex.net`) | Toujours interrogé en premier |
+| **2 — Complément** | **eBay Browse API** (programme dev eBay) | Si TCGdex ne retourne pas de prix ou carte absente |
+| **3 — Fallback payant** | **TCGFast Trader** (`https://tcgfast.com`) | Si TCGdex ET eBay Browse API simultanément indisponibles |
+| **Filet permanent** | **Cache PostgreSQL** | Si les 3 sources sont indisponibles : dernières valeurs connues servies avec horodatage |
 
-1. **APIs ouvertes (source principale)** — TCGdex et pokemontcg.io fournissent gratuitement les
-   prix agrégés Cardmarket (EUR) et TCGPlayer (USD), sans clé ou avec une clé gratuite, sans
-   scraping.
-2. **eBay Browse API (complément optionnel)** — pour les **annonces actives** uniquement, dans le
-   cadre du programme développeur.
-3. **Scraping HTML (dernier recours, encadré)** — uniquement si une donnée est introuvable
-   autrement, à faible volume, et **jamais sur Cardmarket ni TCGPlayer** (verrou juridique).
-4. **Flux RSS** — **aucun flux RSS de prix gratuit n'existe** (vérifié juin 2026, voir l'encadré
-   ci-dessous). Le RSS est réservé à une éventuelle rubrique « actualités / sorties de sets ».
+#### Niveau 1 — TCGdex
 
-> **Flux RSS de prix : inexistant (recherche poussée, juin 2026).** Aucune source ne fournit de
-> flux RSS gratuit et légal de prix de cartes Pokémon :
-> - **eBay** a supprimé ses flux RSS de recherche (`?_rss=1`, cassés vers avril 2022, abandonnés
->   depuis ~janvier 2023) ; même actifs, ils ne donnaient que les **annonces actives**, jamais les
->   ventes terminées.
-> - **TCGPlayer** n'expose qu'un RSS **éditorial** (articles, decks), pas de prix.
-> - **Cardmarket**, **PriceCharting** et les trackers (PokemonPriceTracker, pkmn.gg…) n'offrent que
->   des **API**, aucun flux RSS de prix.
-> - Les générateurs RSS tiers (rss.app, rssbay…) ne font que **scraper** eBay — interdit par son
->   User Agreement (en vigueur 20/02/2026) et juridiquement risqué (pas de licence implicite,
->   *MidlevelU v. ACI*, 11e Circuit 2021).
->
-> **Conclusion : la piste RSS pour les prix est abandonnée — les prix passent par API.**
+- Gratuit, sans clé, **licence MIT** pour les métadonnées.
+- Fournit prix Cardmarket (EUR) et TCGPlayer (USD) agrégés avec historique `avg1` / `avg7` / `avg30`.
+- **Recommandation officielle TCGdex** : mettre les données en cache PostgreSQL localement plutôt que d'appeler l'API en boucle — CollectionR respecte ce principe.
+
+#### Niveau 2 — eBay Browse API
+
+- API officielle, programme développeur eBay, clé OAuth gratuite.
+- **Annonces actives uniquement** (pas de ventes terminées).
+- Ne jamais scraper eBay hors de cette API officielle (CGU 2026 interdisent les bots).
+
+#### Niveau 3 — TCGFast Trader (fallback payant)
+
+- Plan Trader à **14,99 $/mois** — usage commercial autorisé.
+- Données complémentaires absentes de TCGdex : prix eBay (ventes réelles), **prix gradués PSA /
+  BGS / CGC**, historique.
+- SDK Python disponible. Clé stockée dans les **Secrets Kubernetes**.
+- Activé uniquement si TCGdex ET eBay Browse API sont simultanément indisponibles.
+
+#### Filet de sécurité — cache PostgreSQL
+
+À chaque écriture des workers, les prix sont **horodatés** en base. Si les trois sources sont
+indisponibles, le backend sert les **dernières valeurs connues** avec un message informatif et
+l'horodatage de la dernière mise à jour. **Aucune erreur bloquante pour l'utilisateur.**
 
 ---
 
@@ -63,44 +74,39 @@ Par ordre de priorité :
 
 ### Fiabilité
 
-- Les APIs ouvertes fournissent des **données structurées** et un champ de fraîcheur (`updated`).
-- Le scraping HTML est **fragile** (dépend du DOM), sensible aux changements front et aux
-  protections anti-bot (Cloudflare, Akamai).
+- Les APIs structurées fournissent des **données normalisées** et un champ de fraîcheur (`updated`).
+- Le cache PostgreSQL garantit la **continuité de service** en cas d'indisponibilité externe.
 
 ### Légalité et conformité
 
-- TCGdex / pokemontcg.io : usage encadré par leurs CGU (free tier **non-commercial** ; palier payant
-  pour le commercial).
-- **Métadonnées vs prix** : la licence **MIT de TCGdex couvre les métadonnées**, **pas les prix**
-  qu'il relaie (régis par les CGU **Cardmarket / TCGPlayer en amont**). Affichage des prix à des
-  tiers : restreint (Cardmarket exige un accord écrit). Détail des CGU et de « ce qu'on peut faire »
-  dans [marketplace-scraper.md](marketplace-scraper.md) (§11).
-- Scraper Cardmarket ou TCGPlayer **viole leurs CGU** ; eBay interdit aussi le scraping (robots.txt
-  `Disallow`, user agreement 2026 interdisant les bots). Voir la section **Garde-fous légaux**.
+- **TCGdex** : licence MIT pour les métadonnées ; prix agrégés (Cardmarket/TCGPlayer) soumis aux
+  CGU de ces sources en amont.
+- **eBay Browse API** : usage conforme au programme développeur officiel.
+- **TCGFast** : usage commercial explicitement autorisé par les CGU du plan Trader.
+- **Scraping absent** : Cardmarket et TCGPlayer sont protégés par **Cloudflare Enterprise** en 2026
+  (fingerprinting TLS/HTTP2, Turnstile, challenges JS). Contourner ces protections viole les CGU
+  de ces sites — et est inutile puisque leurs prix sont déjà disponibles légalement via TCGdex.
 
 ### Performance et maintenabilité
 
-- API → faible coût de maintenance, rapide.
-- Scraping (surtout avec rendu JavaScript) → lent, coûteux en ressources, maintenance élevée.
-
-### Inutilité du scraping direct des marketplaces
-
-> Les prix Cardmarket et TCGPlayer sont **déjà disponibles légalement via TCGdex / pokemontcg.io**.
-> Scraper directement ces sites est donc non seulement risqué mais **largement inutile**.
+- Stack réduite à l'essentiel : **httpx** pour les appels API, **pydantic** pour la validation,
+  **psycopg 3** pour l'écriture, **tenacity / aiolimiter** pour la résilience.
+- Pas de navigateur headless, pas d'outil anti-bot à maintenir.
 
 ---
 
 ## Langage du worker : **Python**
 
-Le worker de collecte (`Worker TCG API` et `Worker TCG Scraping`) est écrit en **Python**, pour :
+Les workers (`Worker TCG API`, `Worker TCG Fallback`, `Worker TCG Prediction`) sont écrits en
+**Python**, pour :
 
 - s'aligner sur le **« Pipeline de Données » Python** décrit dans
-  [clean-architecture.md](../../backend/clean-architecture.md) (ingestion, normalisation, IA) ;
+  [clean-architecture.md](../../backend/clean-architecture.md) ;
 - mutualiser le code de normalisation et les modèles d'IA de prédiction de prix ;
-- bénéficier de l'écosystème scraping / anti-bot le plus mature.
+- bénéficier de l'écosystème d'intégration API le plus mature.
 
-Le backend applicatif reste **NestJS (sur adaptateur Fastify), TypeScript** ; le worker Python est
-un composant **découplé** qui écrit dans PostgreSQL.
+Le backend applicatif reste **NestJS (sur adaptateur Fastify), TypeScript** ; les workers Python
+sont des composants **découplés** qui écrivent dans PostgreSQL.
 
 ---
 
@@ -108,14 +114,23 @@ un composant **découplé** qui écrit dans PostgreSQL.
 
 | Besoin | Outil retenu | Remarque |
 |--------|--------------|----------|
-| Client HTTP | **httpx** | sync + async, HTTP/2 ; remplace `requests` (gelé) |
-| Parsing HTML | **selectolax** (+ BeautifulSoup4 en repli) | rapide ; bs4 pour le HTML mal formé |
-| Flux RSS (actualités) | **feedparser** | pas pour les prix |
+| Appels API REST/JSON | **httpx** | sync + async, HTTP/2 ; remplace `requests` (gelé) |
+| Flux RSS (actualités sets) | **feedparser** | jamais pour les prix |
 | Validation / normalisation | **pydantic** | devise, état, langue |
 | Accès PostgreSQL | **psycopg 3** | UPSERT idempotents |
-| Anti-bot (dernier recours) | **curl_cffi**, sinon **nodriver** + proxies | usage ciblé et encadré |
+| Retry / back-off | **tenacity** | HTTP 429, erreurs transitoires |
+| Limitation de débit | **aiolimiter** | politesse envers les APIs tierces |
 
-Voir le détail comparatif dans [bibliotheque-scraping.md](bibliotheque-scraping.md).
+**Sources de prix retenues (cascade) :**
+
+| Niveau | Source | URL | Conditions |
+|--------|--------|-----|------------|
+| 1 — Principal | **TCGdex** | `https://api.tcgdex.net` | Gratuit, sans clé, MIT (métadonnées) |
+| 2 — Complément | **eBay Browse API** | Programme dev eBay | OAuth gratuit, annonces actives seulement |
+| 3 — Fallback | **TCGFast Trader** | `https://tcgfast.com` | 14,99 $/mois, commercial OK, SDK Python |
+| Filet | **Cache PostgreSQL** | — | Dernières valeurs connues + horodatage |
+
+Voir le détail dans [bibliotheque-scraping.md](bibliotheque-scraping.md).
 
 ---
 
@@ -123,18 +138,16 @@ Voir le détail comparatif dans [bibliotheque-scraping.md](bibliotheque-scraping
 
 ### `requests`
 - En **« feature freeze » perpétuel** (correctifs de sécurité uniquement), pas d'async ni HTTP/2.
-- Remplacé par **httpx** pour tout nouveau code.
+- Remplacé par **httpx**.
 
 ### Scrapy
-- Surdimensionné pour une approche API-first à faible volumétrie.
-- Impose son architecture (spiders, reactor) là où `httpx` + `selectolax` suffisent.
+- Surdimensionné pour une approche API-first.
+- Impose son architecture là où `httpx` suffit.
 
-### Selenium
-- Plus lourd et moins moderne que Playwright (qui reste, lui, un **dernier recours** pour le JS).
-
-### `playwright-stealth`
-- Maintenance irrégulière et anti-détection limitée en 2026. Si un navigateur furtif est
-  réellement nécessaire, préférer **nodriver**.
+### Playwright / nodriver / curl_cffi (pour scraping marketplace)
+- Scraping des marketplaces (Cardmarket, TCGPlayer, eBay hors Browse API) interdit par CGU et
+  inefficace contre Cloudflare Enterprise en 2026.
+- Ces outils sont **hors périmètre** : les données sont disponibles via TCGdex et TCGFast.
 
 ---
 
@@ -142,12 +155,13 @@ Voir le détail comparatif dans [bibliotheque-scraping.md](bibliotheque-scraping
 
 La stratégie retenue permet de :
 
-- **maximiser la fiabilité** (APIs ouvertes agrégeant déjà les prix) ;
-- **rester conforme** (pas de scraping des marketplaces verrouillées) ;
-- **limiter la dette technique** (stack Python cohérente, scraping isolé derrière un *kill-switch*).
+- **maximiser la fiabilité** (cascade 3 sources API + cache PostgreSQL permanent) ;
+- **rester conforme** (aucun scraping de marketplace) ;
+- **limiter la dette technique** (stack réduite : httpx + pydantic + psycopg 3).
 
-> Le scraping HTML est un **mécanisme de dernier recours encadré**, pas une source principale de
-> données. Les APIs ouvertes (TCGdex, pokemontcg.io) couvrent l'essentiel du besoin.
+> TCGdex couvre l'essentiel du besoin. eBay Browse API enrichit avec les annonces actives. TCGFast
+> couvre le fallback et les besoins PSA/BGS/CGC. Le cache PostgreSQL garantit la continuité de
+> service en toutes circonstances.
 
 ---
 
@@ -155,7 +169,9 @@ La stratégie retenue permet de :
 
 Vérifications web (juin 2026) :
 
-- **Accès APIs marketplace** : [eBay — newsletter Q3 2024 (dépréciation Finding API)](https://developer.ebay.com/updates/newsletter/q3_2024) · [TCGPlayer — getting started (« no longer granting new API access »)](https://docs.tcgplayer.com/docs/getting-started) · [Cardmarket — Auth Overview (vendeurs pro)](https://api.cardmarket.com/ws/documentation/API:Auth_Overview)
-- **CGU** : [Cardmarket — Conditions générales](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions) · [TCGPlayer — API Terms & Conditions](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions) · [TCGdex — base sous licence MIT](https://github.com/tcgdex/cards-database)
-- **Flux RSS** : [eBay a supprimé ses flux RSS de recherche](https://www.valueaddedresource.net/ebay-rss-feed-stores-search/) · [eBay User Agreement 2026 (interdit robots/bots)](https://www.valueaddedresource.net/ebay-bans-ai-agents-updates-arbitration-user-agreement-feb-2026/) · [MidlevelU v. ACI, 11e Circuit 2021 (pas de licence implicite pour scraper un flux RSS)](https://www.plagiarismtoday.com/2021/03/08/11th-circuit-no-implied-license-for-rss-scraping/)
-- **Outils Python** : voir les sources de [bibliotheque-scraping.md](bibliotheque-scraping.md).
+- **TCGdex** : [FAQ](https://tcgdex.dev/faq) · [Markets & Prices](https://tcgdex.dev/markets-prices) · [licence MIT](https://github.com/tcgdex/cards-database)
+- **eBay** : [dépréciation Finding API (Q3 2024)](https://developer.ebay.com/updates/newsletter/q3_2024) · [Browse API](https://developer.ebay.com/api-docs/buy/browse/overview.html) · [User Agreement 2026](https://www.valueaddedresource.net/ebay-bans-ai-agents-updates-arbitration-user-agreement-feb-2026/)
+- **TCGFast** : [https://tcgfast.com](https://tcgfast.com)
+- **Cardmarket** : [API (réservée vendeurs pro)](https://help.cardmarket.com/en/cardmarket-api) · [CGU](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions)
+- **TCGPlayer** : [API fermée aux nouveaux dev](https://docs.tcgplayer.com/docs/getting-started) · [Terms](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions)
+- **Outils Python** : voir [bibliotheque-scraping.md](bibliotheque-scraping.md).
