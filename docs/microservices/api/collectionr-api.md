@@ -11,7 +11,7 @@ Elle est servie par le **backend NestJS (sur adaptateur Fastify), TypeScript**. 
 lues dans **PostgreSQL**, alimenté par le **Microservice TCG** :
 
 - **métadonnées** synchronisées depuis **TCGdex** (cf. [externe-api.md](externe-api.md)) ;
-- **prix** collectés par le `Worker TCG API` depuis les APIs ouvertes (TCGdex, pokemontcg.io)
+- **prix** collectés via la cascade TCGdex (niv. 1) → eBay Browse API (niv. 2) → TCGFast (niv. 3)
   (cf. [marketplace-scraper.md](../marketplace/marketplace-scraper.md)).
 
 > L'API CollectionR **lit** la base ; elle ne déclenche jamais de collecte à la demande.
@@ -145,7 +145,7 @@ Réponse :
 | Donnée | Source | Voie |
 |--------|--------|------|
 | Métadonnées + images | TCGdex | `Worker TCG API` → PostgreSQL |
-| Prix (Cardmarket €, TCGPlayer $) | TCGdex / pokemontcg.io | `Worker TCG API` → PostgreSQL |
+| Prix (Cardmarket €, TCGPlayer $, eBay, PSA/BGS/CGC) | TCGdex → eBay Browse → TCGFast | `Worker TCG API` / `Worker TCG Fallback` → PostgreSQL |
 | Estimation de prix | Modèle IA | `Worker TCG Prediction` |
 
 ---

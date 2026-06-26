@@ -212,6 +212,29 @@ Exemple de paramètre de langue :
 
 ---
 
+---
+
+## Fallback prix : TCGFast Trader (niveau 3)
+
+TCGdex est interrogé en priorité, puis eBay Browse API. Si ces deux sources sont simultanément
+indisponibles, le `Worker TCG Fallback` active **TCGFast Trader**.
+
+### TCGFast (`https://tcgfast.com`)
+
+- **Plan Trader à 14,99 $/mois** — usage commercial explicitement autorisé.
+- Données complémentaires absentes de TCGdex :
+  - Prix eBay (ventes réelles, pas seulement annonces actives)
+  - **Prix gradués PSA / BGS / CGC** (marché des cartes certifiées)
+  - Historique des prix
+- **SDK Python disponible** — intégration simplifiée dans le worker.
+- **Clé API** stockée dans les Secrets Kubernetes (`TCGFAST_API_KEY`).
+
+> TCGFast n'est activé que si TCGdex **et** eBay Browse API sont simultanément indisponibles
+> (niveau 3 de la cascade). Il constitue également la source recommandée pour le passage commercial
+> (licence explicite).
+
+---
+
 ## Sources
 
 Vérifications web (juin 2026) :
@@ -219,3 +242,5 @@ Vérifications web (juin 2026) :
 - [TCGdex — FAQ (gratuit, sans clé)](https://tcgdex.dev/faq) · [Markets & Prices (prix Cardmarket/TCGPlayer)](https://tcgdex.dev/markets-prices) · [statut multilingue](https://api.tcgdex.net/status) · [base sous licence MIT](https://github.com/tcgdex/cards-database)
 - Carte d'exemple vérifiée en direct : [`swsh3-20` — Charizard VMAX](https://api.tcgdex.net/v2/en/cards/swsh3-20)
 - CGU des prix (en amont) : [Cardmarket — Conditions générales](https://www.cardmarket.com/en/Policies/GeneralTermsAndConditions) · [TCGPlayer — API Terms](https://help.tcgplayer.com/hc/en-us/articles/360061115874-TCGplayer-API-Terms-Conditions)
+- **TCGFast** : [https://tcgfast.com](https://tcgfast.com)
+- **eBay Browse API** : [Browse API overview](https://developer.ebay.com/api-docs/buy/browse/overview.html)
