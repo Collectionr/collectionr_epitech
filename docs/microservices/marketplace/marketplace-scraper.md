@@ -278,10 +278,9 @@ donnée disponible** : aucun blocage de service. K3s **redémarre automatiquemen
 
 # 9. Intégration avec le backend NestJS
 
-- Le backend **NestJS (Fastify)** planifie les jobs via **BullMQ (Redis TCG)** et **lit** les prix
-  en base.
-- Les **workers Python consomment** la file Redis (lib `bullmq` Python) et **écrivent** en
-  PostgreSQL via `psycopg 3`.
+- Le backend **NestJS (Fastify)** déclenche la planification (cron) et **lit** les prix en base.
+- Le **Microservice TCG** publie les jobs dans **BullMQ (Redis TCG)**.
+- Les **workers Python consomment** la file Redis (lib `bullmq` Python) et **écrivent** en PostgreSQL via `psycopg 3`.
 - Le scraping n'est **jamais** déclenché par une requête utilisateur.
 
 ```
