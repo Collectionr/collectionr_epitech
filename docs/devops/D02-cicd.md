@@ -81,20 +81,25 @@ gitGraph
     checkout develop
     merge feature/scan-ocr id: "PR validée"
     commit id: "feature B"
+    branch staging
+    checkout staging
+    commit id: "préparation release"
     checkout main
-    merge develop id: "release v1.0"
+    merge staging id: "release v1.0"
 ```
+---
 
 ### 2.1 Branches principales
 
 | Branche | Rôle | Protection |
 |---|---|---|
-| `main` | Code stable — déployé en production | 🔴 Protégée — merge uniquement via PR validée |
-| `staging` | Environnement pré-prod permanent pour validation et tests | 🔴 Protégée — merge uniquement via PR validée |
-| `develop` | Intégration des features — déployé en staging | 🟡 Protégée — merge uniquement via PR |
-| `feature/*` | Développement d'une fonctionnalité | 🟢 Libre — créée par le développeur |
-| `fix/*` | Correction de bug | 🟢 Libre — créée par le développeur |
-| `devops/*` | Modifications infra et manifests K3s | 🟢 Libre — créée par l'équipe Cloud |
+| `main` | Code stable — déployé en production, merge uniquement depuis `staging` | 🔴 Protégée |
+| `staging` | Pré-prod permanente — validation déploiement et perfs avant production | 🔴 Protégée |
+| `develop` | Intégration quotidienne du travail de l'équipe | 🟡 Protégée |
+| `feature/*` | Développement d'une fonctionnalité | 🟢 Libre |
+| `fix/*` | Correction de bug | 🟢 Libre |
+| `devops/*` | Modifications infra et manifests K3s | 🟢 Libre |
+| `release/*` | Branche temporaire de préparation de release | 🟡 Temporaire |
 
 La branche `staging` est une branche permanente pour la pré-production et les tests. Elle possède le même niveau de sécurité que `main` et n'est accessible qu'à un nombre restreint de membres de l'équipe pour validation avant le déploiement en production.
 
@@ -186,7 +191,7 @@ pour garantir une base de code lisible et cohérente :
 Les images Docker sont construites en 
 **multi-architecture (x86-64 + ARM64)** pour garantir 
 la compatibilité avec l'ensemble des postes de l'équipe, 
-notamment le poste macOS Apple M4 Pro.
+notamment le poste macOS Apple Silicon.
 
 Cette étape vérifie également que toutes les 
 dépendances sont correctement déclarées et que 
@@ -253,6 +258,7 @@ Si l'un des seuils ci-dessous n'est pas atteint, la pipeline
 | Backend | 70% |
 | Python Microservice | 50% |
 | Frontend | 40% |
+| Code utilitaire / helpers | Pas de seuil |
 
 Les seuils de coverage diffèrent selon les périmètres techniques. Les tests E2E compensent le seuil plus bas pour le Frontend.
 
@@ -274,20 +280,27 @@ de sa propre séquence de déploiement et de notification.
 ```mermaid
 graph TD
     Merge["MERGE SUR develop"] --> Build["BUILD ET PUSH\nImage Docker vers registry"]
-    Merge2["MERGE SUR main"] --> Build2["BUILD ET PUSH\nImage Docker vers registry"]
-    Build --> Staging["DÉPLOIEMENT STAGING\nkubectl apply -n staging"]
-    Build2 --> Prod["DÉPLOIEMENT PRODUCTION\nkubectl apply -n production"]
-    Staging --> NotifStaging["NOTIFICATION ÉQUIPE\nMessage Discord automatique"]
-    Prod --> NotifProd["NOTIFICATION ÉQUIPE\nMessage Discord automatique"]
+    Merge2["MERGE SUR staging"] --> Build2["BUILD ET PUSH\nImage Docker vers registry"]
+    Merge3["MERGE SUR main"] --> Build3["BUILD ET PUSH\nImage Docker vers registry"]
+    Build --> DeployDev["DÉPLOIEMENT DEVELOP\nkubectl apply -n development"]
+    Build2 --> DeployStaging["DÉPLOIEMENT STAGING\nkubectl apply -n staging"]
+    Build3 --> DeployProd["DÉPLOIEMENT PRODUCTION\nkubectl apply -n production"]
+    DeployDev --> NotifDev["NOTIFICATION ÉQUIPE\nMessage Discord automatique"]
+    DeployStaging --> NotifStaging["NOTIFICATION ÉQUIPE\nMessage Discord automatique"]
+    DeployProd --> NotifProd["NOTIFICATION ÉQUIPE\nMessage Discord automatique"]
 
-    style Merge fill:#FAEEDA,stroke:#BA7517,color:#854F0B
-    style Merge2 fill:#E1F5EE,stroke:#0F6E56,color:#085041
+    style Merge fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style Merge2 fill:#FAEEDA,stroke:#BA7517,color:#854F0B
+    style Merge3 fill:#E1F5EE,stroke:#0F6E56,color:#085041
     style Build fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     style Build2 fill:#EEEDFE,stroke:#534AB7,color:#3C3489
-    style Staging fill:#FAEEDA,stroke:#BA7517,color:#854F0B
-    style Prod fill:#E1F5EE,stroke:#0F6E56,color:#085041
-    style NotifStaging fill:#E6F1FB,stroke:#185FA5,color:#0C447C
-    style NotifProd fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style Build3 fill:#EEEDFE,stroke:#534AB7,color:#3C3489
+    style DeployDev fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style DeployStaging fill:#FAEEDA,stroke:#BA7517,color:#854F0B
+    style DeployProd fill:#E1F5EE,stroke:#0F6E56,color:#085041
+    style NotifDev fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style NotifStaging fill:#FAEEDA,stroke:#BA7517,color:#854F0B
+    style NotifProd fill:#E1F5EE,stroke:#0F6E56,color:#085041
 ```
 
 ### 4.2 Déploiement par environnement
