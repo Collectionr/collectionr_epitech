@@ -145,6 +145,12 @@ Les événements suivants doivent être surveillés :
 
 Ces journaux contribuent à la détection rapide des incidents et à la mise en place d’actions correctives afin de garantir la continuité de service.
 
+> **Note :** le volume partagé OCR est utilisé uniquement
+> pour le transit de l'image brute entre le Backend et
+> le Worker OCR. Le résultat du traitement est écrit
+> directement en PostgreSQL — voir `A02-flux-techniques.md`
+> section 5.
+
 ---
 
 ### 3.3 Logs d’audit
