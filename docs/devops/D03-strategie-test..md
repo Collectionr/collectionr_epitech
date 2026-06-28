@@ -152,7 +152,8 @@ une équipe étudiante.
 | Infrastructure K3s | k3d + kubectl | Crée un cluster K3s léger dans Docker pour les tests |
 | E2E Web | Playwright | Multi-navigateur, gratuit, déjà configuré |
 | E2E Mobile | Tests manuels + Expo Go | Detox et Maestro incompatibles avec Expo Go — build natif requis |
-| Charge workers | Locust + script Redis | Simulation de charge sur les files Redis OCR et TCG — staging uniquement |
+| Tests de charge API | k6 | Tests des endpoints HTTP sous charge — staging uniquement |
+| Tests de charge workers | Locust + script Redis | Simulation de charge sur les files Redis OCR et TCG — staging uniquement |
 | Sécurité | OWASP ZAP | Référence open source pour les scans de sécurité API |
 
 ---
