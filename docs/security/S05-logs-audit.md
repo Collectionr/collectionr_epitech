@@ -1,4 +1,4 @@
-# 07 – Logs & Audit
+# Logs & Audit — CollectionR
 
 ## Sommaire
 
@@ -11,6 +11,7 @@
 7. [Accès aux logs](#7-accès-aux-logs)  
 8. [Conservation des logs](#8-conservation-des-logs)  
 9. [Évolution future](#9-évolution-future)
+10. [Documents associés](#10-documents-associés)
 
 ## 1. Objectif
 
@@ -301,3 +302,13 @@ section 5, les évolutions suivantes sont envisagées :
 - révision des durées de conservation définies en 
   section 8 en fonction des retours d'usage et 
   des évolutions réglementaires RGPD.
+
+## 10. Documents associés
+
+- `S01-principes-securite.md`
+- `S02-threat-model.md`
+- `S03-api-security.md`
+- `S04-rgpd-conformite.md`
+- `A03-architecture-runtime.md`
+- `D01-environnement.md`
+- `D04-observabilite-slo.md`
