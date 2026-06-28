@@ -2,8 +2,6 @@
 
 ## Sommaire
 
-## Sommaire
-
 1. [Objectif et responsable de traitement](#1-objectif-et-responsable-de-traitement)
 2. [Données collectées](#2-données-collectées)
    - 2.1 Données d'identification
@@ -42,6 +40,7 @@
 14. [Protection des mineurs](#14-protection-des-mineurs)
 15. [Politique de confidentialité utilisateur](#15-politique-de-confidentialité-utilisateur)
 16. [Évolution future](#16-évolution-future)
+17. [Documents associés](#17-documents-associés)
 
 ---
 
@@ -203,30 +202,31 @@ fera l'objet d'une mise à jour formalisée.
 
 ## 6. Sécurité des données
 
-La sécurité des données repose sur un ensemble de mesures techniques 
-et organisationnelles, détaillées dans les documents Threat Model et 
-API Sécurité (docs/security/). Les mécanismes appliqués sont les suivants.
+La sécurité des données repose sur un ensemble de mesures techniques
+et organisationnelles, détaillées dans les documents Threat Model et
+API Sécurité (`S02-threat-model.md` et `S03-api-security.md`).
+Les mécanismes appliqués sont les suivants.
 
 - chiffrement de toutes les communications via HTTPS / TLS ;
-- stockage sécurisé des mots de passe par hachage bcrypt — 
+- stockage sécurisé des mots de passe par hachage bcrypt —
   algorithme reconnu et recommandé pour ce type d'usage ;
-- authentification par JWT et contrôle d'accès basé sur les rôles 
+- authentification par JWT et contrôle d'accès basé sur les rôles
   (RBAC) pour limiter l'accès aux ressources selon le profil utilisateur ;
-- principe du moindre privilège appliqué à l'ensemble des services — 
+- principe du moindre privilège appliqué à l'ensemble des services —
   chaque composant n'accède qu'aux données dont il a strictement besoin ;
-- gestion des secrets via Kubernetes Secrets en environnement local 
-  et VPS, avec évolution prévue vers Vault ou Doppler en production ;
-- séparation stricte des environnements (dev / staging / production) 
+- gestion des secrets via Kubernetes Secrets en environnement local
+  et staging, avec évolution prévue vers Vault en production —
+  voir `D01-environnement.md` section 5.2 ;
+- séparation stricte des environnements (dev / staging / production)
   pour éviter toute fuite de données entre contextes.
 
-Les données sensibles ne sont jamais exposées dans les logs. 
-Les règles de filtrage appliquées sont décrites dans le document 
-Logs & Audit (docs/security/).
+Les données sensibles ne sont jamais exposées dans les logs.
+Les règles de filtrage appliquées sont décrites dans `S05-logs-audit.md`.
 
-Les accès aux données personnelles sont eux-mêmes tracés et 
-journalisés via Loki + Grafana + Promtail, afin de détecter 
-tout accès non autorisé ou anormal. Ces journaux d'accès sont 
-soumis aux mêmes règles de conservation que les logs d'audit 
+Les accès aux données personnelles sont eux-mêmes tracés et
+journalisés via Loki + Grafana + Promtail, afin de détecter
+tout accès non autorisé ou anormal. Ces journaux d'accès sont
+soumis aux mêmes règles de conservation que les logs d'audit
 (90 jours, section 5).
 
 ---
@@ -413,7 +413,7 @@ Plusieurs décisions d'architecture traduisent concrètement cet engagement :
 - seules les références externes (URLs d'images issues des API tierces) 
   sont conservées, jamais les images elles-mêmes ;
 - les logs techniques ne contiennent aucune donnée personnelle 
-  identifiante (voir document Logs & Audit, docs/security/) ;
+  identifiante (voir `S05-logs-audit.md`) ;
 - certaines données peuvent être anonymisées afin de conserver 
   des statistiques agrégées sans identifier les utilisateurs.
 
@@ -531,3 +531,14 @@ prévues au fil des phases du projet.
   documentée dans le registre des traitements ;
 - adaptation du document en cas d'ajout de nouvelles 
   fonctionnalités ou de nouveaux traitements de données.
+
+---
+
+## 17. Documents associés
+
+- `S01-principes-securite.md`
+- `S02-threat-model.md`
+- `S03-api-security.md`
+- `S05-logs-audit.md`
+- `A02-flux-techniques.md`
+- `D01-environnement.md`
