@@ -87,7 +87,8 @@ Les pipelines CI/CD n'ont accès qu'aux secrets et ressources de l'environnement
 ### Sécurité de l'orchestration K3s
 L'orchestration repose sur K3s. Les mesures de sécurité suivantes s'appliquent :
 - les communications entre Pods sont restreintes via des NetworkPolicies ;
-- les secrets applicatifs sont gérés via les Secrets Kubernetes, avec une évolution prévue vers Vault ou Doppler ;
+- les secrets applicatifs sont gérés via les Secrets Kubernetes,
+avec une évolution prévue vers Vault en production
 - les droits d'accès au cluster sont définis via RBAC Kubernetes ;
 - aucun conteneur ne s'exécute en mode privilégié sauf nécessité explicitement justifiée.
 
@@ -122,7 +123,7 @@ Aucun secret ne doit apparaître en clair dans le dépôt Git.
 Les secrets sont gérés selon les règles suivantes :
 
 - variables d'environnement injectées via les Secrets Kubernetes en environnement local et staging ;
-- évolution prévue vers Vault ou Doppler en production ;
+- évolution prévue vers Vault en production ;
 - rotation régulière des secrets critiques (clés API, tokens) ;
 - audit des accès aux secrets tracé et journalisé.
 
@@ -159,7 +160,8 @@ Les logs doivent être :
 - protégés contre l’altération,
 - exploitables pour l’audit et l’investigation.
 
-Les outils envisagés pour la centralisation des logs sont Loki et Grafana, déployables nativement sur K3s. Le détail est disponible dans le document 07-logs-audit.md.  
+Les outils envisagés pour la centralisation des logs sont Loki et Grafana, déployables nativement sur K3s. Le détail est disponible dans `S05-logs-audit.md`.
+
 
 ---
 
@@ -171,7 +173,7 @@ La plateforme est conçue pour respecter les principes de protection des donnée
 - droit à l’effacement,
 - traçabilité des traitements.
 
-Ces exigences sont détaillées dans le document dédié à la conformité RGPD.
+Ces exigences sont détaillées dans `S04-rgpd-conformite.md`.
 
 ---
 
@@ -192,8 +194,11 @@ et aux menaces identifiées à chaque étape du projet.
 ---
 
 ## 11. Documents associés
-- `02-threat-model.md`
-- `04-api-security.md`
-- `05-upload-security.md`
-- `06-rgpd-conformite.md`
-- `07-logs-audit.md`
+
+- `S02-threat-model.md`
+- `S03-api-security.md`
+- `S04-rgpd-conformite.md`
+- `S05-logs-audit.md`
+- `A03-architecture-runtime.md`
+- `D01-environnement.md`
+- `D02-cicd.md`

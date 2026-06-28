@@ -1,4 +1,4 @@
-# 06 - Réseaux & IAM - CollectionR
+# Réseaux & IAM — CollectionR
 
 ## Sommaire
 
@@ -18,7 +18,7 @@
 5. [Sécurité & Audit](#5-sécurité--audit)
     * [5.1 Audit des accès réseau](#51-audit-des-accès-réseau)
     * [5.2 Limitation de la surface d'attaque](#52-limitation-de-la-surface-dattaque)
-7. [Évolution future](#7-évolution-future)
+6. [Évolution future](#6-évolution-future)
 7. [Documents associés](#7-documents-associés)
 
 ---
@@ -55,65 +55,65 @@ Pour appliquer le principe de **Zero Trust**, des `NetworkPolicies` isolent les 
 | **Worker Scraping** | Autorisé (Sortant uniquement) | Nécessaire pour le scraping TCG (Cardmarket, TCGPlayer). |
 | **Inter-Workers** | Bloqué | Aucun worker ne doit communiquer avec un autre worker. |
 
+Voici le schéma corrigé avec ses couleurs et sans emojis :
+
 ```mermaid
 flowchart TD
-    %% Déclaration des Nodes/Services
     subgraph Zone_Externe [Zone Externe]
-        User["👤 Utilisateur (Navigateur)"]
-        TCG["🌐 Internet (APIs TCG)"]
+        User["Utilisateur"]
+        TCG["Internet - APIs TCG"]
     end
 
     subgraph Cluster_K3s [Cluster K3s]
         direction TB
-        Ingress["☸️ Ingress (Traefik)"]
+        Ingress["Ingress Traefik"]
         
         subgraph Frontends [Frontend]
-            Front["💻 Frontend Pod (React)"]
+            Front["Frontend Pod - React"]
         end
         
         subgraph Backends [Backend]
-            Back["⚙️ Backend Pod (NestJS)"]
+            Back["Backend Pod - NestJS"]
         end
         
-        subgraph Bases_de_Donnees [Bases de Données]
-            DB[("🗄️ PostgreSQL")]
-            Redis[("🔄 Redis (BullMQ)")]
+        subgraph Bases_de_Donnees [Bases de données]
+            DB[("PostgreSQL")]
+            RedisOCR[("Redis OCR")]
+            RedisTCG[("Redis TCG")]
         end
         
         subgraph Workers [Workers]
-            W_OCR["🧠 Worker OCR (YOLO)"]
-            W_Scrap["🕷️ Worker Scraping"]
+            W_OCR["Worker OCR - Python/YOLO"]
+            W_Scrap["Worker TCG Scraping"]
         end
     end
 
-    %% Flux Autorisés
     User --> Ingress
     Ingress --> Front
     Ingress --> Back
     Front --> Back
     Back --> DB
-    Back --> Redis
-    W_OCR --> Redis
-    W_Scrap --> Redis
+    Back --> RedisOCR
+    Back --> RedisTCG
+    RedisOCR --> W_OCR
+    RedisTCG --> W_Scrap
+    W_OCR --> DB
     W_Scrap --> TCG
 
-    %% Flux Bloqués
     W_OCR -.-x TCG
-    W_OCR -.-x DB
     W_OCR -.-x W_Scrap
-    W_Scrap -.-x DB
     W_OCR -.-x Back
+    W_Scrap -.-x DB
     W_Scrap -.-x Back
 
-    %% Application des styles aux liens (Indexés de 0 à N)
-    linkStyle 0,1,2,3,4,5,6,7,8 stroke:#2ecc71,stroke-width:2px;
-    linkStyle 9,10,11,12,13,14 stroke:#e74c3c,stroke-width:2px,stroke-dasharray: 5 5;
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10 stroke:#2ecc71,stroke-width:2px;
+    linkStyle 11,12,13,14,15 stroke:#e74c3c,stroke-width:2px,stroke-dasharray: 5 5;
 ```
 
 ### 2.3 Résolution DNS & Flux Internes
 
 *   **CoreDNS :** Gère la résolution de noms interne (ex: `postgres-service.default.svc.cluster.local`).
-*   **Redis (BullMQ) :** Point de pivot central pour les flux asynchrones. Le Backend y dépose des jobs, les Workers les récupèrent. Les `NetworkPolicies` autorisent les Workers à accéder **uniquement** à l'instance Redis dédiée.
+*   **Redis OCR et Redis TCG : points de pivot centraux** pour les flux asynchrones. Le Backend y dépose des jobs, les Workers les récupèrent. Les `NetworkPolicies` autorisent les Workers à accéder **uniquement** à l'instance Redis dédiée.
 
 ### 2.4 Sécurisation des Flux (HTTPS/TLS)
 
@@ -144,7 +144,9 @@ L'accès aux ressources du cluster est régi par le **RBAC** (Role-Based Access 
 Chaque microservice s'exécute avec son propre **ServiceAccount** :
 
 *   **Backend SA :** Peut lire certains Secrets (ex: clés JWT).
-*   **Worker OCR SA :** Aucun privilège Kubernetes (ne peut pas lister les autres pods).
+*   **Worker OCR SA :** Accès limité au PVC Shared Volume OCR
+(lecture des images) et à PostgreSQL (écriture des résultats).
+Ne peut pas lister les autres pods ni accéder aux secrets.
 *   **Worker Scraping SA :** Peut accéder aux Secrets contenant les clés API Cardmarket et TCGPlayer.
 *   **CI/CD SA :** Privilèges limités au déploiement (patch des deployments, update des images).
 
@@ -157,48 +159,48 @@ graph LR
         SA_CICD["CI/CD SA"]
     end
 
-    subgraph Roles [Rôles RBAC]
+    subgraph Roles [Roles RBAC]
         Role_Back["backend-role"]
-        Role_Default["default (Aucun privilège)"]
+        Role_OCR["worker-ocr-role"]
         Role_Scrap["scraping-role"]
         Role_CICD["cicd-role"]
     end
 
-    subgraph Ressources [Ressources Kubernetes Cibles]
-        Sec_App["Secrets (JWT, Config DB)"]
-        Sec_TCG["Secrets (Clés API TCG)"]
-        K8s_Deploy["Deployments (Patch & Update)"]
-        None["Aucun Accès (Isolation)"]
+    subgraph Ressources [Ressources Kubernetes]
+        Sec_App["Secrets JWT et Config DB"]
+        Sec_TCG["Secrets Cles API TCG"]
+        K8s_Deploy["Deployments Patch et Update"]
+        PVC_OCR["PVC Shared Volume OCR"]
+        PG["PostgreSQL"]
     end
 
-    %% Associations SA -> Rôle
     SA_Back --> Role_Back
-    SA_OCR --> Role_Default
+    SA_OCR --> Role_OCR
     SA_Scrap --> Role_Scrap
     SA_CICD --> Role_CICD
 
-    %% Permissions Rôle -> Ressources
     Role_Back -->|Lecture| Sec_App
-    Role_Default --> None
+    Role_OCR -->|Lecture| PVC_OCR
+    Role_OCR -->|Ecriture resultats| PG
     Role_Scrap -->|Lecture| Sec_TCG
-    Role_CICD -->|Lecture / Écriture| K8s_Deploy
+    Role_CICD -->|Lecture / Ecriture| K8s_Deploy
 
-    %% Styles
     classDef sa fill:#e1f5fe,stroke:#0288d1,stroke-width:1px,color:#000;
     classDef role fill:#efebe9,stroke:#5d4037,stroke-width:1px,color:#000;
     classDef res fill:#e8f5e9,stroke:#388e3c,stroke-width:1px,color:#000;
-    classDef none fill:#ffebee,stroke:#c62828,stroke-width:1px,color:#000;
 
     class SA_Back,SA_OCR,SA_Scrap,SA_CICD sa;
-    class Role_Back,Role_Default,Role_Scrap,Role_CICD role;
-    class Sec_App,Sec_TCG,K8s_Deploy res;
-    class None none;
+    class Role_Back,Role_OCR,Role_Scrap,Role_CICD role;
+    class Sec_App,Sec_TCG,K8s_Deploy,PVC_OCR,PG res;
 ```
 
 ### 3.3 Accès Développeurs & Administrateurs
 
 *   **Accès Nominatifs :** Chaque membre de l'équipe infra possède son propre fichier `kubeconfig`.
-*   **Moindre Privilège :** Les développeurs n'ont pas accès aux `Secrets` de production en lecture seule, sauf via les logs autorisés.
+*   **Moindre Privilège :** Les développeurs n'ont pas accès aux Secrets de production.
+Seule l'équipe Cloud / DevOps dispose des droits d'accès
+complets au cluster — voir section 3.2.
+
 
 ---
 
@@ -235,8 +237,6 @@ Pour la gestion centralisée des secrets entre les environnements :
 *   **Images Minimalistes :** Utilisation de bases `alpine` ou `distroless` pour réduire les vulnérabilités.
 *   **SecurityContext :** Les Pods tournent en `non-root` avec `allowPrivilegeEscalation: false` autant que possible.
 *   **Exposition sélective :** Seuls les services strictement nécessaires au client (Web/API) ont un Ingress associé.
-
-Tous tes documents ont une section évolution future, celui-ci n'en a pas. Elle serait courte mais cohérente avec le reste :
 
 ## 6. Évolution future
 

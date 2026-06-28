@@ -260,6 +260,12 @@ développement et staging seront pleinement validés.
 | Métriques | Prometheus + Grafana + AlertManager |
 | SLA cible | 99,9 % de disponibilité |
 
+> **Note :** Ce coût correspond à un déploiement K3s VPS
+> multi-nœuds autogéré. Le passage vers un Kubernetes managé
+> (Scaleway Kapsule, OVHcloud) représente un coût estimé entre
+> 500 et 2 000 €/mois — voir `C02-choix-solutions-cloud.md`
+> section 6.
+
 ### 4.2 Critères de passage staging → production
 
 Ces critères sont plus stricts que pour le passage en staging :

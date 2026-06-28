@@ -3,22 +3,24 @@
 
 # Documentation d’Architecture, DevOps et Gouvernance
 
-## Sommaire
+## Sommaire*
 
-1. [1. Introduction](#1-introduction)
-2. [2. Principes d’Architecture](#2-principes-darchitecture)
-    * [2.1 Disponibilité](#21-disponibilité)
-    * [2.2 Scalabilité (capacité à grandir)](#22-scalabilité-capacité-à-grandir)
-    * [2.3 Résilience et isolation](#23-résilience-et-isolation)
-3. [3. DevOps et Infrastructure](#3-devops-et-infrastructure)
-    * [3.1 Stack technique](#31-stack-technique)
-    * [3.2 Automatisation](#32-automatisation)
-    * [3.3 Bonnes pratiques Cloud](#33-bonnes-pratiques-cloud)
-4. [4. Gouvernance et Sécurité](#4-gouvernance-et-sécurité)
-    * [4.1 Organisation des rôles et IAM](#41-organisation-des-rôles-et-iam)
-    * [4.2 Sécurité des données et Vie privée](#42-sécurité-des-données-et-vie-privée)
-5. [5. Déploiement automatique (CI/CD) et Traçabilité](#5-déploiement-automatique-cicd-et-traçabilité)
-6. [6. Conclusion](#6-conclusion)
+1. [Introduction](#1-introduction)
+2. [Principes d'Architecture](#2-principes-darchitecture)
+   * [2.1 Disponibilité](#21-disponibilité)
+   * [2.2 Scalabilité](#22-scalabilité)
+   * [2.3 Résilience et isolation](#23-résilience-et-isolation)
+3. [DevOps et Infrastructure](#3-devops-et-infrastructure)
+   * [3.1 Stack technique](#31-stack-technique)
+   * [3.2 Automatisation](#32-automatisation)
+   * [3.3 Bonnes pratiques Cloud](#33-bonnes-pratiques-cloud)
+4. [Gouvernance et Sécurité](#4-gouvernance-et-sécurité)
+   * [4.1 Organisation des rôles et IAM](#41-organisation-des-rôles-et-iam)
+   * [4.2 Sécurité des données et Vie privée](#42-sécurité-des-données-et-vie-privée)
+5. [Déploiement automatique (CI/CD) et Traçabilité](#5-déploiement-automatique-cicd-et-traçabilité)
+6. [Conclusion](#6-conclusion)
+7. [Documents associés](#7-documents-associés)
+
 
 -----
 
@@ -84,8 +86,10 @@ Le projet utilise des technologies simples et connues :
 | Orchestration | K3s |
 | File d'attente | Redis |
 | Stockage | Volumes persistants |
-| Gestion des secrets | Vault ou Doppler |
+| Gestion des secrets | Vault |
 | CI/CD | GitHub Actions |
+| Observabilité | Prometheus + Grafana + Loki + Promtail |
+| Workers | Python (OCR, Grading IA) + Node.js (TCG Scraping) |
 
 Le projet part directement sur K3s comme orchestrateur principal. Docker est utilisé uniquement pour construire les images des services. Docker Compose peut éventuellement servir au debug ponctuel d'un service isolé mais ne fait pas partie de l'architecture cible.
 
@@ -96,7 +100,10 @@ Le projet part directement sur K3s comme orchestrateur principal. Docker est uti
 On automatise le maximum pour éviter les erreurs humaines.
 
 - **GitHub Actions** : lance les tests et prépare le code automatiquement  
-- **Terraform** : permet de recréer le serveur facilement  
+- **kubectl + manifests K3s versionnés** : l'infrastructure
+  est définie et reproductible via les manifests Kubernetes
+  stockés dans Git. Terraform sera évalué lors de la phase
+  de réalisation si un déploiement cloud managé est envisagé.
 
 Résultat :  
 Le projet est reproductible et plus sécurisé.
@@ -108,7 +115,9 @@ Le projet est reproductible et plus sécurisé.
 Pour garantir la robustesse du système tout en conservant un coût de 0$ (Free Tier), les bonnes pratiques Cloud suivantes sont strictement documentées et appliquées par l'équipe d'infrastructure :
 - **Infrastructure as Code (IaC)** : Définition de l'infrastructure par le code pour éviter toute configuration manuelle.
 - **Séparation des environnements** : Isolation stricte entre les environnements de développement (Dev), de pré-production (Staging) et de Production.
-- **Optimisation des coûts (FinOps)** : Suivi rigoureux et alertes sur la consommation des ressources pour ne jamais dépasser les limites des tiers gratuits (AWS, GCP, Scaleway).
+- **Optimisation des coûts (FinOps)** : Suivi rigoureux des ressources pour maîtriser les coûts
+d'hébergement (Hetzner ou Scaleway en staging et production,
+coût zéro en développement local).
 - **Observabilité** : Centralisation des logs et métriques pour une intervention proactive avant toute panne critique.
 
 ---
@@ -123,11 +132,21 @@ Le projet est divisé en deux parties :
 - **Sécurité** : protège les accès et les données  
 
 **Gestion des Identités et des Accès (IAM) :**
-L'IAM (Identity and Access Management) est le cadre de sécurité permettant de s'assurer que les bonnes personnes ont les accès appropriés aux bonnes ressources technologiques.
-- L'ensemble des accès au système, aux bases de données et aux serveurs est **nominatif** (un compte personnel par membre de l'équipe, aucun compte générique partagé).
-- Application du principe de moindre privilège : chaque développeur ou ingénieur ne dispose que des droits strictement nécessaires à l'accomplissement de sa mission.
+L'IAM (Identity and Access Management) est le cadre de sécurité
+permettant de s'assurer que les bonnes personnes ont les accès
+appropriés aux bonnes ressources technologiques.
 
-Résultat :  
+- L'ensemble des accès au système, aux bases de données et aux
+  serveurs est **nominatif** (un compte personnel par membre de
+  l'équipe, aucun compte générique partagé).
+- Application du principe de moindre privilège : chaque développeur
+  ou ingénieur ne dispose que des droits strictement nécessaires
+  à l'accomplissement de sa mission.
+
+La gestion des accès au cluster K3s est définie via RBAC Kubernetes
+— voir `A03-architecture-runtime.md` section 9.2.
+
+Résultat :
 Chaque équipe a un rôle clair, sécurisé et totalement traçable.
 
 ---
@@ -173,3 +192,13 @@ Cette architecture permet de :
 - préparer une évolution future  
 
 L'architecture repose dès le départ sur K3s, avec une évolution prévue vers K3s VPS puis Kubernetes managé si la plateforme dépasse plusieurs dizaines de milliers d'utilisateurs.
+
+## 7. Documents associés
+
+- `A00-overview.md`
+- `A03-architecture-runtime.md`
+- `C02-choix-solutions-cloud.md`
+- `D01-environnement.md`
+- `D02-cicd.md`
+- `S01-principes-securite.md`
+- `S04-rgpd-conformite.md`

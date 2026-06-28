@@ -150,7 +150,8 @@ une équipe étudiante.
 | Unitaires Frontend | Jest + React Testing Library | Intégré à React, gratuit |
 | Intégration Backend | Jest + light-my-request | Compatible NestJS Fastify natif — pas de port réseau ouvert |
 | Infrastructure K3s | k3d + kubectl | Crée un cluster K3s léger dans Docker pour les tests |
-| E2E | Playwright | Plus moderne que Cypress, gratuit, multi-navigateur |
+| E2E Web | Playwright | Multi-navigateur, gratuit, déjà configuré |
+| E2E Mobile | Tests manuels + Expo Go | Detox et Maestro incompatibles avec Expo Go — build natif requis |
 | Charge workers | Locust + script Redis | Simulation de charge sur les files Redis OCR et TCG — staging uniquement |
 | Sécurité | OWASP ZAP | Référence open source pour les scans de sécurité API |
 
@@ -262,10 +263,16 @@ ne pas casser à chaque modification.
 
 ### 6.3 Responsabilité
 
-L'implémentation des scénarios E2E est à la charge 
-des équipes Frontend et Backend. L'équipe Cloud 
-est responsable de l'intégration de Playwright 
+L'implémentation des scénarios E2E web est à la charge
+des équipes Frontend et Backend via Playwright. L'équipe
+Cloud est responsable de l'intégration de Playwright
 dans la pipeline GitHub Actions.
+
+Pour le mobile, les tests reposent sur des tests manuels
+documentés via une checklist par scénario et une validation
+visuelle sur appareils réels via Expo Go. Detox et Maestro
+ne sont pas compatibles avec Expo Go — ils nécessitent
+un build natif compilé (.apk / .ipa) non disponible en V1.
 
 ---
 
@@ -401,6 +408,10 @@ l'infrastructure et du développement.
   dans le document Observabilité & SLO ;
 - audit de sécurité externe recommandé avant 
   ouverture publique.
+- évaluation de Maestro pour les tests E2E mobiles
+  si l'application est compilée en build natif ;
+- dans ce cas, les scénarios Login et Scan seront
+  les premiers à être automatisés sur mobile.
 
 ---
 

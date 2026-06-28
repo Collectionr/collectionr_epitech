@@ -1,4 +1,4 @@
-## API Sécurité
+## Sécurité des APIs — CollectionR
 
 ### Sommaire
 
@@ -14,6 +14,7 @@
 10. [Journalisation & monitoring](#10-journalisation--monitoring)
 11. [Sécurité des environnements](#11-sécurité-des-environnements)
 12. [Évolution future](#12-évolution-future)
+13. [Documents associés](#13-documents-associés)
 
 ---
 
@@ -297,8 +298,9 @@ Ce volume constitue un point sensible de l’architecture, car il est utilisé l
 Le principe du moindre privilège s’applique à ce volume partagé :
 
 - le backend dépose les fichiers nécessaires au traitement;
-- le worker OCR lit les fichiers à traiter et écrit 
-  les résultats nécessaires ;
+- le worker OCR lit les fichiers à traiter et écrit
+les résultats directement en PostgreSQL —
+le volume partagé ne sert qu'au transit de l'image brute ;
 - les autres services n’ont pas accès à ce volume.
 
 Les droits d’accès sont limités afin d’éviter toute lecture, modification ou suppression non autorisée.
@@ -354,15 +356,18 @@ Ces mesures permettent de limiter les risques de déni de service applicatif li�
 
 La surveillance repose sur :
 
-- les logs définis dans le document "Logs & Audit"
-- la détection d’événements critiques (ex : erreurs 401/403 répétées)
-- la mise en place possible d’alertes automatiques (ex : Sentry)
+- les logs définis dans `S05-logs-audit.md`
+- la détection d'événements critiques (ex : erreurs 401/403 répétées)
+- la mise en place d'alertes automatiques via
+  AlertManager — voir `D04-observabilite-slo.md` section 5.1
 
-Les outils envisagés sont Loki pour la centralisation des logs et Grafana pour la visualisation, déployables nativement sur K3s.
+Les outils retenus sont Loki + Promtail pour la
+centralisation des logs et Grafana pour la visualisation,
+déployés nativement sur K3s — voir `D04-observabilite-slo.md`.
 
-Ces mécanismes permettent d’identifier rapidement les incidents.
+Ces mécanismes permettent d'identifier rapidement les incidents.
 
-Aucune donnée sensible n’est présente dans les logs.
+Aucune donnée sensible n'est présente dans les logs.
 
 ---
 
@@ -371,9 +376,9 @@ Aucune donnée sensible n’est présente dans les logs.
 Les règles suivantes s'appliquent à tous les environnements 
 du projet :
 
-- variables sensibles injectées via les Secrets Kubernetes 
-  en local et staging, avec évolution prévue vers Vault 
-  ou Doppler en production ;
+- variables sensibles injectées via les Secrets Kubernetes
+en local et staging, avec évolution prévue vers Vault
+en production — voir `D01-environnement.md` section 5.2
 - aucune clé ou secret dans le code source ou les images Docker ;
 - environnements dev, staging et production strictement isolés 
   via des namespaces Kubernetes distincts ;
@@ -401,3 +406,16 @@ de l'infrastructure :
 - mise en place d'un WAF (Web Application Firewall) ;
 - détection avancée des abus ;
 - audit de sécurité externe recommandé avant ouverture publique.
+
+---
+
+## 13. Documents associés
+
+- `S01-principes-securite.md`
+- `S02-threat-model.md`
+- `S05-logs-audit.md`
+- `S06-reseaux-iam.md`
+- `A02-flux-techniques.md`
+- `A03-architecture-runtime.md`
+- `D01-environnement.md`
+- `D04-observabilite-slo.md`

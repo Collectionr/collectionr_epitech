@@ -10,6 +10,7 @@
 6. [Principes d'Architecture](#6-principes-darchitecture)
 7. [Contraintes & Hypothèses Structurantes](#7-contraintes--hypothèses-structurantes)
 8. [Évolution future](#8-évolution-future)
+9. [Documents associés](#9-documents-associés)
 
 ---
 
@@ -98,12 +99,15 @@ de la plateforme, les technologies retenues et leurs
 responsabilités respectives au sein de l'architecture.
 
 | Couche | Technologie | Responsabilités principales |
-| :--- | :--- | :--- |
-| **Frontend** | React / React Native | Interface utilisateur (Web/Mobile), capture d'image, affichage des prix. |
-| **Backend Core** | Node.js + Prisma | **Service maître du cycle de vie des données**. Exposition des APIs, authentification et logique métier. |
-| **Data / IA Service** | Python (FastAPI) | Computer Vision (Authentification), Prédiction de prix (Data Science). |
-| **Persistance** | PostgreSQL | Stockage des métadonnées, utilisateurs et catalogues de prix. |
-| **Infrastructure** | K3s (orchestration principale) — Docker (construction des images uniquement) | Conteneurisation, orchestration et isolation des environnements. |
+|:---|:---|:---|
+| Frontend | React / React Native | Interface utilisateur web et mobile, capture d'image, affichage des prix |
+| Backend Core | Node.js + NestJS + Prisma | Exposition des APIs, authentification, logique métier, orchestration des workers |
+| Microservice TCG | Node.js | Orchestration des tâches TCG — prix, scraping, prédiction |
+| Workers asynchrones | Python (OCR, Grading IA) + Node.js (TCG) | Traitement OCR, scraping marketplace, prédiction de prix, gradation IA |
+| File de messages | Redis OCR + Redis TCG | Découplage Backend → Workers, absorption des pics de charge |
+| Persistance | PostgreSQL + Volumes K3s | Données métier, fichiers temporaires OCR |
+| Infrastructure | K3s | Orchestration, isolation des namespaces, résilience |
+| Observabilité | Prometheus + Grafana + Loki + Promtail | Métriques, logs, alertes |
 
 ---
 
@@ -127,7 +131,10 @@ et la cohérence des environnements du développement
 jusqu'à la production.
 
 ### Cloud-Agnostic & Portabilité
-Le projet est conçu pour être déployé sur **AWS, GCP ou Azure** sans modification majeure du code.
+Le projet est conçu pour être déployé sur n'importe quel
+fournisseur compatible Kubernetes sans modification majeure
+des manifests. Les fournisseurs retenus sont Hetzner et
+Scaleway (voir `C02-choix-solutions-cloud.md`).
 * **Abstraction :** Utilisation de conteneurs Docker pour isoler les dépendances.
 * **Infrastructure as Code (IaC) :** les manifests Kubernetes 
 sont versionnés dans le dépôt Git. L'utilisation de Terraform 
@@ -225,3 +232,16 @@ de sa base d'utilisateurs.
 - **Long terme** : migration vers Kubernetes managé 
   si la plateforme dépasse plusieurs dizaines de 
   milliers d'utilisateurs actifs.
+
+  ## 9. Documents associés
+
+- `A01-architecture-logique.md`
+- `A02-flux-techniques.md`
+- `A03-architecture-runtime.md`
+- `C01-principe-cloud.md`
+- `C02-choix-solutions-cloud.md`
+- `D01-environnement.md`
+- `D02-cicd.md`
+- `D03-strategie-test.md`
+- `D04-observabilite-slo.md`
+- `S01-principes-securite.md`

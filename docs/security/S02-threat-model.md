@@ -2,26 +2,19 @@
 
 ## Sommaire
 
-1. [Actifs critiques et périmètre de sécurité](#1-actifs-critiques-et-périmètre-de-sécurité)
-   - [1.1 Actifs critiques](#11-actifs-critiques)
-   - [1.2 Flux et composants couverts](#12-flux-et-composants-couverts)
-   - [1.3 Éléments hors périmètre](#13-éléments-hors-périmètre)
-2. [Menaces identifiées](#2-menaces-identifiées)
-   - [2.1 Menaces techniques](#21-menaces-techniques)
-   - [2.2 Abus métier](#22-abus-métier)
-   - [2.3 Menaces liées aux flux](#23-menaces-liées-aux-flux)
-3. [Mesures de mitigation](#3-mesures-de-mitigation)
-   - [3.1 Mitigations des menaces techniques](#31-mitigations-des-menaces-techniques)
-   - [3.2 Mitigations des abus métier](#32-mitigations-des-abus-métier)
-   - [3.3 Mitigations liées aux flux](#33-mitigations-liées-aux-flux)
-   - [3.4 Mitigations spécifiques à l'orchestration K3s](#34-mitigations-spécifiques-à-lorchestration-k3s)
-4. [Hypothèses et alignement architecture](#4-hypothèses-et-alignement-architecture)
-   - [4.1 Dépendances et liens avec l'architecture](#41-dépendances-et-liens-avec-larchitecture)
-   - [4.2 Validation croisée](#42-validation-croisée)
-5. [Évolution future](#5-évolution-future)
-6. [Documents liés](#6-documents-liés)
+1. [Objectif et périmètre](#1-objectif-et-périmètre)
+2. [Méthodologie](#2-méthodologie)
+3. [Actifs critiques](#3-actifs-critiques)
+4. [Menaces identifiées](#4-menaces-identifiées)
+5. [Mesures de mitigation](#5-mesures-de-mitigation)
+6. [Hypothèses et alignement architecture](#6-hypothèses-et-alignement-architecture)
+7. [Évolution future](#7-évolution-future)
+8. [Documents associés](#8-documents-associés)
 
-## Objectif du document
+
+## 1. Objectif et périmètre
+
+### 1.1 Objectif
 Ce document présente le **threat model de la plateforme**, c’est-à-dire
 l’identification des actifs critiques, des menaces potentielles et des mesures
 de sécurité associées.
@@ -34,7 +27,7 @@ Il s’inscrit dans une démarche **Security by Design** et sert de référence 
 
 ---
 
-## Périmètre
+### 1.2 Périmètre
 Le threat model couvre les composants suivants :
 - API exposée aux clients web et mobile
 - Backend applicatif
@@ -47,14 +40,14 @@ Les aspects purement UX/UI et les détails algorithmiques internes sont hors pé
 
 ---
 
-## Méthodologie
+## 2. Méthodologie
 L’analyse s’appuie sur :
 - l’identification des **actifs critiques**,
 - l’analyse des menaces techniques (inspirée de STRIDE),
 - l’identification des abus métier,
 - la définition de **mesures de mitigation** adaptées à l’architecture cloud.
 ---
-### Logique de l’analyse de sécurité
+### 2.1 Logique de l’analyse de sécurité
 
 Le threat model est structuré selon la logique suivante :
 
@@ -67,7 +60,7 @@ Cette approche permet de garantir une analyse progressive, cohérente
 et directement exploitable par les équipes d’architecture et de sécurité.
 
 ---
-### Référentiel d’analyse des menaces (STRIDE)
+### 2.2 Référentiel d’analyse des menaces (STRIDE)
 
 Pour structurer l’identification des menaces, le threat model s’appuie
 sur le référentiel **STRIDE**, couramment utilisé en architecture et
@@ -89,12 +82,11 @@ techniques spécifiques.
 
 ---
 
-## 1. Actifs critiques et périmètre de sécurité
-
+## 3. Actifs critiques
 > Cette section identifie ce qui doit être protégé et définit les frontières
 > de l’analyse de sécurité.
 
-### 1.1 Actifs critiques
+### 3.1 Tableau des actifs
 | Actif | Description | Niveau de sensibilité |
 |------|------------|----------------------|
 | Comptes utilisateurs | Identité et informations des utilisateurs | Élevé |
@@ -109,7 +101,7 @@ techniques spécifiques.
 
 ---
 
-### 1.2 Flux et composants couverts
+### 3.2 Flux et composants couverts
 Le threat model couvre notamment :
 - les appels API effectués par les clients web et mobile,
 - les flux d’authentification et de gestion des sessions,
@@ -120,7 +112,7 @@ Le threat model couvre notamment :
 
 ---
 
-### 1.3 Éléments hors périmètre
+### 3.3 Éléments hors périmètre
 Les éléments suivants ne sont pas couverts par ce threat model :
 - les choix d’interface utilisateur (UX/UI),
 - les détails internes des algorithmes de traitement,
@@ -129,11 +121,11 @@ Les éléments suivants ne sont pas couverts par ce threat model :
 
 ---
 
-## 2. Menaces identifiées
+## 4. Menaces identifiées
 >Cette section identifie les principales menaces pesant sur les actifs critiques de la plateforme.
 >L'analyse couvre à la fois les menaces techniques et les abus métier liés à l'usage de la plateforme.
 
-### 2.1 Menaces techniques
+### 4.1 Menaces techniques
 
 Les menaces techniques suivantes ont été identifiées :
 
@@ -143,12 +135,11 @@ Les menaces techniques suivantes ont été identifiées :
 | Tampering | Modification non autorisée des données | Données de collection |
 | Repudiation | Actions non traçables ou non auditées | Logs, audit |
 | Information Disclosure | Fuite de données sensibles | Données personnelles |
-| Denial of Service | Saturation API ou services IA | API, traitements |
 | Elevation of Privilege | Contournement des rôles et permissions | Comptes, données |
 | Denial of Service | Saturation API ou services IA | API /scan, Worker OCR, Redis OCR |
 
 ---
-### 2.2 Abus métier
+### 4.2 Abus métier
 
 Au-delà des attaques techniques, plusieurs scénarios d’abus métier
 ont été identifiés :
@@ -160,7 +151,7 @@ ont été identifiés :
 - Exploitation des traitements automatisés à des fins non prévues
 
 ---
-### 2.3 Menaces liées aux flux
+### 4.3 Menaces liées aux flux
 
 Les flux inter-composants présentent également des risques spécifiques :
 - interception ou altération des flux entre services internes ;
@@ -175,13 +166,13 @@ Les flux inter-composants présentent également des risques spécifiques :
 
 ---
 
-## 3. Mesures de mitigation
+## 5. Mesures de mitigation
 >Cette section présente les mesures de sécurité permettant de réduire
 >les risques identifiés lors de l’analyse des menaces. Ces mesures sont
 >définies au niveau de l’architecture et des principes de sécurité,
 >sans détailler les implémentations techniques.
 
-### 3.1 Mitigations des menaces techniques
+### 5.1 Mitigations des menaces techniques
 
 | Menace | Mesures de mitigation |
 |------|-----------------------|
@@ -193,7 +184,7 @@ Les flux inter-composants présentent également des risques spécifiques :
 | Élévation de privilèges | Gestion stricte des rôles et permissions |
 
 ---
-### 3.2 Mitigations des abus métier
+### 5.2 Mitigations des abus métier
 
 Les abus métier identifiés sont atténués par les mesures suivantes :
 - limitation du nombre d’appels API et des quotas d’utilisation,
@@ -203,7 +194,7 @@ Les abus métier identifiés sont atténués par les mesures suivantes :
 
 ---
 
-### 3.3 Mitigations liées aux flux
+### 5.3 Mitigations liées aux flux
 
 Les flux inter-composants sont sécurisés par :
 - une segmentation réseau claire entre les composants,
@@ -212,7 +203,7 @@ Les flux inter-composants sont sécurisés par :
 - une gestion sécurisée des secrets.
 
 ---
-### 3.4 Mitigations spécifiques à l'orchestration K3s
+### 5.4 Mitigations spécifiques à l'orchestration K3s
 
 L'utilisation de K3s comme orchestrateur introduit des 
 vecteurs d'attaque spécifiques, couverts par les mesures 
@@ -222,13 +213,13 @@ suivantes :
 |---|---|
 | Accès non autorisé au cluster | RBAC Kubernetes strict par namespace |
 | Communication inter-Pods non sécurisée | NetworkPolicies limitant les flux entre services |
-| Secret exposé dans les manifests | Secrets Kubernetes, évolution vers Vault/Doppler |
+| Secret exposé dans les manifests | Secrets Kubernetes, évolution vers Vault en production |
 | Conteneur privilégié compromis | Interdiction du mode privilégié sauf justification |
 | Accès au plan de contrôle K3s | Accès restreint au kubeconfig et à l'API server |
 
 ---
 
-## 4. Hypothèses et alignement architecture
+## 6. Hypothèses et alignement architecture
 Le présent threat model repose sur les hypothèses d’architecture suivantes :
 - l'API est exposée uniquement via le backend applicatif,
 - les services de traitement internes ne sont pas exposés publiquement,
@@ -240,21 +231,21 @@ Le présent threat model repose sur les hypothèses d’architecture suivantes :
 - aucun secret n'est stocké en clair dans les manifests 
   Kubernetes ou le dépôt Git.
 
-### 4.1 Dépendances et liens avec l’architecture
+### 6.1 Dépendances et liens avec l’architecture
 
 Le threat model est étroitement lié aux éléments suivants :
-- architecture logique de la plateforme,
-- définition des flux techniques,
-- politique de sécurité des APIs,
-- configuration réseau et IAM,
-- pipeline CI/CD et contrôles qualité.
+- `A01-architecture-logique.md`
+- `A02-flux-techniques.md`
+- `S03-api-security.md`
+- `S06-reseaux-iam.md`
+- `D02-cicd.md`
 
 Toute évolution majeure de ces éléments devra entraîner une révision
 du threat model.
 
 ---
 
-### 4.2 Validation croisée
+### 6.2 Validation croisée
 
 Le threat model fait l’objet d’une relecture croisée avec les responsables
 Cloud et Backend afin de garantir la cohérence entre les hypothèses de
@@ -262,7 +253,7 @@ sécurité et les choix d’architecture.
 
 ---
 
-## 5. Évolution future
+## 7. Évolution future
 
 Ce threat model sera mis à jour à chaque étape 
 de l'évolution de l'infrastructure :
@@ -278,8 +269,11 @@ de l'évolution de l'infrastructure :
 
 ---
 
-## 6. Documents liés
-- `01-principes-securite.md`
-- `03-api-security.md`
-- `05-upload-security.md`
-- `07-logs-audit.md`
+## 8. Documents associés
+
+- `S01-principes-securite.md`
+- `S03-api-security.md`
+- `S04-rgpd-conformite.md`
+- `S05-logs-audit.md`
+- `A02-flux-techniques.md`
+- `A03-architecture-runtime.md`
