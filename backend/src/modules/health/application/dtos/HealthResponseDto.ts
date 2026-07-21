@@ -1,4 +1,4 @@
-import { HealthStatus } from '../../domain/entities/HealthStatus';
+import type { HealthStatus } from '../../domain/entities/HealthStatus';
 
 export class HealthResponseDto {
   status!: string;

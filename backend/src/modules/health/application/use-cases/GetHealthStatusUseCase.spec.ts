@@ -1,5 +1,5 @@
 import { GetHealthStatusUseCase } from './GetHealthStatusUseCase';
-import { IClockService } from '../ports/IClockService';
+import type { IClockService } from '../ports/IClockService';
 
 describe('GetHealthStatusUseCase', () => {
   it('returns an ok status using the injected clock', () => {

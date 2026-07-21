@@ -27,9 +27,27 @@ export default tseslint.config(
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      'prettier/prettier': 'error',
+    },
+  },
+  {
+    files: ['src/modules/*/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@nestjs/*', '@prisma/*', 'prisma'],
+              message:
+                "Le domaine ne doit dépendre d'aucun framework ni ORM (voir docs/backend/clean-architecture.md).",
+            },
+          ],
+        },
+      ],
     },
   },
 );
