@@ -1,6 +1,7 @@
 import { VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Logger } from 'nestjs-pino';
 import { createValidationPipe } from '../interface/pipes/CreateValidationPipe';
 
 /**
@@ -10,6 +11,8 @@ import { createValidationPipe } from '../interface/pipes/CreateValidationPipe';
  */
 export function configureApp(app: NestFastifyApplication): void {
   const configService = app.get(ConfigService);
+
+  app.useLogger(app.get(Logger));
 
   // /health reste hors préfixe : il sert de cible aux probes K3s (Cloud & Cyber).
   app.setGlobalPrefix('api', { exclude: ['health'] });

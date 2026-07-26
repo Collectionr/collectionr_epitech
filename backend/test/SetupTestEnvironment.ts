@@ -4,3 +4,4 @@ process.env.DATABASE_URL ??= 'postgresql://collectionr:collectionr@localhost:543
 process.env.REDIS_URL ??= 'redis://localhost:6379';
 process.env.JWT_SECRET ??= 'secret-de-test-e2e-0123456789abcdefghijklmnop';
 process.env.CORS_ORIGINS ??= 'http://localhost:5173';
+process.env.LOG_LEVEL ??= 'warn';

@@ -2,13 +2,19 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { validateEnvironment } from './shared/config/ValidateEnvironment';
+import { createLoggerOptions } from './shared/infrastructure/logging/CreateLoggerOptions';
 import { AllExceptionsFilter } from './shared/interface/filters/AllExceptionsFilter';
 import { HealthModule } from './modules/health/HealthModule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => createLoggerOptions(configService),
+    }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
