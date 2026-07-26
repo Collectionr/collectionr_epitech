@@ -53,5 +53,7 @@ docker compose up -d   # à la racine : PostgreSQL + Redis locaux (cf. backend/.
 | État actuel du projet / tickets | `.claude/contexts/project_state.md` |
 | Créer un nouveau module | `.claude/patterns/module.pattern.md` |
 | Erreur déjà rencontrée | `.claude/errors/` |
+| Débrief technique de la session | `/debrief` (`.claude/commands/debrief.md`) |
+| Synchroniser la doc IA avec le code | `/sync-claude` (`.claude/commands/sync-claude.md`) |
 | Checklist avant PR | `.claude/checklists/pre_merge.md` |
 | Stack complète / contexte produit | `docs/stack-technique.md`, `docs/architecture/` |
