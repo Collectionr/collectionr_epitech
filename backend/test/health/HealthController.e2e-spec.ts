@@ -4,6 +4,7 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { configureApp } from '../../src/shared/bootstrap/ConfigureApp';
 
 describe('HealthController (e2e)', () => {
   let app: NestFastifyApplication;
@@ -14,6 +15,7 @@ describe('HealthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    configureApp(app);
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   });
@@ -29,5 +31,11 @@ describe('HealthController (e2e)', () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({ status: 'ok' });
     expect(typeof body.checkedAt).toBe('string');
+  });
+
+  it('GET /health is not exposed under the /api/v1 prefix', async () => {
+    const response = await request(app.getHttpServer()).get('/api/v1/health');
+
+    expect(response.status).toBe(404);
   });
 });
