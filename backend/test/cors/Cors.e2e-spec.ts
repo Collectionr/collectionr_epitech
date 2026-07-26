@@ -1,3 +1,4 @@
+import { Controller, Get, Module } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -8,12 +9,23 @@ import { configureApp } from '../../src/shared/bootstrap/ConfigureApp';
 
 const allowedOrigin = 'http://localhost:5173';
 
+@Controller('ping')
+class PingTestController {
+  @Get()
+  ping(): { pong: boolean } {
+    return { pong: true };
+  }
+}
+
+@Module({ controllers: [PingTestController] })
+class PingTestModule {}
+
 describe('CORS (e2e)', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [AppModule, PingTestModule],
     }).compile();
 
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -27,7 +39,9 @@ describe('CORS (e2e)', () => {
   });
 
   it('allows a configured origin with credentials', async () => {
-    const response = await request(app.getHttpServer()).get('/health').set('Origin', allowedOrigin);
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/ping')
+      .set('Origin', allowedOrigin);
 
     expect(response.headers['access-control-allow-origin']).toBe(allowedOrigin);
     expect(response.headers['access-control-allow-credentials']).toBe('true');
@@ -35,7 +49,7 @@ describe('CORS (e2e)', () => {
 
   it('does not expose CORS headers for an unknown origin', async () => {
     const response = await request(app.getHttpServer())
-      .get('/health')
+      .get('/api/v1/ping')
       .set('Origin', 'https://site-malveillant.example');
 
     expect(response.headers['access-control-allow-origin']).toBeUndefined();
@@ -43,7 +57,7 @@ describe('CORS (e2e)', () => {
 
   it('answers preflight requests with the allowed methods', async () => {
     const response = await request(app.getHttpServer())
-      .options('/api/v1/echo')
+      .options('/api/v1/ping')
       .set('Origin', allowedOrigin)
       .set('Access-Control-Request-Method', 'POST');
 
