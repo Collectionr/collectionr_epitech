@@ -3,3 +3,8 @@ Benchmark_App_TCG.xlsx*
 comparatif_apps_pokemon_tcg.xlsx*
 GEMINI.md
 Contexte_Projet.md
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

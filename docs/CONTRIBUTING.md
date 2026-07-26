@@ -226,7 +226,7 @@ Les tests protègent le projet contre les régressions. Sans tests, chaque modif
 | Intégration | Modéré | < 5 s par test | Composants avec hooks, interactions avec les services (MSW) |
 | E2E | Peu | < 60 s par test | Parcours utilisateur complets : ajout et recherche (web + mobile), scan (mobile uniquement) |
 
-> **Note** : le scan de cartes est une fonctionnalité **mobile uniquement**. Il est couvert par les tests E2E mobile (Detox/Maestro) et ne fait **pas** partie des parcours E2E web (Playwright).
+> **Note** : le scan de cartes est une fonctionnalité **mobile uniquement**.
 
 #### Outils
 
@@ -236,7 +236,6 @@ Les tests protègent le projet contre les régressions. Sans tests, chaque modif
 | React Testing Library | Rendu et interaction des composants | Web |
 | React Native Testing Library | Rendu et interaction des composants | Mobile |
 | MSW (Mock Service Worker) | Mock des appels API HTTP | Web et Mobile |
-| Detox ou Maestro | Tests E2E sur emulateur/simulateur | Mobile |
 | Playwright | Tests E2E navigateur | Web |
 
 #### Ce qu'on teste en priorité
@@ -320,9 +319,6 @@ npm test
 
 # Tests avec couverture
 npm test -- --coverage
-
-# Tests E2E mobile (Detox)
-npm run test:e2e:mobile
 
 # Tests E2E web (Playwright)
 npm run test:e2e:web
