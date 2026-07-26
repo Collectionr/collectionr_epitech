@@ -10,7 +10,7 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
 
-  configureApp(app);
+  await configureApp(app);
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);

@@ -1,17 +1,34 @@
 import { VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import helmet from '@fastify/helmet';
 import { Logger } from 'nestjs-pino';
 import { createValidationPipe } from '../interface/pipes/CreateValidationPipe';
 import { setupSwagger } from './SetupSwagger';
 
 /**
  * Applique la configuration transverse de l'application (préfixe, versioning,
- * pipes globaux, CORS). Partagée entre main.ts et les tests e2e pour que les
- * tests exercent exactement la configuration de production.
+ * pipes globaux, sécurité HTTP, CORS). Partagée entre main.ts et les tests e2e
+ * pour que les tests exercent exactement la configuration de production.
  */
-export function configureApp(app: NestFastifyApplication): void {
+export async function configureApp(app: NestFastifyApplication): Promise<void> {
   const configService = app.get(ConfigService);
+  const swaggerEnabled = configService.get<boolean>('SWAGGER_ENABLED', true);
+
+  // En-têtes de sécurité HTTP (Helmet). La CSP est assouplie uniquement quand
+  // Swagger UI est exposé, car son interface repose sur des scripts inline.
+  await app.register(helmet, {
+    contentSecurityPolicy: swaggerEnabled
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
+            scriptSrc: ["'self'", "https: 'unsafe-inline'"],
+          },
+        }
+      : undefined,
+  });
 
   app.useLogger(app.get(Logger));
 
@@ -36,7 +53,7 @@ export function configureApp(app: NestFastifyApplication): void {
     maxAge: 3600,
   });
 
-  if (configService.get<boolean>('SWAGGER_ENABLED', true)) {
+  if (swaggerEnabled) {
     setupSwagger(app);
   }
 }

@@ -33,7 +33,7 @@ async function buildApp(indicators: IHealthIndicator[]): Promise<NestFastifyAppl
     .compile();
 
   const app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-  configureApp(app);
+  await configureApp(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   return app;
