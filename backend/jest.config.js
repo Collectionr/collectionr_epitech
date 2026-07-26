@@ -9,6 +9,7 @@ module.exports = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  setupFiles: ['reflect-metadata'],
   coverageThreshold: {
     global: {
       branches: 70,
