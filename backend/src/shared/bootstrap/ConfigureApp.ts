@@ -1,5 +1,6 @@
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { VersioningType } from '@nestjs/common';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { createValidationPipe } from '../interface/pipes/CreateValidationPipe';
 
 /**
  * Applique la configuration transverse de l'application (préfixe, versioning,
@@ -11,5 +12,5 @@ export function configureApp(app: NestFastifyApplication): void {
   app.setGlobalPrefix('api', { exclude: ['health'] });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(createValidationPipe());
 }
