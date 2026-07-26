@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Logger } from 'nestjs-pino';
 import { createValidationPipe } from '../interface/pipes/CreateValidationPipe';
+import { setupSwagger } from './SetupSwagger';
 
 /**
  * Applique la configuration transverse de l'application (préfixe, versioning,
@@ -34,4 +35,8 @@ export function configureApp(app: NestFastifyApplication): void {
     allowedHeaders: ['Content-Type', 'Authorization'],
     maxAge: 3600,
   });
+
+  if (configService.get<boolean>('SWAGGER_ENABLED', true)) {
+    setupSwagger(app);
+  }
 }
