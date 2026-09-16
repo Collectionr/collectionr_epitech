@@ -4,10 +4,8 @@
 const fs = require('fs');
 
 const TYPES = ['feat', 'fix', 'chore', 'docs', 'refactor', 'test', 'style', 'perf', 'build', 'ci', 'revert'];
-const TICKET_REQUIRED_TYPES = ['feat', 'fix', 'refactor', 'perf'];
 
 const HEADER_PATTERN = new RegExp(`^(${TYPES.join('|')})(\\([\\w.-]+\\))?: .+$`);
-const TICKET_SUFFIX_PATTERN = /\(COLLR-\d+\)$/;
 const BYPASS_PATTERN = /^(Merge |Revert ")/;
 
 const commitMsgFile = process.argv[2];
@@ -33,17 +31,8 @@ if (BYPASS_PATTERN.test(header)) {
 if (!HEADER_PATTERN.test(header)) {
   console.error(
     `Message de commit invalide : "${header}"\n` +
-      `Format attendu : type(scope): description en français, ex. "feat(backend): ajoute X (COLLR-123)"\n` +
+      `Format attendu : "type: description" ou "type(dossier): description""\n` +
       `Types autorisés : ${TYPES.join(', ')}`,
-  );
-  process.exit(1);
-}
-
-const type = header.match(HEADER_PATTERN)[1];
-if (TICKET_REQUIRED_TYPES.includes(type) && !TICKET_SUFFIX_PATTERN.test(header)) {
-  console.error(
-    `Message de commit invalide : "${header}"\n` +
-      `Les commits de type "${type}" doivent référencer un ticket Jira en suffixe, ex. "(COLLR-123)".`,
   );
   process.exit(1);
 }
