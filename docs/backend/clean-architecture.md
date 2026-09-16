@@ -149,3 +149,6 @@ export class PythonHttpPredictionAdapter implements AIPricePredictionService {
     }
 }
 ```
+
+
+TEST
