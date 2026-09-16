@@ -8,3 +8,6 @@ Contexte_Projet.md
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Outillage racine (Husky)
+/node_modules/
