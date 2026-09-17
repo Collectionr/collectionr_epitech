@@ -21,9 +21,9 @@ npm run test:e2e     # tests e2e (aucune infra requise : doublures)
 npm run build        # nest build
 ```
 
-```bash
-docker compose up -d   # à la racine : PostgreSQL + Redis locaux (cf. backend/.env.example)
-```
+**Première installation** : `npm install` doit être lancé **à la fois à la racine** (hooks Husky) **et dans `backend/`** (app). Détail des hooks : `.claude/contexts/project_state.md`.
+
+PostgreSQL/Redis ne sont **pas provisionnés par ce repo** — c'est l'équipe DevOps qui les fournit (local ou environnement partagé). Renseigner `DATABASE_URL`/`REDIS_URL` dans `backend/.env` en conséquence.
 
 ## Invariants absolus
 
@@ -39,8 +39,8 @@ docker compose up -d   # à la racine : PostgreSQL + Redis locaux (cf. backend/.
 
 ## Git / Jira
 
-- Projet Jira : **COLLR** (site collectionr.atlassian.net). Branches : `COLLR-xxx/feat/description`.
-- Commits : **français**, conventional commits, clé Jira en suffixe — ex. `feat(backend): ajoute X (COLLR-123)`.
+- Projet Jira : **COLLR** (site collectionr.atlassian.net). Branches : `COLLR-xxx/type/description` (format **imposé par un hook Husky `pre-commit`**, `main`/`dev` exemptées).
+- Commits : **français**, conventional commits — ex. `feat(backend): ajoute X (COLLR-123)`. Format vérifié par un hook Husky `commit-msg` (`type: description` ou `type(dossier): description`) ; la clé Jira en suffixe reste recommandée mais n'est plus imposée par le hook.
 - **Ne jamais push** — l'utilisateur push lui-même. PR avec revue 2 yeux minimum.
 
 ## Où chercher
