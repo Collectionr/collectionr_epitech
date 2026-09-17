@@ -7,16 +7,16 @@ import { createValidationPipe } from '../interface/pipes/CreateValidationPipe';
 import { setupSwagger } from './SetupSwagger';
 
 /**
- * Applique la configuration transverse de l'application (préfixe, versioning,
- * pipes globaux, sécurité HTTP, CORS). Partagée entre main.ts et les tests e2e
- * pour que les tests exercent exactement la configuration de production.
+ * Applies the application's cross-cutting configuration (prefix, versioning,
+ * global pipes, HTTP security, CORS). Shared between main.ts and the e2e tests
+ * so tests exercise exactly the production configuration.
  */
 export async function configureApp(app: NestFastifyApplication): Promise<void> {
   const configService = app.get(ConfigService);
-  const swaggerEnabled = configService.get<boolean>('SWAGGER_ENABLED', true);
+  const swaggerEnabled = configService.get<boolean>('SWAGGER_ENABLED', false);
 
-  // En-têtes de sécurité HTTP (Helmet). La CSP est assouplie uniquement quand
-  // Swagger UI est exposé, car son interface repose sur des scripts inline.
+  // HTTP security headers (Helmet). The CSP is relaxed only when
+  // Swagger UI is exposed, since its interface relies on inline scripts.
   await app.register(helmet, {
     contentSecurityPolicy: swaggerEnabled
       ? {
@@ -32,13 +32,13 @@ export async function configureApp(app: NestFastifyApplication): Promise<void> {
 
   app.useLogger(app.get(Logger));
 
-  // /health reste hors préfixe : il sert de cible aux probes K3s (Cloud & Cyber).
+  // /health stays outside the prefix: it's the target of K3s probes (Cloud & Cyber).
   app.setGlobalPrefix('api', { exclude: ['health'] });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   app.useGlobalPipes(createValidationPipe());
 
-  // Origines explicites uniquement (pas de wildcard), pilotées par CORS_ORIGINS.
+  // Explicit origins only (no wildcard), driven by CORS_ORIGINS.
   const corsOrigins = configService
     .get<string>('CORS_ORIGINS', 'http://localhost:5173')
     .split(',')

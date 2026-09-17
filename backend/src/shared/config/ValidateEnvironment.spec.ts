@@ -16,7 +16,7 @@ describe('validateEnvironment', () => {
     expect(environment.LOG_LEVEL).toBe(LogLevel.Info);
     expect(environment.THROTTLE_TTL).toBe(60);
     expect(environment.THROTTLE_LIMIT).toBe(100);
-    expect(environment.SWAGGER_ENABLED).toBe(true);
+    expect(environment.SWAGGER_ENABLED).toBe(false);
     expect(environment.CORS_ORIGINS).toBe('http://localhost:5173');
   });
 
@@ -26,13 +26,13 @@ describe('validateEnvironment', () => {
       PORT: '8080',
       THROTTLE_TTL: '30',
       THROTTLE_LIMIT: '50',
-      SWAGGER_ENABLED: 'false',
+      SWAGGER_ENABLED: 'true',
     });
 
     expect(environment.PORT).toBe(8080);
     expect(environment.THROTTLE_TTL).toBe(30);
     expect(environment.THROTTLE_LIMIT).toBe(50);
-    expect(environment.SWAGGER_ENABLED).toBe(false);
+    expect(environment.SWAGGER_ENABLED).toBe(true);
   });
 
   it('rejects a configuration without DATABASE_URL', () => {

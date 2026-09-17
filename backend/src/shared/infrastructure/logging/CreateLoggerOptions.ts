@@ -3,10 +3,10 @@ import type { Params } from 'nestjs-pino';
 import { NodeEnvironment } from '../../config/EnvironmentVariables';
 
 /**
- * Options du logger structuré (pino via nestjs-pino).
- * - JSON une ligne par événement en production/test (exploitable par Grafana/Loki)
- * - pino-pretty en développement pour la lisibilité
- * - redaction des en-têtes sensibles pour ne jamais loguer un token ou un cookie
+ * Structured logger options (pino via nestjs-pino).
+ * - One JSON line per event outside development (consumable by Grafana/Loki)
+ * - pino-pretty in development for readability
+ * - Redacts sensitive headers so a token or cookie is never logged
  */
 export function createLoggerOptions(configService: ConfigService): Params {
   const nodeEnvironment = configService.get<NodeEnvironment>(
@@ -19,7 +19,20 @@ export function createLoggerOptions(configService: ConfigService): Params {
     pinoHttp: {
       level: configService.get<string>('LOG_LEVEL', 'info'),
       redact: {
-        paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+        // req.body.* : safety net for future authentication endpoints.
+        // The default pino-http serializer doesn't log the body, so these paths
+        // are no-ops until some code explicitly logs a request with its payload.
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'res.headers["set-cookie"]',
+          'req.body.password',
+          'req.body.currentPassword',
+          'req.body.newPassword',
+          'req.body.token',
+          'req.body.accessToken',
+          'req.body.refreshToken',
+        ],
         censor: '[REDACTED]',
       },
       transport: isDevelopment

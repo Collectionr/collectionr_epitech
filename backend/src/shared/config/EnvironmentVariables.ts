@@ -62,5 +62,5 @@ export class EnvironmentVariables {
   THROTTLE_LIMIT: number = 100;
 
   @Transform(({ value }) => value === true || value === 'true')
-  SWAGGER_ENABLED: boolean = true;
+  SWAGGER_ENABLED: boolean = false;
 }
