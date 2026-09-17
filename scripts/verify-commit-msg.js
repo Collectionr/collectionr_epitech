@@ -2,10 +2,9 @@
 'use strict';
 
 const fs = require('fs');
+const { COMMIT_TYPES } = require('./constants');
 
-const TYPES = ['feat', 'fix', 'chore', 'docs', 'refactor', 'test', 'style', 'perf', 'build', 'ci', 'revert'];
-
-const HEADER_PATTERN = new RegExp(`^(${TYPES.join('|')})(\\([\\w.-]+\\))?: .+$`);
+const HEADER_PATTERN = new RegExp(`^(${COMMIT_TYPES.join('|')})(\\([\\w.-]+\\))?: .+$`);
 const BYPASS_PATTERN = /^(Merge |Revert ")/;
 
 const commitMsgFile = process.argv[2];
@@ -31,8 +30,8 @@ if (BYPASS_PATTERN.test(header)) {
 if (!HEADER_PATTERN.test(header)) {
   console.error(
     `Message de commit invalide : "${header}"\n` +
-      `Format attendu : "type: description" ou "type(dossier): description""\n` +
-      `Types autorisés : ${TYPES.join(', ')}`,
+      `Format attendu : "type: description" ou "type(dossier): description"\n` +
+      `Types autorisés : ${COMMIT_TYPES.join(', ')}`,
   );
   process.exit(1);
 }

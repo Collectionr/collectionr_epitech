@@ -1,1 +1,2 @@
+node scripts/verify-branch-name.js
 npx lint-staged --config backend/.lintstagedrc.json --cwd backend
