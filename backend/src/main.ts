@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -16,6 +17,12 @@ async function bootstrap(): Promise<void> {
   const port = configService.get<number>('PORT', 3000);
 
   await app.listen(port, '0.0.0.0');
+
+  Logger.log(`Application démarrée sur http://localhost:${port}/api/v1`, 'Bootstrap');
+  Logger.log(`Healthcheck disponible sur http://localhost:${port}/health`, 'Bootstrap');
+  if (configService.get<boolean>('SWAGGER_ENABLED', true)) {
+    Logger.log(`Documentation Swagger sur http://localhost:${port}/api/docs`, 'Bootstrap');
+  }
 }
 
 void bootstrap();
