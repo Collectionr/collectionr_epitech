@@ -6,5 +6,9 @@ Contexte_Projet.md
 
 # IDE
 .idea/
+.vs/
 .vscode/*
 !.vscode/extensions.json
+
+# Jupyter
+.ipynb_checkpoints/
