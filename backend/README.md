@@ -34,7 +34,7 @@ Le code métier est organisé sous `src/modules/<domaine>/`, chaque module respe
 
 ```
 src/
-├── shared/                  # code transverse (ex: PrismaService) partagé entre modules
+├── shared/                  # code transverse (ex: PrismaModule) partagé entre modules
 ├── modules/
 │   └── <domaine>/
 │       ├── domain/          # entités et règles métier — aucune dépendance externe

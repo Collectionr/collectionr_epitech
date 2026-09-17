@@ -6,7 +6,7 @@ Ce repo contient le backend (`backend/`) et la documentation d'équipe (`docs/`)
 ## Stack backend
 
 - NestJS 11 + **Fastify** · TypeScript strict (zéro `any`) · Node ≥ 24
-- PostgreSQL (client `pg` léger pour l'instant — **Prisma arrive avec COLLR-412**) · Redis (ioredis)
+- PostgreSQL via **Prisma 7** (`@prisma/client` + driver adapter `@prisma/adapter-pg`, cf. COLLR-437) · Redis (ioredis)
 - nestjs-pino (logs JSON) · @nestjs/throttler · @nestjs/swagger · @fastify/helmet
 - Jest (unit dans `src/`, e2e dans `test/`) · ESLint + Prettier
 

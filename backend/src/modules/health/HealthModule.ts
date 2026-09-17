@@ -2,16 +2,16 @@ import { Module } from '@nestjs/common';
 import { HealthController } from './interface/controllers/HealthController';
 import { GetHealthStatusUseCase } from './application/use-cases/GetHealthStatusUseCase';
 import { SystemClockService } from './infrastructure/services/SystemClockService';
-import { PostgresHealthIndicator } from './infrastructure/services/PostgresHealthIndicator';
+import { PrismaHealthIndicator } from './infrastructure/services/PrismaHealthIndicator';
 import { RedisHealthIndicator } from './infrastructure/services/RedisHealthIndicator';
 import { CLOCK_SERVICE } from './application/ports/IClockService';
 import { HEALTH_INDICATORS } from './application/ports/IHealthIndicator';
 import type { IHealthIndicator } from './application/ports/IHealthIndicator';
-import { PostgresModule } from '../../shared/infrastructure/database/PostgresModule';
+import { PrismaModule } from '../../shared/infrastructure/database/PrismaModule';
 import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
 
 @Module({
-  imports: [PostgresModule, RedisModule],
+  imports: [PrismaModule, RedisModule],
   controllers: [HealthController],
   providers: [
     GetHealthStatusUseCase,
@@ -19,13 +19,13 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
       provide: CLOCK_SERVICE,
       useClass: SystemClockService,
     },
-    PostgresHealthIndicator,
+    PrismaHealthIndicator,
     RedisHealthIndicator,
     {
       provide: HEALTH_INDICATORS,
-      inject: [PostgresHealthIndicator, RedisHealthIndicator],
+      inject: [PrismaHealthIndicator, RedisHealthIndicator],
       useFactory: (
-        database: PostgresHealthIndicator,
+        database: PrismaHealthIndicator,
         cache: RedisHealthIndicator,
       ): IHealthIndicator[] => [database, cache],
     },
