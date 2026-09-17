@@ -1,4 +1,4 @@
-// Limite basse injectée avant le chargement de l'AppModule pour rendre le test déterministe.
+// Low limit injected before AppModule loads, to make the test deterministic.
 process.env.THROTTLE_LIMIT = '3';
 process.env.THROTTLE_TTL = '60';
 

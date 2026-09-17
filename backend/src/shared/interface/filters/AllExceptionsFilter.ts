@@ -3,7 +3,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 /**
- * Format d'erreur standardisé renvoyé par toute l'API, quel que soit le domaine.
+ * Standardized error format returned by the whole API, regardless of domain.
  */
 export interface StandardErrorResponse {
   statusCode: number;
@@ -20,10 +20,10 @@ interface ResolvedError {
 }
 
 /**
- * Filtre d'exception global : convertit toute exception (HttpException ou
- * erreur inattendue) vers le format StandardErrorResponse. Les erreurs 5xx
- * sont loguées avec leur stack mais renvoient un message générique afin de
- * ne jamais exposer de détail interne au client.
+ * Global exception filter: converts any exception (HttpException or
+ * unexpected error) into the StandardErrorResponse format. 5xx errors
+ * are logged with their stack but return a generic message so no
+ * internal detail is ever exposed to the client.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

@@ -6,11 +6,11 @@ import { Redis } from 'ioredis';
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
 /**
- * Client Redis partagé (ioredis).
- * - lazyConnect : aucune connexion tant qu'aucune commande n'est émise
- * - enableOfflineQueue désactivé : les commandes échouent immédiatement si
- *   Redis est indisponible (le healthcheck reste rapide et fiable)
- * - reconnexion automatique en arrière-plan avec backoff plafonné
+ * Shared Redis client (ioredis).
+ * - lazyConnect: no connection until a command is issued
+ * - enableOfflineQueue disabled: commands fail immediately if
+ *   Redis is unavailable (the healthcheck stays fast and reliable)
+ * - automatic background reconnection with capped backoff
  */
 @Module({
   providers: [

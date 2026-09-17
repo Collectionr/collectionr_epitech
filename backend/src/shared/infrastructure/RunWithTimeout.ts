@@ -1,6 +1,6 @@
 /**
- * Exécute une promesse avec un délai maximal. Le timer est toujours nettoyé
- * pour ne pas laisser de handle ouvert (important pour Jest et l'arrêt propre).
+ * Runs a promise with a maximum delay. The timer is always cleared
+ * so no handle is left open (important for Jest and clean shutdown).
  */
 export async function runWithTimeout<T>(
   promise: Promise<T>,

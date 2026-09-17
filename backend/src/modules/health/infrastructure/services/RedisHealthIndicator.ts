@@ -15,7 +15,7 @@ export class RedisHealthIndicator implements IHealthIndicator {
     const startedAt = Date.now();
 
     try {
-      // Client en lazyConnect : on établit la connexion à la première vérification.
+      // Client is lazyConnect: the connection is established on the first check.
       if (this.redisClient.status === 'wait' || this.redisClient.status === 'end') {
         await runWithTimeout(this.redisClient.connect(), HEALTH_CHECK_TIMEOUT_MS, 'Redis');
       }

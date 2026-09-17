@@ -4,9 +4,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 export const SWAGGER_BEARER_AUTH_NAME = 'access-token';
 
 /**
- * Documentation OpenAPI de l'API Collectionr, exposée sur /api/docs
- * (spécification JSON sur /api/docs-json). Les tags reflètent les domaines
- * fonctionnels du produit ; chaque contrôleur s'y rattache via @ApiTags.
+ * OpenAPI documentation for the Collectionr API, exposed on /api/docs
+ * (JSON spec on /api/docs-json). Tags reflect the product's functional
+ * domains; each controller attaches to one via @ApiTags.
  */
 export function setupSwagger(app: NestFastifyApplication): void {
   const config = new DocumentBuilder()

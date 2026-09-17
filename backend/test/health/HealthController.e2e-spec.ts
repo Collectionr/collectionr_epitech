@@ -12,7 +12,7 @@ import { POSTGRES_POOL } from '../../src/shared/infrastructure/database/Postgres
 import { REDIS_CLIENT } from '../../src/shared/infrastructure/redis/RedisModule';
 import type { HealthResponseDto } from '../../src/modules/health/application/dtos/HealthResponseDto';
 
-// Doublures d'infrastructure : les indicateurs sont substitués, aucun client réel n'est créé.
+// Infrastructure test doubles: the indicators are substituted, no real client is created.
 const postgresPoolStub = { end: (): Promise<void> => Promise.resolve() };
 const redisClientStub = { disconnect: (): void => undefined };
 

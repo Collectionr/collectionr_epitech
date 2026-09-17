@@ -6,9 +6,9 @@ import { Pool } from 'pg';
 export const POSTGRES_POOL = 'POSTGRES_POOL';
 
 /**
- * Pool de connexions PostgreSQL minimal, dédié au socle applicatif (healthcheck).
- * L'outillage ORM complet (Prisma) est porté par la Feature COLLR-412 : ce pool
- * pourra alors être remplacé sans impacter les consommateurs du port.
+ * Minimal PostgreSQL connection pool, dedicated to the application core (healthcheck).
+ * Full ORM tooling (Prisma) is carried by Feature COLLR-412: this pool
+ * can then be replaced without impacting the port's consumers.
  */
 @Module({
   providers: [

@@ -14,9 +14,9 @@ import { HealthResponseDto } from '../../application/dtos/HealthResponseDto';
 export class HealthController {
   constructor(private readonly getHealthStatusUseCase: GetHealthStatusUseCase) {}
 
-  // Accès natif Fastify nécessaire (passthrough) : le code HTTP dépend de l'état
-  // agrégé — 200 si tout est up, 503 sinon — consommé par les probes K3s.
-  // La sérialisation de la réponse reste gérée par NestJS.
+  // Native Fastify access required (passthrough): the HTTP status depends on the
+  // aggregated state — 200 if everything is up, 503 otherwise — consumed by K3s probes.
+  // Response serialization stays handled by NestJS.
   @Get()
   @ApiOperation({ summary: "État de l'application et de ses dépendances (PostgreSQL, Redis)" })
   @ApiOkResponse({
