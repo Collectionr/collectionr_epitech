@@ -11,9 +11,7 @@
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",
-      "Bash(git branch*)",
-      "Bash(docker compose ps*)",
-      "Bash(docker compose logs*)"
+      "Bash(git branch*)"
     ]
   },
   "hooks": {

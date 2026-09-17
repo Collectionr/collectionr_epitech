@@ -6,9 +6,10 @@ API principale du projet Collectionr : NestJS (adaptateur Fastify), TypeScript, 
 
 ```bash
 npm install
-cp .env.example .env   # puis ajuster les valeurs (JWT_SECRET notamment)
-docker compose up -d   # PostgreSQL + Redis (depuis la racine du repo)
+cp .env.example .env   # puis ajuster les valeurs (JWT_SECRET, DATABASE_URL, REDIS_URL)
 ```
+
+PostgreSQL et Redis ne sont pas fournis par ce repo (provisionnement géré par l'équipe DevOps) : `DATABASE_URL`/`REDIS_URL` doivent pointer vers une instance déjà disponible.
 
 La configuration est validée au démarrage : l'application refuse de démarrer si une variable requise (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`) est absente ou invalide. La liste complète est documentée dans `.env.example`.
 
