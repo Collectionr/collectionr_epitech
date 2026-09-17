@@ -1,0 +1,16 @@
+fichier,duree_ms,vram_pic_go,retry,json_valide,raw,pred_name,pred_set_code,pred_set_number
+0aa7a160_original.png,6297.0,7.08,False,True,"```json {""name"": ""Octillery"", ""set_code"": ""TWMFR"", ""set_number"": ""050/130""} ```",Octillery,TWMFR,050/130
+2b6838d7_original.png,4669.8,7.08,False,True,"```json {""name"": ""Funécire"", ""set_code"": ""TWMFR"", ""set_number"": ""036/167""} ```",Funécire,TWMFR,036/167
+4ab29752_original.png,4301.1,7.08,False,True,"```json {""name"": ""Octillery"", ""set_code"": ""TG03"", ""set_number"": ""TG30""} ```",Octillery,TG03,TG30
+4af6727c_original.png,4620.5,7.08,False,True,"```json {""name"": ""Arcanin de Hisui"", ""set_code"": ""TWMFR"", ""set_number"": ""0059""} ```",Arcanin de Hisui,TWMFR,0059
+8f17caf4_cell_01.png,4267.8,7.01,False,True,"```json {""name"": ""Mimigal"", ""set_code"": ""TWMFR"", ""set_number"": ""004/157""} ```",Mimigal,TWMFR,004/157
+8f17caf4_cell_02.png,4194.8,7.01,False,True,"```json {""name"": ""Charpenti"", ""set_code"": ""TWMFR"", ""set_number"": ""103/167""} ```",Charpenti,TWMFR,103/167
+8f17caf4_cell_03.png,4323.9,7.01,False,True,"```json {""name"": ""Kadabra"", ""set_code"": ""TWMFR"", ""set_number"": ""081/167""} ```",Kadabra,TWMFR,081/167
+8f17caf4_cell_04.png,4412.2,7.01,False,True,"```json {""name"": ""Muciole"", ""set_code"": ""TWMFR"", ""set_number"": ""009/167""} ```",Muciole,TWMFR,009/167
+8f17caf4_cell_05.png,4309.0,7.01,False,True,"```json {""name"": ""Fantyrm"", ""set_code"": ""TWMFR"", ""set_number"": ""128/167""} ```",Fantyrm,TWMFR,128/167
+8f17caf4_cell_06.png,4268.8,7.01,False,True,"```json {""name"": ""Grenousse"", ""set_code"": ""TWMFR"", ""set_number"": ""056/167""} ```",Grenousse,TWMFR,056/167
+8f17caf4_cell_07.png,4218.1,7.01,False,True,"```json {""name"": ""Luxio"", ""set_code"": ""TWMFR"", ""set_number"": ""067/167""} ```",Luxio,TWMFR,067/167
+8f17caf4_cell_08.png,4403.9,7.01,False,True,"```json {""name"": ""Poissirène"", ""set_code"": ""TWMFR"", ""set_number"": ""044/167""} ```",Poissirène,TWMFR,044/167
+8f17caf4_cell_09.png,4396.7,7.01,False,True,"```json {""name"": ""Évoli"", ""set_code"": ""TWMFR"", ""set_number"": ""135/167""} ```",Évoli,TWMFR,135/167
+cdc2405a_original.png,4790.7,7.08,False,True,"```json {""name"": ""NoctaliVMAX"", ""set_code"": ""B15FR"", ""set_number"": ""095/203""} ```",NoctaliVMAX,B15FR,095/203
+f369c2f6_original.png,4609.1,7.08,False,True,"```json {""name"": ""Canarticho"", ""set_code"": ""TWMFR"", ""set_number"": ""132/167""} ```",Canarticho,TWMFR,132/167
