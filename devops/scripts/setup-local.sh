@@ -26,24 +26,17 @@ echo "OK - outils requis presents (curl, sudo, grep)."
 echo ""
 echo "=== 1. Mise a jour du systeme ==="
 sudo apt update
-sudo apt upgrade -y
-echo "OK - systeme a jour."
+echo "OK - liste des paquets mise a jour."
+echo "NOTE : la mise a jour complete (upgrade) n'est pas forcee par ce script."
+echo "       Lance 'sudo apt upgrade -y' toi-meme si tu le souhaites."
 
 echo ""
-echo "=== 2. Verification des ports 80 et 443 ==="
-echo "Traefik (inclus dans K3s) a besoin de ces ports libres."
-if sudo ss -tlnp 2>/dev/null | grep -qE ':80[[:space:]]'; then
-    echo "ATTENTION : le port 80 est deja utilise."
-    sudo ss -tlnp | grep ':80'
+echo "=== 2. Installation de K3s (embarque Traefik) ==="
+K3S_DEJA_ACTIF=false
+if sudo systemctl is-active --quiet k3s 2>/dev/null; then
+    K3S_DEJA_ACTIF=true
 fi
-if sudo ss -tlnp 2>/dev/null | grep -qE ':443[[:space:]]'; then
-    echo "ATTENTION : le port 443 est deja utilise."
-    sudo ss -tlnp | grep ':443'
-fi
-echo "Verification des ports terminee (les alertes n'arretent pas le script)."
 
-echo ""
-echo "=== 3. Installation de K3s (embarque Traefik) ==="
 if ! command -v k3s &> /dev/null; then
     echo "Installation de K3s..."
     curl -sfL https://get.k3s.io | sh -
@@ -53,7 +46,7 @@ else
 fi
 
 echo ""
-echo "=== 4. Verification de kubectl ==="
+echo "=== 3. Verification de kubectl ==="
 if ! command -v kubectl &> /dev/null; then
     echo "ERREUR : kubectl est introuvable apres installation de K3s."
     exit 1
@@ -61,13 +54,31 @@ fi
 echo "OK - kubectl disponible."
 
 echo ""
-echo "=== 5. Verification du service K3s ==="
+echo "=== 4. Verification du service K3s ==="
 if sudo systemctl is-active --quiet k3s; then
     echo "OK - K3s est demarre."
 else
     echo "ERREUR : K3s n'est pas demarre."
     sudo systemctl status k3s --no-pager
     exit 1
+fi
+
+echo ""
+echo "=== 5. Verification des ports 80 et 443 ==="
+if [ "$K3S_DEJA_ACTIF" = true ]; then
+    echo "K3s etait deja actif avant ce script : verification des ports ignoree"
+    echo "(Traefik les occupe normalement, c'est attendu)."
+else
+    echo "Traefik (inclus dans K3s) a besoin de ces ports libres."
+    if sudo ss -tlnp 2>/dev/null | grep -qE ':80[[:space:]]'; then
+        echo "ATTENTION : le port 80 est deja utilise par un autre programme."
+        sudo ss -tlnp | grep ':80'
+    fi
+    if sudo ss -tlnp 2>/dev/null | grep -qE ':443[[:space:]]'; then
+        echo "ATTENTION : le port 443 est deja utilise par un autre programme."
+        sudo ss -tlnp | grep ':443'
+    fi
+    echo "Verification terminee (les alertes n'arretent pas le script)."
 fi
 
 echo ""
@@ -91,18 +102,12 @@ echo "=== 7. Validation finale du cluster ==="
 echo "Attente de la disponibilite du noeud..."
 kubectl wait --for=condition=Ready node --all --timeout=60s
 
+echo "Attente de la disponibilite des pods systeme (hors jobs deja termines)..."
+kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=120s --field-selector=status.phase!=Succeeded
+
 echo ""
 echo "Etat des pods (tous namespaces) :"
 kubectl get pods -A
-
-NOT_RUNNING=$(kubectl get pods -A --no-headers 2>/dev/null | grep -v -E 'Running|Completed' || true)
-if [ -n "$NOT_RUNNING" ]; then
-    echo ""
-    echo "ATTENTION : certains pods ne sont pas Running/Completed :"
-    echo "$NOT_RUNNING"
-    echo "Attends 30 secondes a 1 minute puis relance : kubectl get pods -A"
-    exit 1
-fi
 
 echo ""
 echo "========================================="
