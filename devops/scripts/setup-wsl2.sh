@@ -41,6 +41,13 @@ sudo systemctl status k3s --no-pager
 
 echo "=== 5. Configuration propre du kubeconfig ==="
 mkdir -p ~/.kube
+
+if [ -f ~/.kube/config ]; then
+    echo "Un fichier kubeconfig existe déjà, sauvegarde en cours..."
+    cp ~/.kube/config ~/.kube/config.backup.$(date +%Y%m%d%H%M%S)
+    echo "Backup créé : ~/.kube/config.backup.$(date +%Y%m%d%H%M%S)"
+fi
+
 sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown "$USER":"$USER" ~/.kube/config
 
