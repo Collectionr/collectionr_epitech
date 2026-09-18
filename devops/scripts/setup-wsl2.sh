@@ -1,69 +1,128 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # setup-wsl2.sh
-# CollectionR — Installation K3s local sous WSL2 (Windows)
-# À exécuter DANS le terminal Ubuntu (WSL2), pas dans PowerShell.
+# CollectionR - Installation d'un cluster K3s local sous WSL2 (Windows)
+# A executer DANS le terminal Ubuntu (WSL2), pas dans PowerShell.
 #
-# Tu peux relancer ce script plusieurs fois sans problème :
-# il vérifie à chaque étape ce qui est déjà fait et ne le refait pas.
+# Ce script peut etre relance plusieurs fois sans probleme :
+# il verifie a chaque etape ce qui est deja fait et ne le refait pas.
 
-set -e  # arrête le script à la première erreur
+set -e
 
-echo "=== 1. Vérification de systemd ==="
+echo "========================================="
+echo "  CollectionR - Installation K3s / WSL2"
+echo "========================================="
+echo ""
+
+echo "=== 0. Verification des outils requis ==="
+for cmd in curl sudo grep; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "ERREUR : '$cmd' est introuvable sur ce poste."
+        echo "Installe-le avant de relancer ce script."
+        exit 1
+    fi
+done
+echo "OK - outils requis presents (curl, sudo, grep)."
+
+echo ""
+echo "=== 1. Verification de systemd ==="
 if ! grep -q "systemd=true" /etc/wsl.conf 2>/dev/null; then
-    echo "systemd non activé, écriture de /etc/wsl.conf..."
+    echo "systemd non active. Ecriture de /etc/wsl.conf..."
     sudo bash -c 'cat >> /etc/wsl.conf << EOF
 
 [boot]
 systemd=true
 EOF'
     echo ""
-    echo "⚠️  IMPORTANT : systemd vient d'être activé."
+    echo "IMPORTANT : systemd vient d'etre active."
     echo "    1. Ferme ce terminal."
     echo "    2. Dans PowerShell (Windows), tape : wsl --shutdown"
     echo "    3. Relance Ubuntu, puis relance ce script."
     exit 0
 else
-    echo "systemd déjà activé, on continue."
+    echo "OK - systemd deja active."
 fi
-
-echo "=== 2. Mise à jour du système ==="
-sudo apt update && sudo apt upgrade -y
-
-echo "=== 3. Installation de K3s ==="
-if ! command -v k3s &> /dev/null; then
-    curl -sfL https://get.k3s.io | sh -
-else
-    echo "K3s déjà installé, on passe."
-fi
-
-echo "=== 4. Vérification du service K3s ==="
-sudo systemctl status k3s --no-pager
-
-echo "=== 5. Configuration propre du kubeconfig ==="
-mkdir -p ~/.kube
-
-if [ -f ~/.kube/config ]; then
-    echo "Un fichier kubeconfig existe déjà, sauvegarde en cours..."
-    cp ~/.kube/config ~/.kube/config.backup.$(date +%Y%m%d%H%M%S)
-    echo "Backup créé : ~/.kube/config.backup.$(date +%Y%m%d%H%M%S)"
-fi
-
-sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-sudo chown "$USER":"$USER" ~/.kube/config
-
-echo "=== 6. Export KUBECONFIG permanent (idempotent) ==="
-if ! grep -q "export KUBECONFIG=~/.kube/config" ~/.bashrc; then
-    echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
-    echo "Ligne ajoutée à ~/.bashrc."
-else
-    echo "Déjà présent dans ~/.bashrc, rien à faire."
-fi
-export KUBECONFIG=~/.kube/config
-
-echo "=== 7. Vérification finale du cluster ==="
-kubectl get pods -A
 
 echo ""
-echo "✅ Installation terminée."
-echo "   Si des pods ne sont pas encore 'Running', attends 30s-1min et relance :"
-echo "   kubectl get pods -A"
+echo "=== 2. Mise a jour du systeme ==="
+sudo apt update
+sudo apt upgrade -y
+echo "OK - systeme a jour."
+
+echo ""
+echo "=== 3. Verification des ports 80 et 443 ==="
+echo "Traefik (inclus dans K3s) a besoin de ces ports libres."
+if sudo ss -tlnp 2>/dev/null | grep -qE ':80[[:space:]]'; then
+    echo "ATTENTION : le port 80 est deja utilise sur ce poste."
+    sudo ss -tlnp | grep ':80'
+    echo "Traefik risque de ne pas demarrer correctement."
+fi
+if sudo ss -tlnp 2>/dev/null | grep -qE ':443[[:space:]]'; then
+    echo "ATTENTION : le port 443 est deja utilise sur ce poste."
+    sudo ss -tlnp | grep ':443'
+    echo "Traefik risque de ne pas demarrer correctement."
+fi
+echo "Verification terminee (les alertes ci-dessus n'arretent pas le script)."
+
+echo ""
+echo "=== 4. Installation de K3s ==="
+if ! command -v k3s &> /dev/null; then
+    echo "Installation de K3s..."
+    curl -sfL https://get.k3s.io | sh -
+    echo "OK - K3s installe."
+else
+    echo "OK - K3s deja installe."
+fi
+
+echo ""
+echo "=== 5. Verification du service K3s ==="
+if sudo systemctl is-active --quiet k3s; then
+    echo "OK - K3s est demarre."
+else
+    echo "ERREUR : K3s n'est pas demarre."
+    sudo systemctl status k3s --no-pager
+    exit 1
+fi
+
+echo ""
+echo "=== 6. Configuration du kubeconfig ==="
+mkdir -p "$HOME/.kube"
+
+if [ -f "$HOME/.kube/config" ]; then
+    BACKUP_FILE="$HOME/.kube/config.backup.$(date +%Y%m%d%H%M%S)"
+    echo "Un fichier kubeconfig existe deja. Sauvegarde en cours..."
+    cp "$HOME/.kube/config" "$BACKUP_FILE"
+    echo "OK - backup cree : $BACKUP_FILE"
+fi
+
+sudo cp /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
+sudo chown "$USER":"$USER" "$HOME/.kube/config"
+chmod 600 "$HOME/.kube/config"
+echo "OK - kubeconfig configure et securise (droits 600)."
+
+echo ""
+echo "=== 7. Verification de kubectl ==="
+if ! command -v kubectl &> /dev/null; then
+    echo "ERREUR : kubectl est introuvable."
+    exit 1
+fi
+echo "OK - kubectl disponible."
+
+echo ""
+echo "=== 8. Validation finale du cluster ==="
+echo "Attente de la disponibilite du noeud..."
+kubectl wait --for=condition=Ready node --all --timeout=60s
+
+echo ""
+echo "Etat des pods systeme (Traefik, CoreDNS, Local-path-provisioner) :"
+kubectl get pods -n kube-system
+
+echo ""
+echo "========================================="
+echo "  Installation K3s terminee !"
+echo "========================================="
+echo ""
+echo "Si certains pods ne sont pas encore Running,"
+echo "attends 30 secondes a 1 minute puis relance :"
+echo ""
+echo "    kubectl get pods -n kube-system"
+echo ""
