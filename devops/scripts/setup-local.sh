@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# setup-wsl2.sh
-# CollectionR - Installation d'un cluster K3s local sous WSL2 (Windows)
-# A executer DANS le terminal Ubuntu (WSL2), pas dans PowerShell.
+# setup-local.sh
+# CollectionR - Installation d'un cluster K3s local sous Linux natif
+# A executer dans un terminal Linux (Ubuntu, Debian et derives).
 #
 # Ce script peut etre relance plusieurs fois sans probleme :
 # il verifie a chaque etape ce qui est deja fait et ne le refait pas.
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 echo "========================================="
-echo "  CollectionR - Installation K3s / WSL2"
+echo "  CollectionR - Installation K3s / Linux"
 echo "========================================="
 echo ""
 
@@ -24,33 +24,14 @@ done
 echo "OK - outils requis presents (curl, sudo, grep)."
 
 echo ""
-echo "=== 1. Verification de systemd ==="
-if ! grep -q "systemd=true" /etc/wsl.conf 2>/dev/null; then
-    echo "systemd non active. Ecriture de /etc/wsl.conf..."
-    sudo bash -c 'cat >> /etc/wsl.conf << EOF
-
-[boot]
-systemd=true
-EOF'
-    echo ""
-    echo "IMPORTANT : systemd vient d'etre active."
-    echo "    1. Ferme ce terminal."
-    echo "    2. Dans PowerShell (Windows), tape : wsl --shutdown"
-    echo "    3. Relance Ubuntu, puis relance ce script."
-    exit 0
-else
-    echo "OK - systemd deja active."
-fi
-
-echo ""
-echo "=== 2. Mise a jour du systeme ==="
+echo "=== 1. Mise a jour du systeme ==="
 sudo apt update
 echo "OK - liste des paquets mise a jour."
 echo "NOTE : la mise a jour complete (upgrade) n'est pas forcee par ce script."
 echo "       Lance 'sudo apt upgrade -y' toi-meme si tu le souhaites."
 
 echo ""
-echo "=== 3. Installation de K3s ==="
+echo "=== 2. Installation de K3s (embarque Traefik) ==="
 K3S_DEJA_ACTIF=false
 if sudo systemctl is-active --quiet k3s 2>/dev/null; then
     K3S_DEJA_ACTIF=true
@@ -65,7 +46,7 @@ else
 fi
 
 echo ""
-echo "=== 4. Verification de kubectl ==="
+echo "=== 3. Verification de kubectl ==="
 if ! command -v kubectl &> /dev/null; then
     echo "ERREUR : kubectl est introuvable apres installation de K3s."
     exit 1
@@ -73,7 +54,7 @@ fi
 echo "OK - kubectl disponible."
 
 echo ""
-echo "=== 5. Verification du service K3s ==="
+echo "=== 4. Verification du service K3s ==="
 if sudo systemctl is-active --quiet k3s; then
     echo "OK - K3s est demarre."
 else
@@ -83,41 +64,25 @@ else
 fi
 
 echo ""
-echo "=== 6. Verification des ports 80 et 443 ==="
+echo "=== 5. Verification des ports 80 et 443 ==="
 if [ "$K3S_DEJA_ACTIF" = true ]; then
     echo "K3s etait deja actif avant ce script : verification des ports ignoree"
     echo "(Traefik les occupe normalement, c'est attendu)."
 else
     echo "Traefik (inclus dans K3s) a besoin de ces ports libres."
     if sudo ss -tlnp 2>/dev/null | grep -qE ':80[[:space:]]'; then
-        echo "ATTENTION : le port 80 est deja utilise dans WSL2."
+        echo "ATTENTION : le port 80 est deja utilise par un autre programme."
         sudo ss -tlnp | grep ':80'
     fi
     if sudo ss -tlnp 2>/dev/null | grep -qE ':443[[:space:]]'; then
-        echo "ATTENTION : le port 443 est deja utilise dans WSL2."
+        echo "ATTENTION : le port 443 est deja utilise par un autre programme."
         sudo ss -tlnp | grep ':443'
     fi
-
-    if command -v powershell.exe &> /dev/null; then
-        echo ""
-        echo "Verification des ports cote Windows..."
-        WIN_PORT_80=$(powershell.exe -Command "Get-NetTCPConnection -LocalPort 80 -ErrorAction SilentlyContinue" 2>/dev/null || true)
-        WIN_PORT_443=$(powershell.exe -Command "Get-NetTCPConnection -LocalPort 443 -ErrorAction SilentlyContinue" 2>/dev/null || true)
-        if [ -n "$WIN_PORT_80" ]; then
-            echo "ATTENTION : le port 80 est deja utilise cote Windows."
-            echo "Traefik risque d'etre inaccessible depuis le navigateur Windows (IIS, Skype, Docker Desktop...)."
-        fi
-        if [ -n "$WIN_PORT_443" ]; then
-            echo "ATTENTION : le port 443 est deja utilise cote Windows."
-        fi
-    else
-        echo "(powershell.exe non trouve, verification cote Windows ignoree)"
-    fi
-    echo "Verification des ports terminee (les alertes n'arretent pas le script)."
+    echo "Verification terminee (les alertes n'arretent pas le script)."
 fi
 
 echo ""
-echo "=== 7. Configuration du kubeconfig ==="
+echo "=== 6. Configuration du kubeconfig ==="
 mkdir -p "$HOME/.kube"
 
 if [ -f "$HOME/.kube/config" ]; then
@@ -133,7 +98,7 @@ chmod 600 "$HOME/.kube/config"
 echo "OK - kubeconfig configure et securise (droits 600)."
 
 echo ""
-echo "=== 8. Validation finale du cluster ==="
+echo "=== 7. Validation finale du cluster ==="
 echo "Attente de la disponibilite du noeud..."
 kubectl wait --for=condition=Ready node --all --timeout=60s
 
@@ -141,11 +106,11 @@ echo "Attente de la disponibilite des pods systeme (hors jobs deja termines)..."
 kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=120s --field-selector=status.phase!=Succeeded
 
 echo ""
-echo "Etat des pods systeme (Traefik, CoreDNS, Local-path-provisioner) :"
-kubectl get pods -n kube-system
+echo "Etat des pods (tous namespaces) :"
+kubectl get pods -A
 
 echo ""
 echo "========================================="
-echo "  Installation K3s terminee !"
+echo "  K3s + Traefik operationnels !"
 echo "========================================="
 echo ""
