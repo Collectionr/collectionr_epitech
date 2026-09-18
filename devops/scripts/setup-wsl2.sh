@@ -49,19 +49,33 @@ sudo apt upgrade -y
 echo "OK - systeme a jour."
 
 echo ""
-echo "=== 3. Verification des ports 80 et 443 ==="
+echo "=== 3. Verification des ports 80 et 443 (cote WSL2) ==="
 echo "Traefik (inclus dans K3s) a besoin de ces ports libres."
 if sudo ss -tlnp 2>/dev/null | grep -qE ':80[[:space:]]'; then
-    echo "ATTENTION : le port 80 est deja utilise sur ce poste."
+    echo "ATTENTION : le port 80 est deja utilise dans WSL2."
     sudo ss -tlnp | grep ':80'
-    echo "Traefik risque de ne pas demarrer correctement."
 fi
 if sudo ss -tlnp 2>/dev/null | grep -qE ':443[[:space:]]'; then
-    echo "ATTENTION : le port 443 est deja utilise sur ce poste."
+    echo "ATTENTION : le port 443 est deja utilise dans WSL2."
     sudo ss -tlnp | grep ':443'
-    echo "Traefik risque de ne pas demarrer correctement."
 fi
-echo "Verification terminee (les alertes ci-dessus n'arretent pas le script)."
+
+if command -v powershell.exe &> /dev/null; then
+    echo ""
+    echo "=== 3bis. Verification des ports 80 et 443 (cote Windows) ==="
+    WIN_PORT_80=$(powershell.exe -Command "Get-NetTCPConnection -LocalPort 80 -ErrorAction SilentlyContinue" 2>/dev/null || true)
+    WIN_PORT_443=$(powershell.exe -Command "Get-NetTCPConnection -LocalPort 443 -ErrorAction SilentlyContinue" 2>/dev/null || true)
+    if [ -n "$WIN_PORT_80" ]; then
+        echo "ATTENTION : le port 80 est deja utilise cote Windows."
+        echo "Traefik risque d'etre inaccessible depuis le navigateur Windows (IIS, Skype, Docker Desktop...)."
+    fi
+    if [ -n "$WIN_PORT_443" ]; then
+        echo "ATTENTION : le port 443 est deja utilise cote Windows."
+    fi
+else
+    echo "(powershell.exe non trouve, verification cote Windows ignoree)"
+fi
+echo "Verification des ports terminee (les alertes n'arretent pas le script)."
 
 echo ""
 echo "=== 4. Installation de K3s ==="
@@ -74,7 +88,15 @@ else
 fi
 
 echo ""
-echo "=== 5. Verification du service K3s ==="
+echo "=== 5. Verification de kubectl ==="
+if ! command -v kubectl &> /dev/null; then
+    echo "ERREUR : kubectl est introuvable apres installation de K3s."
+    exit 1
+fi
+echo "OK - kubectl disponible."
+
+echo ""
+echo "=== 6. Verification du service K3s ==="
 if sudo systemctl is-active --quiet k3s; then
     echo "OK - K3s est demarre."
 else
@@ -84,7 +106,7 @@ else
 fi
 
 echo ""
-echo "=== 6. Configuration du kubeconfig ==="
+echo "=== 7. Configuration du kubeconfig ==="
 mkdir -p "$HOME/.kube"
 
 if [ -f "$HOME/.kube/config" ]; then
@@ -98,14 +120,6 @@ sudo cp /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
 sudo chown "$USER":"$USER" "$HOME/.kube/config"
 chmod 600 "$HOME/.kube/config"
 echo "OK - kubeconfig configure et securise (droits 600)."
-
-echo ""
-echo "=== 7. Verification de kubectl ==="
-if ! command -v kubectl &> /dev/null; then
-    echo "ERREUR : kubectl est introuvable."
-    exit 1
-fi
-echo "OK - kubectl disponible."
 
 echo ""
 echo "=== 8. Validation finale du cluster ==="
