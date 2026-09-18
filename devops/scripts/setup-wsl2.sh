@@ -3,7 +3,7 @@
 # CollectionR — Installation K3s local sous WSL2 (Windows)
 # À exécuter DANS le terminal Ubuntu (WSL2), pas dans PowerShell.
 #
-# Ce script est idempotent : tu peux le relancer plusieurs fois sans dupliquer
+# Tu peux relancer ce script plusieurs fois sans problème :
 # il vérifie à chaque étape ce qui est déjà fait et ne le refait pas.
 
 set -e  # arrête le script à la première erreur
