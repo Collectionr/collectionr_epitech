@@ -96,7 +96,7 @@ open -a "Rancher Desktop"
 echo "Attente du demarrage de l'application (jusqu'a 10 minutes, plus long au premier lancement)..."
 ATTEMPTS=0
 MAX_ATTEMPTS=120
-until rdctl version &> /dev/null; do
+until rdctl list-settings &> /dev/null; do
     ATTEMPTS=$((ATTEMPTS + 1))
     if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
         echo "ERREUR : Rancher Desktop n'a pas demarre a temps (10 minutes ecoulees)."
@@ -141,9 +141,26 @@ echo "OK - kubectl disponible."
 
 echo ""
 echo "=== 7. Validation finale du cluster ==="
-echo "Attente de la disponibilite du noeud (jusqu'a 5 minutes, plus long au premier lancement"
-echo "car les images K3s sont en cours de telechargement)..."
-kubectl wait --for=condition=Ready node --all --timeout=300s
+echo "Attente de la disponibilite de l'API Kubernetes (jusqu'a 5 minutes)..."
+echo "(l'API peut refuser la connexion quelques instants juste apres l'activation, c'est normal)"
+
+API_READY=false
+API_ATTEMPTS=0
+API_MAX_ATTEMPTS=60
+until [ "$API_READY" = true ]; do
+    if kubectl wait --for=condition=Ready node --all --timeout=5s &> /dev/null; then
+        API_READY=true
+    else
+        API_ATTEMPTS=$((API_ATTEMPTS + 1))
+        if [ "$API_ATTEMPTS" -ge "$API_MAX_ATTEMPTS" ]; then
+            echo "ERREUR : l'API Kubernetes ne repond toujours pas apres 5 minutes."
+            echo "Verifie l'etat de Rancher Desktop, puis relance ce script."
+            exit 1
+        fi
+        sleep 5
+    fi
+done
+echo "OK - noeud pret, API Kubernetes disponible."
 
 echo ""
 echo "Etat des pods (tous namespaces) :"
