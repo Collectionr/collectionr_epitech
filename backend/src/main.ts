@@ -1,20 +1,28 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
+import { configureApp } from './shared/bootstrap/ConfigureApp';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
+    bufferLogs: true,
+  });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  await configureApp(app);
 
   const configService = app.get(ConfigService);
-  const portEnv = configService.get<string>('PORT');
-  const port = portEnv ? Number(portEnv) : 3000;
+  const port = configService.get<number>('PORT', 3000);
 
   await app.listen(port, '0.0.0.0');
+
+  Logger.log(`Application started at http://localhost:${port}/api/v1`, 'Bootstrap');
+  Logger.log(`Healthcheck available at http://localhost:${port}/health`, 'Bootstrap');
+  if (configService.get<boolean>('SWAGGER_ENABLED', false)) {
+    Logger.log(`Swagger documentation at http://localhost:${port}/api/docs`, 'Bootstrap');
+  }
 }
 
 void bootstrap();

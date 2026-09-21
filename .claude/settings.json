@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run lint*)",
+      "Bash(npm run format*)",
+      "Bash(npm test*)",
+      "Bash(npm run test*)",
+      "Bash(npm run build*)",
+      "Bash(npx tsc*)",
+      "Bash(npx jest*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LAST=$(git log -1 --format=%H -- .claude CLAUDE.md AGENTS.md 2>/dev/null); if [ -n \"$LAST\" ]; then N=$(git diff --name-only \"$LAST\"..HEAD -- backend/src backend/test 2>/dev/null | wc -l | tr -d ' '); if [ \"$N\" -gt 5 ]; then echo \"{\\\"systemMessage\\\": \\\"$N fichier(s) de backend/src|test modifié(s) depuis la dernière mise à jour de .claude/ — lance /sync-claude si des conventions ou l'état projet ont évolué.\\\"}\"; fi; fi",
+            "timeout": 15,
+            "statusMessage": "Vérifie la fraîcheur de .claude/"
+          }
+        ]
+      }
+    ]
+  }
+}
