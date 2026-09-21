@@ -8,12 +8,12 @@ import { configureApp } from '../../src/shared/bootstrap/ConfigureApp';
 import { HEALTH_INDICATORS } from '../../src/modules/health/application/ports/IHealthIndicator';
 import type { IHealthIndicator } from '../../src/modules/health/application/ports/IHealthIndicator';
 import { DependencyHealth } from '../../src/modules/health/domain/entities/HealthStatus';
-import { POSTGRES_POOL } from '../../src/shared/infrastructure/database/PostgresModule';
+import { PRISMA_CLIENT } from '../../src/shared/infrastructure/database/PrismaModule';
 import { REDIS_CLIENT } from '../../src/shared/infrastructure/redis/RedisModule';
 import type { HealthResponseDto } from '../../src/modules/health/application/dtos/HealthResponseDto';
 
 // Infrastructure test doubles: the indicators are substituted, no real client is created.
-const postgresPoolStub = { end: (): Promise<void> => Promise.resolve() };
+const prismaClientStub = { $disconnect: (): Promise<void> => Promise.resolve() };
 const redisClientStub = { disconnect: (): void => undefined };
 
 function buildIndicator(dependency: DependencyHealth): IHealthIndicator {
@@ -26,8 +26,8 @@ async function buildApp(indicators: IHealthIndicator[]): Promise<NestFastifyAppl
   })
     .overrideProvider(HEALTH_INDICATORS)
     .useValue(indicators)
-    .overrideProvider(POSTGRES_POOL)
-    .useValue(postgresPoolStub)
+    .overrideProvider(PRISMA_CLIENT)
+    .useValue(prismaClientStub)
     .overrideProvider(REDIS_CLIENT)
     .useValue(redisClientStub)
     .compile();

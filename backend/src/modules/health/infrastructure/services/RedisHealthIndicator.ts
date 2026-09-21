@@ -4,8 +4,7 @@ import { DependencyHealth } from '../../domain/entities/HealthStatus';
 import type { IHealthIndicator } from '../../application/ports/IHealthIndicator';
 import { REDIS_CLIENT } from '../../../../shared/infrastructure/redis/RedisModule';
 import { runWithTimeout } from '../../../../shared/infrastructure/RunWithTimeout';
-
-const HEALTH_CHECK_TIMEOUT_MS = 2000;
+import { HEALTH_CHECK_TIMEOUT_MS } from '../../../../shared/config/AppConstants';
 
 @Injectable()
 export class RedisHealthIndicator implements IHealthIndicator {

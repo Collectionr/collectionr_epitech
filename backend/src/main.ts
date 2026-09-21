@@ -12,6 +12,7 @@ async function bootstrap(): Promise<void> {
   });
 
   await configureApp(app);
+  app.enableShutdownHooks();
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);

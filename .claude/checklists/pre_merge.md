@@ -13,6 +13,7 @@ Contenu :
 
 - [ ] Fichiers en PascalCase, logique métier hors des controllers, domaine sans import framework
 - [ ] Nouvelle variable d'env → ajoutée dans `EnvironmentVariables.ts` **et** `.env.example` (jamais de secret réel commité)
+- [ ] Aucun nombre magique de config (timeout, pool, limite…) en dur : variable d'env si ça varie par environnement, sinon constante nommée dans `src/shared/config/`
 - [ ] Nouvelle route → `@ApiTags` + décorateurs de réponse Swagger, DTO validés class-validator
 - [ ] Erreurs levées via `HttpException` (le filtre global formate) — pas de try/catch qui avale
 - [ ] Tests unitaires pour la logique ajoutée, e2e si nouveau endpoint

@@ -32,6 +32,12 @@ export class EnvironmentVariables {
   })
   DATABASE_URL!: string;
 
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  DATABASE_POOL_MAX: number = 5;
+
   @IsString()
   @Matches(/^rediss?:\/\/.+/, {
     message: 'REDIS_URL must be a Redis connection URL (redis://...)',
