@@ -18,17 +18,17 @@ import type { StandardErrorResponse } from '../../src/shared/interface/filters/A
 class BoomTestController {
   @Get('http')
   throwHttp(): never {
-    throw new NotFoundException('Ressource introuvable');
+    throw new NotFoundException('Resource not found');
   }
 
   @Get('internal')
   throwInternal(): never {
-    throw new Error('detail interne sensible');
+    throw new Error('internal secret detail');
   }
 
   @Get('unavailable')
   throwUnavailable(): never {
-    throw new ServiceUnavailableException('detail 503 sensible');
+    throw new ServiceUnavailableException('internal secret detail (503)');
   }
 }
 
@@ -61,19 +61,19 @@ describe('AllExceptionsFilter (e2e)', () => {
     expect(body).toMatchObject({
       statusCode: 404,
       error: 'Not Found',
-      message: 'Ressource introuvable',
+      message: 'Resource not found',
       path: '/api/v1/boom/http',
     });
     expect(typeof body.timestamp).toBe('string');
   });
 
   it('returns validation errors using the standard error format', async () => {
-    const response = await request(app.getHttpServer()).get('/api/v1/inconnu');
+    const response = await request(app.getHttpServer()).get('/api/v1/unknown');
     const body = response.body as StandardErrorResponse;
 
     expect(response.status).toBe(404);
     expect(body.statusCode).toBe(404);
-    expect(body.path).toBe('/api/v1/inconnu');
+    expect(body.path).toBe('/api/v1/unknown');
   });
 
   it('masks internal errors behind a generic 500 message', async () => {
@@ -84,9 +84,9 @@ describe('AllExceptionsFilter (e2e)', () => {
     expect(body).toMatchObject({
       statusCode: 500,
       error: 'Internal Server Error',
-      message: 'Une erreur interne est survenue',
+      message: 'An internal error occurred',
     });
-    expect(JSON.stringify(body)).not.toContain('sensible');
+    expect(JSON.stringify(body)).not.toContain('secret');
   });
 
   it('masks the message of an HttpException with a 5xx status', async () => {
@@ -97,9 +97,9 @@ describe('AllExceptionsFilter (e2e)', () => {
     expect(body).toMatchObject({
       statusCode: 503,
       error: 'Service Unavailable',
-      message: 'Une erreur interne est survenue',
+      message: 'An internal error occurred',
       path: '/api/v1/boom/unavailable',
     });
-    expect(JSON.stringify(body)).not.toContain('sensible');
+    expect(JSON.stringify(body)).not.toContain('secret');
   });
 });

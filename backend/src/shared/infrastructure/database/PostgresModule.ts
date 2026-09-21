@@ -22,7 +22,7 @@ export const POSTGRES_POOL = 'POSTGRES_POOL';
           max: 5,
           connectionTimeoutMillis: 2000,
         });
-        pool.on('error', (error) => logger.error(`Erreur du pool PostgreSQL : ${error.message}`));
+        pool.on('error', (error) => logger.error(`PostgreSQL pool error: ${error.message}`));
         return pool;
       },
     },

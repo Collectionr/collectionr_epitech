@@ -53,7 +53,7 @@ describe('Swagger (e2e)', () => {
 
     const tagNames = document.tags.map((tag) => tag.name);
     expect(tagNames).toEqual(
-      expect.arrayContaining(['Auth', 'Collections', 'Cartes', 'Scan', 'Health']),
+      expect.arrayContaining(['Auth', 'Collections', 'Cards', 'Scan', 'Health']),
     );
 
     expect(Object.keys(document.paths)).toContain('/health');

@@ -37,7 +37,7 @@ Toute la configuration d'app (préfixe, versioning, pipes, CORS, Helmet, Swagger
 
 ## ADR-006 — Format d'erreur API unique
 
-`AllExceptionsFilter` (global, via `APP_FILTER`) renvoie toujours `{ statusCode, error, message, timestamp, path }`. Toute erreur 5xx — non-HTTP **ou** `HttpException` de statut ≥ 500 (ex. `ServiceUnavailableException`) — renvoie un corps générique (`error` = libellé HTTP standard, `message` = « Une erreur interne est survenue »). Le vrai message et la stack ne sont que dans les logs serveur. Les 4xx conservent leur message (utile au client).
+`AllExceptionsFilter` (global, via `APP_FILTER`) renvoie toujours `{ statusCode, error, message, timestamp, path }`. Toute erreur 5xx — non-HTTP **ou** `HttpException` de statut ≥ 500 (ex. `ServiceUnavailableException`) — renvoie un corps générique (`error` = libellé HTTP standard, `message` = « An internal error occurred »). Le vrai message et la stack ne sont que dans les logs serveur. Les 4xx conservent leur message (utile au client).
 **Raison** : contrat stable pour le frontend quel que soit le domaine ; aucune fuite de détail interne (retour de review PR COLLR-411 : une `HttpException` 5xx renvoyait auparavant son message tel quel) ; les erreurs du ValidationPipe (tableau `message[]`) sont préservées.
 
 ## ADR-007 — Logs JSON via nestjs-pino

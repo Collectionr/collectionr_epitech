@@ -4,7 +4,7 @@ import { LogLevel, NodeEnvironment } from './EnvironmentVariables';
 const validConfig = {
   DATABASE_URL: 'postgresql://user:password@localhost:5432/collectionr',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_SECRET: 'une-clef-secrete-de-test-suffisamment-longue',
+  JWT_SECRET: 'a-test-secret-key-that-is-long-enough',
 };
 
 describe('validateEnvironment', () => {
@@ -50,7 +50,7 @@ describe('validateEnvironment', () => {
   });
 
   it('rejects a JWT_SECRET that is too short', () => {
-    expect(() => validateEnvironment({ ...validConfig, JWT_SECRET: 'trop-court' })).toThrow(
+    expect(() => validateEnvironment({ ...validConfig, JWT_SECRET: 'too-short' })).toThrow(
       /JWT_SECRET/,
     );
   });

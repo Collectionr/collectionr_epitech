@@ -25,7 +25,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
           maxRetriesPerRequest: 1,
           retryStrategy: (times) => Math.min(times * 200, 2000),
         });
-        client.on('error', (error) => logger.warn(`Connexion Redis en erreur : ${error.message}`));
+        client.on('error', (error) => logger.warn(`Redis connection error: ${error.message}`));
         return client;
       },
     },

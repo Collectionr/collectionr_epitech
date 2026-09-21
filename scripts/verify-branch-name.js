@@ -14,9 +14,9 @@ if (EXEMPT_BRANCHES.includes(branch) || branch === 'HEAD') {
 
 if (!BRANCH_PATTERN.test(branch)) {
   console.error(
-    `Nom de branche invalide : "${branch}"\n` +
-      `Format attendu : COLLR-xxx/type/description, ex. "COLLR-591/feat/hooks-husky"\n` +
-      `Types autorisés : ${COMMIT_TYPES.join(', ')}`,
+    `Invalid branch name: "${branch}"\n` +
+      `Expected format: COLLR-xxx/type/description, e.g. "COLLR-591/feat/hooks-husky"\n` +
+      `Allowed types: ${COMMIT_TYPES.join(', ')}`,
   );
   process.exit(1);
 }

@@ -12,8 +12,8 @@ export function setupSwagger(app: NestFastifyApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Collectionr API')
     .setDescription(
-      'API principale de Collectionr — boîte à outils du collectionneur de cartes TCG : ' +
-        'authentification, collections personnelles, catalogue de cartes et scan IA.',
+      'Main Collectionr API — the TCG card collector toolbox: ' +
+        'authentication, personal collections, card catalog and AI scanning.',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -21,15 +21,15 @@ export function setupSwagger(app: NestFastifyApplication): void {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: "Jeton d'accès JWT obtenu via les endpoints d'authentification",
+        description: 'JWT access token obtained from the authentication endpoints',
       },
       SWAGGER_BEARER_AUTH_NAME,
     )
-    .addTag('Auth', 'Authentification et gestion de session')
-    .addTag('Collections', 'Gestion des collections personnelles')
-    .addTag('Cartes', 'Catalogue et recherche de cartes TCG')
-    .addTag('Scan', 'Scan IA de cartes (unitaire et par lot)')
-    .addTag('Health', 'Supervision et état des dépendances')
+    .addTag('Auth', 'Authentication and session management')
+    .addTag('Collections', 'Personal collection management')
+    .addTag('Cards', 'TCG card catalog and search')
+    .addTag('Scan', 'AI card scanning (single and batch)')
+    .addTag('Health', 'Monitoring and dependency status')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

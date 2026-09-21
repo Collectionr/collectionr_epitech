@@ -3,7 +3,7 @@ import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-const INTERNAL_ERROR_MESSAGE = 'Une erreur interne est survenue';
+const INTERNAL_ERROR_MESSAGE = 'An internal error occurred';
 const FIRST_SERVER_ERROR_STATUS = 500;
 
 /**
@@ -48,7 +48,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const detail = exception instanceof Error ? exception.message : String(exception);
       const stack = exception instanceof Error ? exception.stack : undefined;
       this.logger.error(
-        `Exception non gérée sur ${request.method} ${request.url} : ${detail}`,
+        `Unhandled exception on ${request.method} ${request.url}: ${detail}`,
         stack,
       );
     }

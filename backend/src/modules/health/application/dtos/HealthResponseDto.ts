@@ -6,13 +6,13 @@ import type {
 } from '../../domain/entities/HealthStatus';
 
 export class DependencyHealthDto {
-  @ApiProperty({ example: 'database', description: 'Nom de la dépendance vérifiée' })
+  @ApiProperty({ example: 'database', description: 'Name of the checked dependency' })
   name!: string;
 
   @ApiProperty({ enum: ['up', 'down'], example: 'up' })
   status!: DependencyState;
 
-  @ApiProperty({ nullable: true, example: 12, description: 'Latence de la vérification en ms' })
+  @ApiProperty({ nullable: true, example: 12, description: 'Check latency in ms' })
   latencyMs!: number | null;
 }
 

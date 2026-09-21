@@ -20,7 +20,7 @@ export function validateEnvironment(config: Record<string, unknown>): Environmen
 
   if (errors.length > 0) {
     const details = errors.map(formatValidationError).join('\n');
-    throw new Error(`Variables d'environnement invalides, démarrage refusé :\n${details}`);
+    throw new Error(`Invalid environment variables, startup refused:\n${details}`);
   }
 
   return environment;
