@@ -4,8 +4,7 @@ import { DependencyHealth } from '../../domain/entities/HealthStatus';
 import type { IHealthIndicator } from '../../application/ports/IHealthIndicator';
 import { PRISMA_CLIENT } from '../../../../shared/infrastructure/database/PrismaModule';
 import { runWithTimeout } from '../../../../shared/infrastructure/RunWithTimeout';
-
-const HEALTH_CHECK_TIMEOUT_MS = 2000;
+import { HEALTH_CHECK_TIMEOUT_MS } from '../../../../shared/config/AppConstants';
 
 @Injectable()
 export class PrismaHealthIndicator implements IHealthIndicator {

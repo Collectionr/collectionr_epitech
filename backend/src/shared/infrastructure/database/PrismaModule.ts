@@ -1,8 +1,9 @@
-import { Inject, Module } from '@nestjs/common';
+import { Inject, Logger, Module } from '@nestjs/common';
 import type { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../../generated/prisma/client.js';
+import { DATABASE_CONNECTION_TIMEOUT_MS } from '../../config/AppConstants';
 
 export const PRISMA_CLIENT = 'PRISMA_CLIENT';
 
@@ -17,9 +18,15 @@ export const PRISMA_CLIENT = 'PRISMA_CLIENT';
       provide: PRISMA_CLIENT,
       inject: [ConfigService],
       useFactory: (configService: ConfigService): PrismaClient => {
-        const adapter = new PrismaPg({
-          connectionString: configService.get<string>('DATABASE_URL'),
-        });
+        const logger = new Logger('PrismaPool');
+        const adapter = new PrismaPg(
+          {
+            connectionString: configService.get<string>('DATABASE_URL'),
+            max: configService.get<number>('DATABASE_POOL_MAX', 5),
+            connectionTimeoutMillis: DATABASE_CONNECTION_TIMEOUT_MS,
+          },
+          { onPoolError: (error) => logger.error(`PostgreSQL pool error: ${error.message}`) },
+        );
         return new PrismaClient({ adapter });
       },
     },

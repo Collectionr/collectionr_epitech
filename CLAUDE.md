@@ -34,6 +34,7 @@ PostgreSQL/Redis ne sont **pas provisionnés par ce repo** — c'est l'équipe D
 - **Toute config transverse passe par `src/shared/bootstrap/ConfigureApp.ts`** (préfixe `/api/v1`, ValidationPipe, CORS, Helmet, Swagger). Ne jamais dupliquer dans un module — un nouveau endpoint hérite du socle automatiquement.
 - **Format d'erreur API unique** : `{ statusCode, error, message, timestamp, path }` (filtre global `AllExceptionsFilter`). Les 5xx sont génériques côté client, stack loguée côté serveur.
 - **Variables d'environnement** : déclarées + validées dans `src/shared/config/EnvironmentVariables.ts`, documentées dans `backend/.env.example` (source de vérité). Nouvelle variable = les deux fichiers + un défaut sûr.
+- **Valeurs de config non secrètes** : jamais de nombre magique (timeout, taille de pool, limite…) en dur dans un module. Ce qui varie selon l'environnement → variable d'env (`EnvironmentVariables.ts` + `.env.example`, défaut sûr) ; ce qui est fixe → constante nommée dans `src/shared/config/AppConstants.ts` si elle est partagée entre modules (à scinder en `XxxConstants.ts` seulement si le fichier devient trop gros) ; une constante utile à un seul module reste dans ce module (`infrastructure/` ou `domain/`).
 - **Tests** : un `.spec.ts` à côté du code pour la logique, e2e sans infra réelle (doublures via `overrideProvider`). Couverture ≥ 70 % (seuil bloquant).
 - `/health` reste **hors préfixe** `/api/v1` (probes K3s) — ne pas le déplacer.
 

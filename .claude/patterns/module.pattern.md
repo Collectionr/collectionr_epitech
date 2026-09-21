@@ -102,6 +102,8 @@ export class CarteModule {}
 
 Puis l'ajouter aux `imports` de `AppModule`.
 
+**Config du module** : pas de nombre magique en dur (timeout, taille de pool, limite…). Valeur qui varie par environnement → variable d'env dans `EnvironmentVariables.ts` + `.env.example` (défaut sûr), lue via `ConfigService`. Valeur fixe partagée entre modules → constante nommée dans `src/shared/config/AppConstants.ts`. Valeur fixe propre à un seul module → constante dans ce module (`infrastructure/` ou `domain/`), pas dans `shared`.
+
 ## 6. Tests
 
 - **Unit** : le use case avec le port doublé (`{ save: jest.fn() }`) — à côté du fichier, `.spec.ts`.
