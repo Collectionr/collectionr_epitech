@@ -1,4 +1,10 @@
-import { Controller, Get, Module, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Module,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -18,6 +24,11 @@ class BoomTestController {
   @Get('internal')
   throwInternal(): never {
     throw new Error('detail interne sensible');
+  }
+
+  @Get('unavailable')
+  throwUnavailable(): never {
+    throw new ServiceUnavailableException('detail 503 sensible');
   }
 }
 
@@ -74,6 +85,20 @@ describe('AllExceptionsFilter (e2e)', () => {
       statusCode: 500,
       error: 'Internal Server Error',
       message: 'Une erreur interne est survenue',
+    });
+    expect(JSON.stringify(body)).not.toContain('sensible');
+  });
+
+  it('masks the message of an HttpException with a 5xx status', async () => {
+    const response = await request(app.getHttpServer()).get('/api/v1/boom/unavailable');
+    const body = response.body as StandardErrorResponse;
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      statusCode: 503,
+      error: 'Service Unavailable',
+      message: 'Une erreur interne est survenue',
+      path: '/api/v1/boom/unavailable',
     });
     expect(JSON.stringify(body)).not.toContain('sensible');
   });
