@@ -55,17 +55,34 @@ fi
 
 echo ""
 echo "=== 2. Installation de Rancher Desktop ==="
-if ! brew list --cask rancher-desktop &> /dev/null; then
-    echo "Installation de Rancher Desktop..."
-    brew install --cask rancher-desktop
-    echo "OK - Rancher Desktop installe."
+
+if [ -d "/Applications/Rancher Desktop.app" ]; then
+    echo "OK - Rancher Desktop deja present dans /Applications."
+    echo "(Installation detectee, peu importe la methode utilisee au depart.)"
+elif brew list --cask rancher &> /dev/null; then
+    echo "OK - Rancher Desktop deja installe via Homebrew."
 else
-    echo "OK - Rancher Desktop deja installe."
+    if brew list --cask docker-desktop &> /dev/null; then
+        echo "ATTENTION : Docker Desktop est deja installe sur ce poste."
+        echo "Rancher Desktop peut entrer en conflit avec Docker Desktop (meme ports/sockets)."
+        echo "L'installation va continuer, mais surveille les erreurs ci-dessous."
+    fi
+    echo "Installation de Rancher Desktop..."
+    brew install --cask rancher
+    echo "OK - Rancher Desktop installe."
 fi
 
 echo ""
 echo "=== 3. Lancement de Rancher Desktop ==="
 echo "Rancher Desktop doit etre lance pour que les commandes rdctl fonctionnent."
+
+# rdctl et kubectl vivent dans ~/.rd/bin : on l'ajoute au PATH de cette session
+# des maintenant, sinon la commande rdctl (utilisee juste en dessous) est introuvable.
+RD_BIN="$HOME/.rd/bin"
+case ":$PATH:" in
+    *":$RD_BIN:"*) ;;
+    *) export PATH="$RD_BIN:$PATH" ;;
+esac
 echo ""
 echo "ATTENTION : une fenetre Rancher Desktop va s'ouvrir."
 echo "Au premier lancement, macOS peut aussi afficher des fenetres systeme :"
@@ -100,19 +117,8 @@ echo "OK - Kubernetes active via rdctl."
 echo "NOTE : l'activation peut redemarrer le moteur Kubernetes, c'est normal."
 
 echo ""
-echo "=== 5. Configuration du PATH pour les outils Rancher Desktop ==="
-RD_BIN="$HOME/.rd/bin"
+echo "=== 5. Persistance du PATH pour les prochains terminaux ==="
 if [ -d "$RD_BIN" ]; then
-    case ":$PATH:" in
-        *":$RD_BIN:"*)
-            echo "OK - $RD_BIN deja present dans le PATH de cette session."
-            ;;
-        *)
-            echo "$RD_BIN absent du PATH de cette session, ajout temporaire..."
-            export PATH="$RD_BIN:$PATH"
-            ;;
-    esac
-
     SHELL_PROFILE="$HOME/.zprofile"
     if ! grep -qF "$RD_BIN" "$SHELL_PROFILE" 2>/dev/null; then
         echo "export PATH=\"$RD_BIN:\$PATH\"" >> "$SHELL_PROFILE"
