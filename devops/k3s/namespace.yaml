@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    app.kubernetes.io/name: collectionr
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/managed-by: kubectl
+    
