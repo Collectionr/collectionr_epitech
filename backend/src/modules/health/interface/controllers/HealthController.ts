@@ -18,12 +18,12 @@ export class HealthController {
   // aggregated state — 200 if everything is up, 503 otherwise — consumed by K3s probes.
   // Response serialization stays handled by NestJS.
   @Get()
-  @ApiOperation({ summary: "État de l'application et de ses dépendances (PostgreSQL, Redis)" })
+  @ApiOperation({ summary: 'Application and dependency status (PostgreSQL, Redis)' })
   @ApiOkResponse({
-    description: 'Toutes les dépendances sont disponibles',
+    description: 'All dependencies are available',
     type: HealthResponseDto,
   })
-  @ApiServiceUnavailableResponse({ description: 'Au moins une dépendance est indisponible' })
+  @ApiServiceUnavailableResponse({ description: 'At least one dependency is unavailable' })
   async check(@Res({ passthrough: true }) reply: FastifyReply): Promise<HealthResponseDto> {
     const healthStatus = await this.getHealthStatusUseCase.execute();
 

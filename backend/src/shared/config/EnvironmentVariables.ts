@@ -28,19 +28,19 @@ export class EnvironmentVariables {
 
   @IsString()
   @Matches(/^postgres(ql)?:\/\/.+/, {
-    message: 'DATABASE_URL doit être une URL de connexion PostgreSQL (postgresql://...)',
+    message: 'DATABASE_URL must be a PostgreSQL connection URL (postgresql://...)',
   })
   DATABASE_URL!: string;
 
   @IsString()
   @Matches(/^rediss?:\/\/.+/, {
-    message: 'REDIS_URL doit être une URL de connexion Redis (redis://...)',
+    message: 'REDIS_URL must be a Redis connection URL (redis://...)',
   })
   REDIS_URL!: string;
 
   @IsString()
   @MinLength(32, {
-    message: 'JWT_SECRET doit contenir au moins 32 caractères',
+    message: 'JWT_SECRET must be at least 32 characters long',
   })
   JWT_SECRET!: string;
 

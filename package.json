@@ -2,7 +2,7 @@
   "name": "collectionr",
   "version": "0.0.1",
   "private": true,
-  "description": "Outillage Git racine du monorepo (hooks Husky) — voir backend/ pour l'application.",
+  "description": "Root Git tooling for the monorepo (Husky hooks) — see backend/ for the application.",
   "scripts": {
     "prepare": "husky"
   },

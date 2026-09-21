@@ -48,7 +48,7 @@ describe('RedisHealthIndicator', () => {
   it('reports the cache as down when PING fails', async () => {
     const redisClient = {
       status: 'ready',
-      ping: jest.fn().mockRejectedValue(new Error('connexion perdue')),
+      ping: jest.fn().mockRejectedValue(new Error('connection lost')),
     } as unknown as Redis;
     const indicator = new RedisHealthIndicator(redisClient);
 

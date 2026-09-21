@@ -11,7 +11,7 @@ export async function runWithTimeout<T>(
 
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
-      () => reject(new Error(`${label} : délai de ${timeoutMs} ms dépassé`)),
+      () => reject(new Error(`${label}: timed out after ${timeoutMs} ms`)),
       timeoutMs,
     );
   });

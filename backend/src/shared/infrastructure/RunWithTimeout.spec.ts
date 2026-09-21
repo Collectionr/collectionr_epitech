@@ -15,7 +15,7 @@ describe('runWithTimeout', () => {
     const neverSettles = new Promise<never>(() => undefined);
 
     await expect(runWithTimeout(neverSettles, 10, 'PostgreSQL')).rejects.toThrow(
-      'PostgreSQL : délai de 10 ms dépassé',
+      'PostgreSQL: timed out after 10 ms',
     );
   });
 });
