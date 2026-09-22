@@ -69,4 +69,9 @@ export class EnvironmentVariables {
 
   @Transform(({ value }) => value === true || value === 'true')
   SWAGGER_ENABLED: boolean = false;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  AUDIT_LOG_RETENTION_DAYS: number = 90;
 }
