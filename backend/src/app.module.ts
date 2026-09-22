@@ -7,6 +7,8 @@ import { validateEnvironment } from './shared/config/ValidateEnvironment';
 import { createLoggerOptions } from './shared/infrastructure/logging/CreateLoggerOptions';
 import { AllExceptionsFilter } from './shared/interface/filters/AllExceptionsFilter';
 import { HealthModule } from './modules/health/HealthModule';
+import { AuditModule } from './modules/audit/AuditModule';
+import { AuditContextGuard } from './modules/audit/interface/guards/AuditContextGuard';
 
 @Module({
   imports: [
@@ -27,9 +29,15 @@ import { HealthModule } from './modules/health/HealthModule';
       }),
     }),
     HealthModule,
+    AuditModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // Must run before ThrottlerGuard (and any future auth/rbac guard): it only
+    // stashes @Audit metadata on the request so AllExceptionsFilter can record
+    // a rejection that never reaches AuditInterceptor (ADR-011). Multiple
+    // APP_GUARD providers run in the order they are declared here.
+    { provide: APP_GUARD, useClass: AuditContextGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

@@ -18,6 +18,13 @@ describe('validateEnvironment', () => {
     expect(environment.THROTTLE_LIMIT).toBe(100);
     expect(environment.SWAGGER_ENABLED).toBe(false);
     expect(environment.CORS_ORIGINS).toBe('http://localhost:5173');
+    expect(environment.AUDIT_LOG_RETENTION_DAYS).toBe(90);
+  });
+
+  it('rejects an AUDIT_LOG_RETENTION_DAYS lower than 1', () => {
+    expect(() => validateEnvironment({ ...validConfig, AUDIT_LOG_RETENTION_DAYS: '0' })).toThrow(
+      /AUDIT_LOG_RETENTION_DAYS/,
+    );
   });
 
   it('converts numeric and boolean values provided as strings', () => {

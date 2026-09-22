@@ -2,7 +2,7 @@
 
 > Mettre à jour ce fichier quand un ticket est terminé, une décision prise, ou un piège découvert.
 
-_Dernière mise à jour : 2026-09-17 (COLLR-438 — scaffolding du script de seed)_
+_Dernière mise à jour : 2026-09-21 (COLLR-413 — journalisation d'audit)_
 
 ## Fait
 
@@ -14,9 +14,13 @@ _Dernière mise à jour : 2026-09-17 (COLLR-438 — scaffolding du script de see
 - **COLLR-437** — Installation et connexion Prisma/PostgreSQL (sous-tâche de COLLR-412), branche `COLLR-412/feat/setup-prisma-postgresql` **créée depuis `COLLR-411/feat/bootstrap-applicatif`** (pas depuis `dev`, car la PR #47 n'était pas encore mergée et COLLR-412 dépend directement de ses livrables : `EnvironmentVariables.ts`, port `IHealthIndicator`, ADR-004). Prisma 7.10 installé (`@prisma/client`, `@prisma/adapter-pg`, `prisma`), `pg`/`@types/pg` retirés des dépendances directes (restent en transitif via `@prisma/adapter-pg`). `PostgresHealthIndicator`/`PostgresModule` remplacés par `PrismaHealthIndicator`/`PrismaModule` (ADR-010) — aucun changement de `GetHealthStatusUseCase`/`HealthController`/leurs tests. Aucun modèle métier dans `schema.prisma` (hors périmètre). `prisma migrate dev`/`deploy` validés contre une vraie instance PostgreSQL 16 locale temporaire (non conservée). Lint clean, 34 tests unitaires + 16 e2e OK, couverture 96,27 %, build OK, smoke-test de l'app compilée OK (`/health` : 200 avec DB réelle connectée, 503 sans).
 - **COLLR-438** — Scaffolding du script de seed (sous-tâche de COLLR-412). Volontairement minimal : `prisma/seed.ts` se connecte (Prisma + adapter-pg) et exécute `SELECT 1` pour valider le câblage, sans données de démo — aucun modèle métier n'existe encore (Users/Collection/CardEntry/Catalogue sont portés par des epics fonctionnels non démarrés), donc rien à seeder pour l'instant. À remplir progressivement, epic par epic. Câblé via `prisma.config.ts` (`migrations.seed`) et `npm run prisma:seed`. A nécessité un contournement supplémentaire (`prisma/registerGeneratedClientResolution.js`, cf. piège ci-dessous) : `ts-node` seul ne résout pas les imports `.js` du client Prisma généré (contrairement à `nest build`/Jest). Lint clean, build OK, 34 tests unitaires + 16 e2e OK, couverture inchangée (96,27 %), `prisma:seed` testé (échec propre ECONNREFUSED sur un host injoignable, confirmant que la connexion réelle est bien tentée).
 
+- **COLLR-413** — Journalisation d'audit (branche `COLLR-413/feat/journal-audit-log`), **hors purge** (cf. TODO ci-dessous). Table `audit_logs` (1re migration du projet, `prisma/migrations/20260921140000_add_audit_logs`) — **migration validée contre un vrai PostgreSQL 16 le 2026-09-22** (`npm run prisma:migrate` via Prisma Studio, `_prisma_migrations.applied_steps_count = 1`). Module `src/modules/audit/` (décorateur `@Audit`, `AuditInterceptor`, `RecordAuditEntryUseCase`) + `AuditContextGuard` (capture les rejets de guard — 401/403/429 — via `AllExceptionsFilter`, cf. ADR-011) + défense en profondeur sur `metadata` (redaction par forme de valeur, pas seulement par nom de champ). Variable `AUDIT_LOG_RETENTION_DAYS` (défaut 90). Décisions et limites : ADR-011. Lint clean, build OK, 130 tests unitaires + 22 e2e OK, couverture 98,3 % lignes / 94,15 % branches (les branches restantes sont des artefacts d'instrumentation TS sur des constructeurs à injection Nest, pas des trous fonctionnels). Aucun endpoint métier n'utilise encore `@Audit` — le branchement Auth (login, register, mot de passe) est porté par COLLR-442, avec la FK `userId → users`.
+
 ## En cours / à venir
 
 - **COLLR-412** — Setup base de données (outillage Prisma/PostgreSQL). COLLR-437 et COLLR-438 faits (ci-dessus). COLLR-439 (revue finale migrations/indexation) supprimé du backlog Jira par l'utilisateur le 2026-09-17 — jugé non pertinent tant que les epics fonctionnels (Auth, Collection, Catalogue) n'ont pas démarré ; à recréer si besoin une fois ces epics avancés.
+- **TODO (COLLR-413) — Purge des logs d'audit : non implémentée, à cadrer avec Cloud/DevOps.** La rétention est de 90 jours (S04/S05, `expiresAt` renseigné à l'écriture, index dédié). Reste à écrire côté backend un use case + `deleteExpired(now)` sur le repository (le port est volontairement en ajout seul pour l'instant) et à savoir **qui déclenche et comment** : `CronJob` K3s (piste privilégiée, cf. A03 §8.2 pour les sauvegardes PG, évite les doublons multi-pods) ou cron interne NestJS (`@nestjs/schedule`, verrou nécessaire si plusieurs réplicas). À trancher avant la première donnée d'audit réelle (donc avant la mise en prod de COLLR-442). Aucune décision écrite dans `docs/` à ce jour.
+- **TODO (COLLR-413) — Endpoint de lecture des logs d'audit : pas encore créé, dépend de COLLR-442.** `documentation-metier.md` exige que `audit_logs` soit « accessible uniquement aux utilisateurs autorisés » — impossible à garantir avant l'existence d'un `AuthGuard`/rôles. Prévoir un ticket dédié une fois COLLR-442 posé, en réutilisant ses guards plutôt qu'en bricolant un contrôle d'accès temporaire.
 - Epic Authentification — inclut le rate limiting renforcé login/register (ADR-008) et le schéma Bearer JWT déjà déclaré dans Swagger (`access-token`).
 - CI/CD : arbitrage GitHub Actions vs Jenkins non tranché avant Alpha (équipe Cloud & Cyber).
 - Nettoyer les fichiers Husky encore non commités sur `COLLR-411/feat/bootstrap-applicatif` : `.husky/pre-commit` (check de branche), `scripts/verify-branch-name.js`, `scripts/constants.js`, refactor de `scripts/verify-commit-msg.js`.
@@ -27,6 +31,7 @@ _Dernière mise à jour : 2026-09-17 (COLLR-438 — scaffolding du script de see
 | Module | Rôle | Notes |
 | --- | --- | --- |
 | `src/modules/health` | Healthcheck DB + Redis | **Exemple de référence** des 4 couches + ports |
+| `src/modules/audit` | Journal d'audit (`@Audit` + interceptor) | ADR-011 ; aucun endpoint HTTP propre |
 | `src/shared` | Socle transverse | config, bootstrap, filtres, pipes, `PrismaModule`/`RedisModule` |
 
 ## Outillage Git (Husky)

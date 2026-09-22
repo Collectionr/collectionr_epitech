@@ -11,3 +11,23 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+/// Audit trail of sensitive actions (docs/database/schema-sql.md, docs/security/S05-logs-audit.md).
+/// Append-only. `userId` has no foreign key yet: the users table does not exist (COLLR-442 adds it).
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  /// Convention `domain.verb`, suffixed `.failed` when the action failed (e.g. auth.login.failed).
+  action     String
+  targetType String?
+  targetId   String?  @db.Uuid
+  metadata   Json?
+  timestamp  DateTime @default(now()) @db.Timestamptz(6)
+  /// timestamp + AUDIT_LOG_RETENTION_DAYS, computed when the entry is written.
+  expiresAt  DateTime @db.Timestamptz(6)
+
+  @@index([userId, timestamp])
+  @@index([action, timestamp])
+  @@index([expiresAt])
+  @@map("audit_logs")
+}

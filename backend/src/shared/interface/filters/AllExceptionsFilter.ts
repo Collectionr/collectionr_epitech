@@ -1,7 +1,11 @@
 import { STATUS_CODES } from 'node:http';
-import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { Catch, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { RecordAuditEntryUseCase } from '../../../modules/audit/application/use-cases/RecordAuditEntryUseCase';
+import { consumeAuditContext } from '../../../modules/audit/interface/AuditRequestContext';
+import { writeAuditEntry } from '../../../modules/audit/interface/WriteAuditEntry';
+import type { AuditableRequest } from '../../../modules/audit/interface/interceptors/ReadAuditContext';
 
 const INTERNAL_ERROR_MESSAGE = 'An internal error occurred';
 const FIRST_SERVER_ERROR_STATUS = 500;
@@ -30,17 +34,30 @@ interface ResolvedError {
  * its real message and stack but returns a generic body (standard HTTP
  * reason phrase + generic message) so no internal detail is ever exposed
  * to the client.
+ *
+ * Also records the audit entry for a request rejected by a *guard* on an
+ * @Audit route: AuditInterceptor never runs in that case (guards execute
+ * before interceptors), so this filter is the only place downstream of
+ * every guard able to observe it. See AuditContextGuard/ADR-011 — a
+ * deliberate coupling of shared/ on modules/audit/, accepted to keep the
+ * standard error response built in a single place rather than juggling
+ * several global exception filters.
  */
+@Injectable()
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost): void {
+  constructor(private readonly recordAuditEntry: RecordAuditEntryUseCase) {}
+
+  async catch(exception: unknown, host: ArgumentsHost): Promise<void> {
     const httpContext = host.switchToHttp();
     const reply = httpContext.getResponse<FastifyReply>();
-    const request = httpContext.getRequest<FastifyRequest>();
+    const request = httpContext.getRequest<FastifyRequest & AuditableRequest>();
 
     const { statusCode, error, message } = this.resolveError(exception);
+
+    await this.recordGuardRejection(request, statusCode);
 
     if (statusCode >= FIRST_SERVER_ERROR_STATUS) {
       // An HttpException stack does not include its message, so the real detail
@@ -62,6 +79,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     void reply.status(statusCode).send(body);
+  }
+
+  private async recordGuardRejection(request: AuditableRequest, statusCode: number): Promise<void> {
+    const options = consumeAuditContext(request);
+    if (options === undefined) {
+      return;
+    }
+
+    await writeAuditEntry(
+      { recordAuditEntry: this.recordAuditEntry, logger: this.logger },
+      request,
+      options,
+      `${options.action}.failed`,
+      { statusCode },
+    );
   }
 
   private resolveError(exception: unknown): ResolvedError {
