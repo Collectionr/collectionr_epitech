@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  namespace: development
+  labels:
+    app.kubernetes.io/name: collectionr
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/managed-by: kubectl
+    app.kubernetes.io/component: database
+spec:
+  serviceName: postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: collectionr
+        app.kubernetes.io/part-of: collectionr
+        app.kubernetes.io/managed-by: kubectl
+        app.kubernetes.io/component: database
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+              name: postgresql
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+  volumeClaimTemplates:
+    - metadata:
+        name: postgresql-data
+        labels:
+          app.kubernetes.io/name: collectionr
+          app.kubernetes.io/part-of: collectionr
+          app.kubernetes.io/managed-by: kubectl
+          app.kubernetes.io/component: database
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: development
+  labels:
+    app.kubernetes.io/name: collectionr
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/managed-by: kubectl
+    app.kubernetes.io/component: database
+spec:
+  selector:
+    app.kubernetes.io/component: database
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
