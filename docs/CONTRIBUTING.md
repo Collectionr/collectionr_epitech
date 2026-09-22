@@ -326,6 +326,69 @@ npm run test:e2e:web
 
 ---
 
+# Workflow Git : protections et validations
+
+Ce schéma décrit le parcours d'une modification, du poste local jusqu'à la branche `main`.
+
+```mermaid
+flowchart TD
+    subgraph P1["Phase 1 - Environnement Local"]
+        A["💻 Développement"] --> B["git commit / push"]
+        B --> C{"🐺 Vérifications Husky"}
+        C -- "Nom/Format invalide" --> D["❌ Rejeté localement"]
+        C -- "Échec tests" --> D
+        C -- "Valide" --> E["✅ Push autorisé vers GitHub"]
+    end
+
+    subgraph P2G["Phase 2 - Travail sur GitHub"]
+        F["🌿 Branche : feature/ ou fix/"] --> G["🐙 Création Pull Request vers dev"]
+    end
+
+    subgraph P2D["Phase 2 - Protections Branche dev"]
+        H["⚙️ CI/CD : Tests au vert"] --> I{"Conditions remplies ?"}
+        H2["👤 Review : 1 approbation minimum"] --> I
+        I -- "Non" --> J["❌ Merge bloqué"]
+        I -- "Oui" --> K["🌿 Merge dans dev"]
+        L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :\nLead Backend, Lead Frontend, Lead IA, Lead Devops"]
+    end
+
+    subgraph P3G["Phase 3 - Travail sur GitHub"]
+        M["🌿 Branche : dev"] --> N["🐙 Création Pull Request vers main"]
+    end
+
+    subgraph P3M["Phase 3 - Protections Branche main"]
+        O["⚙️ CI/CD : Tests au vert"] --> P{"Condition remplie ?"}
+        O2["👤 Review : 1 approbation minimum"] --> P
+        P -- "Non" --> Q["❌ Merge bloqué"]
+        P -- "Oui" --> R["🌿 Merge dans main"]
+        S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :\nAdmin Backend, Admin Devops, Admin Frontend"]
+    end
+
+    E --> F
+    G --> H
+    G --> H2
+    K --> M
+    N --> O
+    N --> O2
+
+    K -.->|"Push direct interdit 🚫"| O
+```
+
+> Le push direct vers `main` est **interdit** : toute modification doit passer par une Pull Request depuis `dev`.
+
+---
+
+## Résumé des règles
+
+| Étape | Règle |
+|---|---|
+| **Local (Husky)** | Nom/format valides et tests au vert avant tout push |
+| **Branche `dev`** | CI au vert et 1 approbation minimum |
+| **Branche `main`** | CI au vert et 1 approbation minimum + push direct interdit |
+
+---
+
+
 ## Contacts
 
 | Sujet | Personne | Rôle |
