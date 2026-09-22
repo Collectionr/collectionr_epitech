@@ -333,34 +333,34 @@ Ce schéma décrit le parcours d'une modification, du poste local jusqu'à la br
 ```mermaid
 flowchart TD
     subgraph P1["Phase 1 - Environnement Local"]
-        A["💻 Développement"] --> B["git commit / push"]
-        B --> C{"🐺 Vérifications Husky"}
+        A["Développement"] --> B["git commit / push"]
+        B --> C{"Vérifications Husky"}
         C -- "Nom/Format invalide" --> D["❌ Rejeté localement"]
         C -- "Échec tests" --> D
         C -- "Valide" --> E["✅ Push autorisé vers GitHub"]
     end
 
     subgraph P2G["Phase 2 - Travail sur GitHub"]
-        F["🌿 Branche : feature/ ou fix/"] --> G["🐙 Création Pull Request vers dev"]
+        F["Branche : feature/ ou fix/"] --> G["Création Pull Request vers dev"]
     end
 
     subgraph P2D["Phase 2 - Protections Branche dev"]
-        H["⚙️ CI/CD : Tests au vert"] --> I{"Conditions remplies ?"}
-        H2["👤 Review : 1 approbation minimum"] --> I
+        H["CI/CD : Tests au vert"] --> I{"Conditions remplies ?"}
+        H2["Review : 1 approbation minimum"] --> I
         I -- "Non" --> J["❌ Merge bloqué"]
-        I -- "Oui" --> K["🌿 Merge dans dev"]
-        L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :\nLead Backend, Lead Frontend, Lead IA, Lead Devops"]
-    end
+        I -- "Oui" --> K["✅ Merge dans dev"]
+        M ~~~ L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :\nLead Backend, Lead Frontend, Lead IA, Lead Devops"]
+end
 
     subgraph P3G["Phase 3 - Travail sur GitHub"]
-        M["🌿 Branche : dev"] --> N["🐙 Création Pull Request vers main"]
+        M["Branche : dev"] --> N["Création Pull Request vers main"]
     end
 
     subgraph P3M["Phase 3 - Protections Branche main"]
-        O["⚙️ CI/CD : Tests au vert"] --> P{"Condition remplie ?"}
-        O2["👤 Review : 1 approbation minimum"] --> P
+        O["CI/CD : Tests au vert"] --> P{"Condition remplie ?"}
+        O2["Review : 1 approbation minimum"] --> P
         P -- "Non" --> Q["❌ Merge bloqué"]
-        P -- "Oui" --> R["🌿 Merge dans main"]
+        P -- "Oui" --> R["✅ Merge dans main"]
         S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :\nAdmin Backend, Admin Devops, Admin Frontend"]
     end
 
@@ -371,7 +371,8 @@ flowchart TD
     N --> O
     N --> O2
 
-    K -.->|"Push direct interdit 🚫"| O
+    X["🚫 Interdit"]
+    K -.->|"Push direct interdit"| X
 ```
 
 > Le push direct vers `main` est **interdit** : toute modification doit passer par une Pull Request depuis `dev`.
