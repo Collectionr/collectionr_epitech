@@ -41,6 +41,7 @@ La plateforme repose sur les composants suivants :
 - Worker OCR
 - Worker TCG API
 - Worker TCG Scraping
+- Worker TCG Prediction
 - Redis OCR et Redis TCG (files d'attente)
 - Shared Volume (stockage temporaire OCR)
 - Base de données PostgreSQL
@@ -199,6 +200,7 @@ sequenceDiagram
     participant Redis TCG
     participant Worker TCG API
     participant Worker TCG Scraping
+    participant Worker TCG Prediction
     participant API Externe TCG
     participant Marketplace
     participant PostgreSQL
@@ -207,12 +209,15 @@ sequenceDiagram
     Microservice TCG->>Redis TCG: Planification batch
     Redis TCG->>Worker TCG API: Tâche API
     Redis TCG->>Worker TCG Scraping: Tâche scraping
+    Redis TCG->>Worker TCG Prediction: Tâche prédiction
     Worker TCG API->>API Externe TCG: Appels API cartes
     API Externe TCG-->>Worker TCG API: Données cartes
     Worker TCG Scraping->>Marketplace: Scraping prix
     Marketplace-->>Worker TCG Scraping: Prix du marché
+    Worker TCG Prediction->>PostgreSQL: Lecture historique de prix
     Worker TCG API->>PostgreSQL: Enregistrement cartes
     Worker TCG Scraping->>PostgreSQL: Mise à jour prix
+    Worker TCG Prediction->>PostgreSQL: Écriture prix prédit
 ```
 
 ### Étapes
@@ -226,12 +231,15 @@ sequenceDiagram
    les données cartes (nom, extension, caractéristiques)
 5. Le Worker TCG Scraping récupère les prix depuis le Marketplace
 6. Les deux workers écrivent leurs résultats en base PostgreSQL
+7. Le Worker TCG Prediction lit l'historique de prix en base PostgreSQL
+8. Il calcule une estimation via le modèle IA et écrit le résultat (predictedPrice, priceLowerBound, priceUpperBound) en base
 
 ### Spécificités
 
 - aucune image n'est stockée localement, seules les URLs sont utilisées ;
 - les workers sont des Pods indépendants dans le cluster K3s ;
 - le respect des conditions d'utilisation des APIs tierces est obligatoire ;
+- le Worker TCG Prediction ne fait aucun appel externe, il travaille uniquement à partir de l'historique déjà en base ;
 - un mécanisme de retry est prévu en cas d'échec d'appel externe.
 
 ### Sécurité associée
