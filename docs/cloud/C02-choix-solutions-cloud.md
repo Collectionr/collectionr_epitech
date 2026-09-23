@@ -91,13 +91,12 @@ Cette architecture "agnostique" réduit drastiquement le risque de **Vendor Lock
 Lorsque le projet atteindra sa maturité pour un usage intensif, nous prévoyons de basculer vers un **Kubernetes Managé** pour garantir une haute disponibilité sans augmenter la charge de maintenance de l'équipe.
 
 ### Fournisseurs identifiés
-Conformément au CDC v4.0 (§4.4), deux fournisseurs sont retenus pour leur localisation dans l'Union Européenne et leur conformité RGPD :
+Deux fournisseurs sont retenus pour leur localisation dans l'Union Européenne et leur conformité RGPD :
 
 1. **Hetzner :** excellente performance/prix, localisé en
    Allemagne et Finlande, conforme RGPD.
 2. **Scaleway (Kapsule) :** support Kubernetes en France,
    interface simple et prix compétitifs.
-
 
 ### Pourquoi ce choix pour la production ?
 Le passage au managé permet de déléguer la maintenance du "Control Plane" au fournisseur. Cela permet à l'équipe de se concentrer uniquement sur les fonctionnalités métier tout en garantissant un niveau de service (SLA) élevé.
