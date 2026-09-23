@@ -102,9 +102,8 @@ responsabilités respectives au sein de l'architecture.
 |:---|:---|:---|
 | Frontend | React / React Native | Interface utilisateur web et mobile, capture d'image, affichage des prix |
 | Backend Core | Node.js + NestJS + Prisma | Exposition des APIs, authentification, logique métier, orchestration des workers |
-| Microservice TCG | Node.js | Orchestration des tâches TCG — prix, scraping, prédiction |
-| Workers asynchrones | Python (OCR, Grading IA) + Node.js (TCG) | Traitement OCR, scraping marketplace, prédiction de prix, gradation IA |
-| File de messages | Redis OCR + Redis TCG | Découplage Backend → Workers, absorption des pics de charge |
+| Microservice TCG | Python + FastAPI | Orchestration des tâches TCG — prix, scraping, prédiction |
+| Workers asynchrones | Python (OCR, TCG, Grading IA) | Traitement OCR, scraping marketplace, prédiction de prix, gradation IA || File de messages | Redis OCR + Redis TCG | Découplage Backend → Workers, absorption des pics de charge |
 | Persistance | PostgreSQL + Volumes K3s | Données métier, fichiers temporaires OCR |
 | Infrastructure | K3s | Orchestration, isolation des namespaces, résilience |
 | Observabilité | Prometheus + Grafana + Loki + Promtail | Métriques, logs, alertes |
@@ -180,18 +179,14 @@ décision technique future.
 ### Sécurité & Données
 - Chiffrement des données en transit et au repos.
 - Gestion centralisée des secrets.
-- Les images de cartes constituent des données métier persistantes nécessaires à la visualisation des collections utilisateurs.
+- Aucune image de carte n'est stockée côté plateforme : seules les URLs externes (issues du catalogue TCGdex) sont conservées en base pour l'affichage dans les collections utilisateurs (décision actée, cohérente avec `S04-rgpd-conformite.md`).
 
-Deux types de stockage sont distingués :
+Deux types de traitement d'image sont distingués :
 
-- **Images de collection** (persistantes) : images 
-  optimisées associées aux cartes d'un utilisateur, 
-  conservées tant que la collection existe.
+- **Images de collection** : uniquement une référence URL externe en base (`CARD.imageUrl`), aucun stockage ni cache d'image côté plateforme. En cas d'URL cassée/indisponible, l'image est simplement absente côté affichage.
 - **Images de traitement OCR** (temporaires) : images 
-  brutes uploadées pour le pipeline de scan, supprimées 
-  automatiquement après traitement.
-  
-  Une stratégie de lifecycle peut être appliquée sur les images brutes afin de maîtriser les coûts de stockage.
+  brutes uploadées pour le pipeline de scan, stockées transitoirement dans un volume partagé K3s et supprimées 
+  automatiquement après traitement (< 24h).
 
 
 ### Gestion des images & Flux IA
@@ -227,8 +222,7 @@ de sa base d'utilisateurs.
 - **Court terme** : prototype fonctionnel sur K3s local 
   avec les fonctionnalités V1 (scan OCR, collection, 
   prix Pokémon).
-- **Moyen terme** : déploiement K3s VPS, ajout du 
-  Worker Grading IA et du Worker TCG Prediction.
+- **Moyen terme** : déploiement K3s VPS. Le Worker TCG Prediction y est ajouté dès la phase Beta (différenciateur V1 confirmé par le CDC v4.0, pas une fonctionnalité V2). Le Worker Grading IA, lui, reste une fonctionnalité bonus post-V1.
 - **Long terme** : migration vers Kubernetes managé 
   si la plateforme dépasse plusieurs dizaines de 
   milliers d'utilisateurs actifs.
