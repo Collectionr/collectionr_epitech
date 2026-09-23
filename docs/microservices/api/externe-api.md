@@ -242,7 +242,7 @@ utile pour maintenir les **prix EUR Cardmarket** avec une granularité par état
 ## Fallback prix niveau 4 : TCGFast Trader
 
 TCGdex est interrogé en priorité (niveau 1), puis PokeTrace (niveau 2), puis eBay Browse API
-(niveau 3). Si ces trois sources sont simultanément indisponibles, le `Worker TCG Fallback` active
+(niveau 3). Si ces trois sources sont simultanément indisponibles, le `Worker TCG Scraping` active
 **TCGFast Trader** (niveau 4).
 
 ### TCGFast (`https://tcgfast.com`)
