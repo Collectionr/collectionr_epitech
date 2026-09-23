@@ -52,7 +52,7 @@ Pour appliquer le principe de **Zero Trust**, des `NetworkPolicies` isolent les 
 | **Frontend → Backend** | Autorisé (via Ingress ou interne) | Communication nécessaire. |
 | **Backend → Redis/PostgreSQL** | Autorisé | Persistance et Files d'attente. |
 | **Worker OCR (Python/YOLO)** | **Bloqué** | Protection contre l'exfiltration de données (traitement local). |
-| **Worker Scraping** | Autorisé (Sortant uniquement) | Nécessaire pour le scraping TCG (Cardmarket, TCGPlayer). |
+| **Worker Scraping** | Autorisé (Sortant uniquement) | Cascade de fournisseurs prix (TCGdex → PokeTrace → eBay Browse API → TCGFast Trader). |
 | **Inter-Workers** | Bloqué | Aucun worker ne doit communiquer avec un autre worker. |
 
 Voici le schéma corrigé avec ses couleurs et sans emojis :
@@ -147,7 +147,7 @@ Chaque microservice s'exécute avec son propre **ServiceAccount** :
 *   **Worker OCR SA :** Accès limité au PVC Shared Volume OCR
 (lecture des images) et à PostgreSQL (écriture des résultats).
 Ne peut pas lister les autres pods ni accéder aux secrets.
-*   **Worker Scraping SA :** Peut accéder aux Secrets contenant les clés API Cardmarket et TCGPlayer.
+*   **Worker Scraping SA :** Peut accéder aux Secrets contenant les clés des fournisseurs de la cascade prix (TCGdex, PokeTrace, eBay Browse API, TCGFast Trader).
 *   **CI/CD SA :** Privilèges limités au déploiement (patch des deployments, update des images).
 
 ```mermaid
@@ -254,8 +254,6 @@ Pour la gestion centralisée des secrets entre les environnements :
 - Migration des secrets vers Vault
 - Durcissement des SecurityContext sur tous les Pods
 - Audit de sécurité externe recommandé avant ouverture publique
-
-Egalement pour rester en cohérence avec tous les autres fichiers, rajoute cette section : 
 
 ## 7. Documents associés
 
