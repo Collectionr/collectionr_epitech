@@ -20,17 +20,32 @@ Il s'agit d'une licence à **code source consultable** (*source-available*). Ce 
 
 ## 3. Résumé (non contractuel)
 
-| Action | Autorisé ? |
-|---|---|
-| Lire et étudier le code | Oui |
-| Exécuter le logiciel pour un usage personnel non commercial (étude, test, recherche, loisir) | Oui |
-| Usage par un établissement d'enseignement ou un organisme de recherche public | Oui |
-| Tout usage commercial, direct ou indirect | **Non** |
-| Modifier le code ou créer une œuvre dérivée | **Non** |
-| Redistribuer le code, modifié ou non, en tout ou partie | **Non** |
-| Sous-licencier ou céder les droits reçus | **Non** |
+Ce résumé reprend les cas prévus par la licence. Il n'accorde et ne retire aucun droit : seul le texte de la PolyForm Strict License 1.0.0 fait foi. En cas de doute sur votre situation, contactez-nous avant tout usage (voir section 9).
 
-Est notamment considéré comme usage commercial : l'intégration dans un produit ou un service payant, financé par la publicité ou par abonnement ; l'utilisation dans le cadre d'une activité professionnelle rémunérée ; la revente ; l'hébergement du logiciel pour des tiers.
+### 3.1 Usages autorisés
+
+Tout usage autorisé doit poursuivre un but non commercial (clause *Noncommercial Purposes*).
+
+| Qui | Usages couverts | Clause de la licence |
+|---|---|---|
+| Toute personne, à titre personnel | Recherche, expérimentation et tests au bénéfice de la connaissance publique ; étude personnelle ; divertissement privé ; projets de loisir ; activités amateurs ; pratique religieuse. Uniquement sans application commerciale envisagée. | *Personal Uses* |
+| Organisation caritative | Tout usage autorisé, quelle que soit la source de son financement | *Noncommercial Organizations* |
+| Établissement d'enseignement | Tout usage autorisé, quelle que soit la source de son financement | *Noncommercial Organizations* |
+| Organisme de recherche public | Tout usage autorisé, quelle que soit la source de son financement | *Noncommercial Organizations* |
+| Organisation de sécurité publique ou de santé publique | Tout usage autorisé, quelle que soit la source de son financement | *Noncommercial Organizations* |
+| Organisation de protection de l'environnement | Tout usage autorisé, quelle que soit la source de son financement | *Noncommercial Organizations* |
+| Institution gouvernementale | Tout usage autorisé, quelle que soit la source de son financement | *Noncommercial Organizations* |
+
+### 3.2 Ce qui n'est jamais autorisé, quel que soit le profil
+
+| Interdiction | Clause de la licence |
+|---|---|
+| Tout usage commercial | *Noncommercial Purposes* |
+| Distribuer le logiciel | *Copyright License* |
+| Modifier le logiciel ou créer une œuvre basée sur lui | *Copyright License* |
+| Sous-licencier ou transférer les droits reçus | *No Other Rights* |
+
+Les droits reconnus par la loi, comme le *fair use* ou les exceptions du Code de la propriété intellectuelle, restent préservés (clause *Fair Use* et section 7).
 
 ## 4. Éléments exclus de la licence
 
