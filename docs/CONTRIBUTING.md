@@ -4,6 +4,37 @@
 
 ---
 
+## Statut du Repository et Sécurité : Passage Temporaire en Public (Phases Alpha & Bêta)
+
+> [!IMPORTANT]
+> **Décision actée (Septembre 2026)** : Suite à un arbitrage commun entre le Lead Tech et les deux Chefs de Projet (Lead Front/PO et Lead Back/PM), le repository GitHub **Collectionr** passe temporairement du statut **Privé** à **Public** pour la durée des phases de développement actif (**Alpha et Bêta**).
+> 
+> **Retour en privé planifié** : Une fois la chaîne CI/CD pleinement opérationnelle, stabilisée et éprouvée en tout point, le repository **repassera en Privé à l'issue de la phase Bêta** afin de protéger définitivement la confidentialité et la propriété intellectuelle du code source pour la suite du projet.
+
+### 1. Pourquoi ce passage temporaire en public ?
+- **Protection des branches (Rulesets) à coût 0 €** : Sur l'offre gratuite de GitHub, les règles avancées de protection des branches (interdiction stricte du push direct, revue obligatoire par un pair, passage obligatoire de la CI avant merge) ne sont actives que sur les dépôts publics. Cela permet de verrouiller efficacement l'intégrité de `main`, `staging` et `develop` dès maintenant.
+- **Levée temporaire du plafond CI/CD (2 000 min/mois)** : Le quota mensuel des dépôts privés représentait un goulot d'étranglement critique pour une équipe de 8 développeurs en phase d'écriture, de test et de rodage des workflows. Sur un dépôt public, l'exécution des workflows GitHub Actions est **gratuite et illimitée**, permettant de calibrer sereinement la CI/CD (backend, frontend, workers OCR/TCG, infra k3d, multi-arch) sans risque de blocage.
+
+### 2. Conséquences immédiates et règles de sécurité strictes
+La visibilité publique temporaire du code source impose une vigilance accrue à chaque contributeur :
+
+1. **Tolérance ZÉRO pour les secrets dans Git** :
+   - Tout commit poussé est immédiatement public et indexé.
+   - **Il est strictement interdit de commiter** des fichiers `.env`, des clés d'API tierces, des identifiants/mots de passe de base de données, des secrets JWT ou des certificats.
+   - Vos fichiers d'environnement locaux (`.env`, `.env.local`) doivent impérativement rester listés dans le `.gitignore`.
+   - L'outil **Gitleaks** est configuré en pre-commit (Husky) et en tête de chaque pipeline CI pour rejeter tout push contenant un secret.
+2. **Gestion des variables sensibles en CI/CD** :
+   - Tout secret requis pour les builds ou les tests doit être enregistré exclusivement dans les **GitHub Actions Secrets** (`Settings > Secrets and variables > Actions`). Ils ne doivent jamais apparaître en clair dans les manifests YAML ou les scripts.
+3. **Protection contre les Pull Requests externes** :
+   - Le repository étant accessible à tous, les règles de protection interdisent tout merge non validé par l'équipe.
+   - Les workflows GitHub Actions sont configurés pour ne pas propager de secrets sur des PRs issues d'éventuels forks.
+4. **Professionnalisme et traçabilité** :
+   - Le code, les descriptions de PR, les commentaires et les messages de commit sont publiquement consultables. Le respect des conventions de nommage et un ton professionnel sont requis sur l'ensemble des échanges.
+5. **Préparation rigoureuse du retour en privé** :
+   - Même si les minutes d'exécution sont gratuites aujourd'hui, les pipelines doivent être conçus de manière sobre et optimisée dès le départ (caching agressif, filtrage par chemins `paths`, annulation des builds obsolètes via `concurrency`). Cette rigueur garantira que, lors du repassage en privé à la fin de la Bêta, l'équipe ne subira aucun blocage de quota.
+
+---
+
 ## Format des Branches
 
 ```
