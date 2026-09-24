@@ -1,9 +1,6 @@
+# Principe cloud
 
-***
-
-# Documentation d’Architecture, DevOps et Gouvernance
-
-## Sommaire*
+## Sommaire
 
 1. [Introduction](#1-introduction)
 2. [Principes d'Architecture](#2-principes-darchitecture)
@@ -86,10 +83,10 @@ Le projet utilise des technologies simples et connues :
 | Orchestration | K3s |
 | File d'attente | Redis |
 | Stockage | Volumes persistants |
-| Gestion des secrets | Vault |
+| Gestion des secrets | Kubernetes Secrets (dev/staging) → Vault (production) |
 | CI/CD | GitHub Actions |
 | Observabilité | Prometheus + Grafana + Loki + Promtail |
-| Workers | Python (OCR, Grading IA) + Node.js (TCG Scraping) |
+| Workers | Python (OCR, TCG, Grading IA) |
 
 Le projet part directement sur K3s comme orchestrateur principal. Docker est utilisé uniquement pour construire les images des services. Docker Compose peut éventuellement servir au debug ponctuel d'un service isolé mais ne fait pas partie de l'architecture cible.
 
