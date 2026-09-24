@@ -5,7 +5,7 @@
 
 ## 1. Titulaires des droits
 
-Copyright © 2026 **[TITULAIRE DES DROITS]**. Tous droits réservés.
+Copyright © 2026 **François Dubois et Alexis Ferrere, pour le compte de la société CollectionR en formation**. Tous droits réservés.
 
 Le code source de ce dépôt est une œuvre protégée par le droit d'auteur (Code de la propriété intellectuelle, livre I, et notamment les articles L.112-2 13° et L.122-6 relatifs aux logiciels). Les droits patrimoniaux sur les contributions des membres de l'équipe sont régis par le contrat de collaboration et de cession de droits signé entre eux.
 
@@ -62,4 +62,4 @@ Ce dépôt n'accepte pas de contributions externes (pull requests, patchs) sans 
 
 Pour obtenir une licence commerciale, demander une autorisation spécifique ou signaler un usage non conforme :
 
-**[ADRESSE E-MAIL DE CONTACT]**
+**collectionr.contact@gmail.com**
