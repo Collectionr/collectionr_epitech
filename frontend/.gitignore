@@ -1,6 +1,7 @@
 # Dépendances et artefacts de build
 node_modules/
 dist/
+coverage/
 *.tsbuildinfo
 
 # Variables d'environnement (seul le modèle est versionné)
