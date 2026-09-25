@@ -101,8 +101,8 @@ Cette section regroupe les règles propres à l'application **frontend** (web + 
 
 | Outil | Version minimum | Installation |
 |---|---|---|
-| Node.js | 20.x LTS | https://nodejs.org ou `nvm install 20` |
-| npm | 10.x | Inclus avec Node.js |
+| Node.js | 24.18.0 (fixée par `.nvmrc`) | [nvm](https://github.com/nvm-sh/nvm) : `nvm install` (lit `.nvmrc`) |
+| npm | 11.x | Inclus avec Node.js 24 |
 | Git | 2.40+ | https://git-scm.com |
 | Expo CLI | Dernière version | `npm install -g expo-cli` |
 | Émulateur iOS | Xcode 15+ (macOS) | App Store |
@@ -111,9 +111,10 @@ Cette section regroupe les règles propres à l'application **frontend** (web + 
 #### Étapes
 
 ```bash
-# 1. Cloner le repository
+# 1. Cloner le repository et activer la version de Node du projet
 git clone https://github.com/Collectionr/collectionr_epitech.git
 cd collectionr_epitech/frontend
+nvm install   # lit .nvmrc (24.18.0), l'installe si besoin et l'active
 
 # 2. Installer les dependances
 npm install
