@@ -11,6 +11,11 @@
     "apps/*",
     "packages/*"
   ],
+  "scripts": {
+    "dev": "npm run dev -w @collectionr/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
   "devDependencies": {
     "typescript": "~6.0.3"
   }
