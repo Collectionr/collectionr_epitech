@@ -1,0 +1,17 @@
+{
+  "name": "@collectionr/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Monorepo frontend Collectionr (workspaces npm) — voir docs/frontend/docs/architecture.md.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}
