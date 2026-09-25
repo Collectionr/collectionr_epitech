@@ -57,7 +57,7 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 
 **`USER`** — Compte utilisateur de la plateforme. Le champ `email` est unique. Le champ `isActive` permet de désactiver un compte sans le supprimer définitivement.
 
-**`ROLE`** — Système de rôles (ex: `admin`, `user`, `moderator`).
+**`ROLE`** — Système de rôles : `USER`, `ADMIN`, `MODERATOR` (noms en majuscules, cf. `docs/security/S03-api-security.md` §5.2).
 
 **`PERMISSION`** — Permission accordée à un rôle (ex: `collection:write`, `card:delete`).
 
