@@ -3,6 +3,8 @@
 Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installation, 
 manifests Kubernetes, conventions techniques.
 
+---
+
 ## Convention de labels Kubernetes
 
 Toutes les ressources Kubernetes du projet appliquent la convention standard 
@@ -35,4 +37,19 @@ metadata:
     app.kubernetes.io/part-of: collectionr
     app.kubernetes.io/managed-by: kubectl
     app.kubernetes.io/component: database
+```
+
+---
+## Secrets à créer avant de déployer
+
+Les Secrets ne sont jamais versionnés. À lancer une fois par poste, avant les `kubectl apply`.
+
+### PostgreSQL
+```yaml 
+kubectl create secret generic postgresql-credentials --namespace development --from-literal=POSTGRES_USER=collectionr --from-literal=POSTGRES_PASSWORD="$(openssl rand -hex 16)" --from-literal=POSTGRES_DB=collectionr_dev
+```
+
+### Redis OCR
+```yaml
+kubectl create secret generic redis-ocr-credentials --namespace development --from-literal=password="$(openssl rand -base64 24)"
 ```
