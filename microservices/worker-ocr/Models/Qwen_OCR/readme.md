@@ -1,7 +1,7 @@
 # Qwen2.5-VL — Rapport d'évaluation
 
 Sous-tâche **COLLR-534** · cadre d'évaluation défini dans
-[`../readme.md`](../readme.md) et [`../../../docs/AI/model_evaluation/evaluation.md`](../../../docs/AI/model_evaluation/evaluation.md).
+[`../readme.md`](../readme.md) et [`../../../../docs/AI/model_evaluation/evaluation.md`](../../../../docs/AI/model_evaluation/evaluation.md).
 
 **Conclusion en une ligne : fine-tuning nécessaire — OUI**, mais plusieurs échecs
 sont imputables au prompt et à la quantization plutôt qu'au modèle. Voir
