@@ -5,8 +5,12 @@ Contexte_Projet.md
 
 # IDE
 .idea/
+.vs/
 .vscode/*
 !.vscode/extensions.json
 
 # Outillage racine (Husky)
 /node_modules/
+
+# Jupyter
+.ipynb_checkpoints/
