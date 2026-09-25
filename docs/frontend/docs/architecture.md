@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-06-25
+> **Derniere mise a jour :** 2026-09-25
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Architecture Frontend -- CollectionR
@@ -235,29 +235,39 @@ Resolu vers le `src/` de l'app courante uniquement (jamais celui de l'autre app)
 
 Pour consommer la logique partagee, toujours passer par `@shared/*` ; le `@/*` d'une app ne pointe que vers son propre `src/`.
 
+### Configuration
+
+Les alias sont declares a deux endroits qui doivent rester synchronises : TypeScript (verification des types, IDE) et le bundler (resolution en dev et au build).
+
+`frontend/tsconfig.base.json` porte les options de compilation communes, mais aucun `paths` : dans un tsconfig qui en etend un autre, `paths` remplace celui du parent au lieu de s'y ajouter. Chaque app declare donc elle-meme ses deux alias. Pas de `baseUrl` (deprecie depuis TypeScript 6) : les chemins sont relatifs au tsconfig.
+
 ```json
-// packages/shared/tsconfig.json -- alias partage, herite par les apps
+// apps/web/tsconfig.json -- les deux alias de l'app (meme principe pour apps/mobile)
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["packages/shared/src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["../../packages/shared/src/*"]
     }
   }
 }
 ```
 
-```json
-// apps/web/tsconfig.json -- alias local a l'app (idem pour apps/mobile)
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
-  }
-}
+```typescript
+// apps/web/vite.config.ts -- les memes alias cote Vite
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@shared': fileURLToPath(new URL('../../packages/shared/src', import.meta.url)),
+    },
+  },
+});
 ```
+
+En plus de l'alias, `apps/web/package.json` declare `"@collectionr/shared": "*"` en dependance workspace : l'alias sert aux imports, la dependance rend le graphe entre packages explicite (installation ciblee d'un workspace).
 
 ---
 
