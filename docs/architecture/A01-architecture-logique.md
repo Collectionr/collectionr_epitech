@@ -67,9 +67,13 @@ graph LR
     R1 -->|4. Notifie| B
     B -->|5. Lit résultat| P
     B -->|6. Notification| U
-    B -.->|Consulte les prix| R2[(Redis TCG)]
-    T[Service TCG] -->|Met à jour les prix| R2
+    B -.->|Appel métier TCG| MT[Microservice TCG]
+    MT -->|Publie les jobs par rôle| R2[(Redis TCG)]
+    MT -->|Lit / écrit| P
+    WT[Worker TCG] -->|Met à jour les prix| R2
+    WT -->|Écrit résultat| P
 ```
+
 ---
 
 ## 5. Infrastructure, observabilité et sécurité
@@ -90,8 +94,8 @@ voir `D04-observabilite-slo.md`..
   développement et staging, avec une évolution vers
   Vault en production — voir `D01-environnement.md`
   section 5.2.
-- **Circuit Breaker** : Protection du système contre les défaillances des APIs tierces (TCGPlayer, Cardmarket).
-- **Isolation** : Chaque microservice est isolé dans son propre Namespace Kubernetes afin de cloisonner logiquement les ressources, de restreindre les flux réseau inter-services et d'atténuer le rayon d'impact en cas de faille de sécurité.
+- **Circuit Breaker** : Protection du système contre les défaillances des APIs tierces, selon la cascade de fournisseurs définie dans le CDC v4.0 (TCGdex → PokeTrace → eBay Browse API → TCGFast Trader, avec repli sur le cache PostgreSQL en dernier recours).
+- **Isolation** : Chaque environnement (development/staging/production) est isolé dans son propre Namespace Kubernetes (voir `D01-environnement.md`). À l'intérieur d'un même environnement, l'isolation entre microservices est assurée par des NetworkPolicies, pas par des namespaces séparés, afin de restreindre les flux réseau inter-services et d'atténuer le rayon d'impact en cas de faille de sécurité.
 
 ---
 

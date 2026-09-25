@@ -26,7 +26,9 @@ La plateforme s'appuie sur un **backend NestJS (adaptateur Fastify)** qui expose
 
 > **Principe clé :** **PostgreSQL est l'unique source de vérité**. Tous les workers y **écrivent** ;
 > le backend s'y connecte en **lecture/écriture** (données applicatives) et lit les **tables de prix** pour répondre aux clients. Les workers sont écrits en
-> **Python** (cohérent avec le Pipeline de Données Python) ; ils n'exposent **aucune API REST**.
+> **Python** (cohérent avec le Pipeline de Données Python) ; ils n'exposent **aucune API REST**. Seul
+> l'**orchestrateur** (Microservice TCG) expose un unique endpoint **REST interne** (**FastAPI**) pour
+> recevoir le déclenchement du backend — jamais exposé aux clients.
 
 ---
 
@@ -41,18 +43,18 @@ flowchart TB
     FE -->|"photo / connexion SSE"| BE
     BE <-->|"lecture / écriture"| DB
 
-    subgraph TCG["Microservice TCG"]
+    subgraph TCG["Microservice TCG (FastAPI)"]
         MTCG["Microservice TCG (orchestrateur)"]
         RTCG[("Redis TCG")]
         WAPI["Worker TCG API"]
-        WSCR["Worker TCG Fallback"]
+        WSCR["Worker TCG Scraping"]
         WPRED["Worker TCG Prediction"]
         MTCG -->|"planification batch"| RTCG
         RTCG -->|"tâche API"| WAPI
         RTCG -->|"tâche fallback"| WSCR
         RTCG -->|"tâche prédiction"| WPRED
     end
-    BE -->|"requête TCG"| MTCG
+    BE -->|"requête TCG (REST HTTP)"| MTCG
     MTCG -.->|"notification TCG"| BE
     WAPI <-->|"métadonnées + prix (niv. 1)"| EXT["TCGdex (api.tcgdex.net)"]
     WSCR <-->|"fallback prix (niv. 2-4)"| MKT["PokeTrace (niv.2) → eBay Browse (niv.3) → TCGFast (niv.4)"]
@@ -92,11 +94,13 @@ flowchart TB
 
 ## 1. Microservice TCG
 
-Orchestre **trois workers** via `Redis TCG` (BullMQ) :
+Reçoit la planification du backend via un **appel REST HTTP** (endpoint **FastAPI** unique,
+`POST /sync`), puis orchestre **trois workers** via `Redis TCG` (**Redis Streams**,
+`XADD`/`XREADGROUP`) :
 
 - **Worker TCG API** — synchronise métadonnées + prix agrégés depuis **TCGdex** (niveau 1).
   Catalogue **français et anglais** dès la V1 (japonais hors périmètre V1).
-- **Worker TCG Fallback** — cascade de fallback quand TCGdex est indisponible :
+- **Worker TCG Scraping** — cascade de fallback quand TCGdex est indisponible :
   **PokeTrace** (niveau 2 — prix EUR Cardmarket + USD TCGPlayer/eBay, ventilation par état et grade
   PSA/BGS/CGC, freemium 250 req/jour) → **eBay Browse API** (niveau 3 — annonces actives USD) →
   **TCGFast Trader** (niveau 4 — prix USD + gradés + historique, 14,99 $/mois). Aucun scraping.
@@ -120,12 +124,62 @@ Pré-gradation (état/centrage) : le backend envoie l'image au **Microservice Gr
 
 ---
 
+## Structure de dossiers — Microservice TCG (Python)
+
+Convention proposée, alignée sur la Clean Architecture du backend
+([clean-architecture.md](../backend/clean-architecture.md)) : un seul package Python partagé par
+l'orchestrateur et les 3 workers, avec des points d'entrée séparés dans `interface/`.
+
+```
+services/tcg/
+├── requirements.txt           # fastapi, redis, httpx, pydantic, psycopg[binary], tenacity, aiolimiter
+├── requirements-dev.txt       # pytest, pytest-cov, respx
+├── .venv/                    # environnement virtuel local, jamais commité (.gitignore)
+├── src/
+│   └── tcg_service/
+│       ├── domain/
+│       │   ├── entities/     # CardPrice, PriceHistory, CollectLog — dataclasses pures
+│       │   └── ports/        # PriceProviderPort, PriceRepositoryPort, QueuePort
+│       ├── application/
+│       │   ├── sync_cards.py
+│       │   ├── collect_fallback_prices.py
+│       │   └── predict_price.py
+│       ├── infrastructure/
+│       │   ├── providers/    # TCGdexProvider, PokeTraceProvider, EbayBrowseProvider, TCGFastProvider
+│       │   ├── persistence/  # PsycopgPriceRepository
+│       │   ├── queue/        # RedisStreamsQueue (XADD / XREADGROUP / XACK)
+│       │   └── prediction/   # chargement / inférence du modèle IA
+│       └── interface/
+│           ├── api/          # FastAPI — seul point d'entrée HTTP (POST /sync)
+│           └── workers/      # worker_api.py, worker_scraping.py, worker_prediction.py
+└── tests/
+```
+
+**Setup local (venv)** :
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate        # Windows — Git Bash : source .venv/Scripts/activate
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+`domain/` n'importe **aucun framework** (ni FastAPI, ni psycopg, ni redis, ni pydantic) — même
+discipline que le backend TypeScript. **FastAPI n'apparaît que dans `interface/api/`** (l'orchestrateur,
+`POST /sync`) ; les 3 workers dans `interface/workers/` n'en dépendent jamais, ils ne font que
+consommer Redis TCG et écrire en PostgreSQL.
+
+---
+
 ## Principes transverses
 
 - **PostgreSQL = source de vérité** ; tous les workers y écrivent (via `psycopg 3`, UPSERT
   idempotents), le backend lit.
 - **Files Redis dédiées** par pipeline (`Redis TCG`, `Redis OCR`, `Redis Grading`) — planification,
-  pas de stockage métier.
+  pas de stockage métier. `Redis TCG` utilise des **Redis Streams** (consumer groups) : `ioredis`
+  (Node, côté backend/orchestrateur) et `redis-py` (Python, côté workers) parlent nativement le
+  même protocole.
+- **Microservice TCG (orchestrateur)** : seul composant du pipeline TCG à exposer une route —
+  un endpoint **REST interne (FastAPI)** appelé uniquement par le backend, jamais par les clients.
 - **K3s** : chaque composant est un **Pod** ; clés externes en **Secrets**, isolation via
   **NetworkPolicies**, redémarrage automatique des Pods.
 - **Workers Python** découplés du **backend NestJS (Fastify)** ; aucun worker n'expose d'API REST.

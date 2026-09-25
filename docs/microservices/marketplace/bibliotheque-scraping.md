@@ -75,6 +75,7 @@ uniquement à une éventuelle rubrique « actualités / sorties de sets » (pas 
 | Limitation de débit (politesse) | `aiolimiter` |
 | Validation / typage des données | `pydantic` |
 | Accès PostgreSQL (UPSERT) | `psycopg 3` |
+| Consommation de la queue (Redis Streams) | `redis-py` |
 
 ---
 

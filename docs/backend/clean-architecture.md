@@ -100,7 +100,7 @@ L'API TypeScript reste indépendante. Les règles de calcul de la valeur globale
 
 ### Facilitation du Travail en Parallèle
 
-L'équipe de 7 personnes est répartie sur plusieurs pôles (Backend, Frontend, IA/ML, DevOps, PM). La définition stricte d'interfaces permet aux développeurs de travailler simultanément sans dépendance bloquante.
+L'équipe de 9 personnes est répartie sur plusieurs pôles (Backend, Frontend, IA/ML, DevOps, PM). La définition stricte d'interfaces permet aux développeurs de travailler simultanément sans dépendance bloquante.
 
 ### Intégration Modulaire de l'IA
 
@@ -112,7 +112,12 @@ Cette séparation garantit la possibilité de tester unitairement les cas d'util
 
 ## Implémentation Type : Inversion de Dépendance
 
-Cet exemple illustre comment l'API TypeScript interagit avec le microservice Python d'estimation de prix tout en respectant l'isolation architecturale.
+Cet exemple illustre le **principe d'inversion de dépendance** (port + adaptateur) de façon générique,
+avec un appel HTTP synchrone à titre pédagogique. Il ne décrit **pas** l'architecture réelle du
+Worker TCG Prediction : celui-ci est un worker TCG à part entière, au même titre que Worker TCG API
+et Worker TCG Scraping — il consomme la file **Redis TCG** de façon asynchrone (planification par le
+Microservice TCG, cf. [marketplace-scraper.md](../microservices/marketplace/marketplace-scraper.md))
+et écrit ses prédictions en base PostgreSQL, sans appel HTTP direct du backend à la demande.
 
 ```typescript
 export interface AIPricePredictionService {
@@ -149,3 +154,6 @@ export class PythonHttpPredictionAdapter implements AIPricePredictionService {
     }
 }
 ```
+
+
+TEST

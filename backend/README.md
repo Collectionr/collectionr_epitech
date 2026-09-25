@@ -6,7 +6,12 @@ API principale du projet Collectionr : NestJS (adaptateur Fastify), TypeScript, 
 
 ```bash
 npm install
+cp .env.example .env   # puis ajuster les valeurs (JWT_SECRET, DATABASE_URL, REDIS_URL)
 ```
+
+PostgreSQL et Redis ne sont pas fournis par ce repo (provisionnement géré par l'équipe DevOps) : `DATABASE_URL`/`REDIS_URL` doivent pointer vers une instance déjà disponible.
+
+La configuration est validée au démarrage : l'application refuse de démarrer si une variable requise (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`) est absente ou invalide. La liste complète est documentée dans `.env.example`.
 
 ## Lancement
 
@@ -29,7 +34,7 @@ Le code métier est organisé sous `src/modules/<domaine>/`, chaque module respe
 
 ```
 src/
-├── shared/                  # code transverse (ex: PrismaService) partagé entre modules
+├── shared/                  # code transverse (ex: PrismaModule) partagé entre modules
 ├── modules/
 │   └── <domaine>/
 │       ├── domain/          # entités et règles métier — aucune dépendance externe
@@ -45,3 +50,20 @@ src/
 - **`interface/`** : controllers et DTO NestJS qui reçoivent les requêtes HTTP et appellent les use cases.
 
 Un exemple de flux complet à travers les quatre couches (`GET /health`) se trouve dans `src/modules/health/`.
+
+## Socle applicatif (COLLR-411)
+
+Chaque endpoint hérite automatiquement des garanties transverses configurées dans `src/shared/bootstrap/ConfigureApp.ts` :
+
+| Garantie | Détail |
+|---|---|
+| Config validée | Démarrage refusé si une variable d'environnement requise est absente/invalide |
+| Versioning | Préfixe global `/api/v1` (URI versioning) — `/health` reste hors préfixe pour les probes K3s |
+| Validation DTO | `ValidationPipe` global : `whitelist`, `forbidNonWhitelisted`, `transform` |
+| Erreurs | Format standardisé `{ statusCode, error, message, timestamp, path }` — les 5xx sont génériques côté client, détaillées dans les logs |
+| CORS | Origines explicites via `CORS_ORIGINS`, credentials, pas de wildcard |
+| Rate limiting | Throttler global (`THROTTLE_TTL` / `THROTTLE_LIMIT`), 429 au format standard |
+| Logs | JSON structuré (pino), niveau via `LOG_LEVEL`, en-têtes sensibles caviardés, `pino-pretty` en dev |
+| Sécurité HTTP | Helmet (`@fastify/helmet`) : CSP, `X-Frame-Options`, `nosniff`, etc. |
+| Healthcheck | `GET /health` vérifie réellement PostgreSQL (`SELECT 1`) et Redis (`PING`) — 200 ok / 503 degraded |
+| Documentation | Swagger UI sur `/api/docs` (JSON sur `/api/docs-json`), Bearer JWT, tags par domaine, désactivable via `SWAGGER_ENABLED` |

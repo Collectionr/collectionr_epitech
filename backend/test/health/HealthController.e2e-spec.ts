@@ -4,30 +4,97 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { configureApp } from '../../src/shared/bootstrap/ConfigureApp';
+import { HEALTH_INDICATORS } from '../../src/modules/health/application/ports/IHealthIndicator';
+import type { IHealthIndicator } from '../../src/modules/health/application/ports/IHealthIndicator';
+import { DependencyHealth } from '../../src/modules/health/domain/entities/HealthStatus';
+import { PRISMA_CLIENT } from '../../src/shared/infrastructure/database/PrismaModule';
+import { REDIS_CLIENT } from '../../src/shared/infrastructure/redis/RedisModule';
+import type { HealthResponseDto } from '../../src/modules/health/application/dtos/HealthResponseDto';
+
+// Infrastructure test doubles: the indicators are substituted, no real client is created.
+const prismaClientStub = { $disconnect: (): Promise<void> => Promise.resolve() };
+const redisClientStub = { disconnect: (): void => undefined };
+
+function buildIndicator(dependency: DependencyHealth): IHealthIndicator {
+  return { check: () => Promise.resolve(dependency) };
+}
+
+async function buildApp(indicators: IHealthIndicator[]): Promise<NestFastifyApplication> {
+  const moduleFixture: TestingModule = await Test.createTestingModule({
+    imports: [AppModule],
+  })
+    .overrideProvider(HEALTH_INDICATORS)
+    .useValue(indicators)
+    .overrideProvider(PRISMA_CLIENT)
+    .useValue(prismaClientStub)
+    .overrideProvider(REDIS_CLIENT)
+    .useValue(redisClientStub)
+    .compile();
+
+  const app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  await configureApp(app);
+  await app.init();
+  await app.getHttpAdapter().getInstance().ready();
+  return app;
+}
 
 describe('HealthController (e2e)', () => {
-  let app: NestFastifyApplication;
+  describe('when every dependency is up', () => {
+    let app: NestFastifyApplication;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    beforeAll(async () => {
+      app = await buildApp([
+        buildIndicator(new DependencyHealth('database', 'up', 12)),
+        buildIndicator(new DependencyHealth('cache', 'up', 3)),
+      ]);
+    });
 
-    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-    await app.init();
-    await app.getHttpAdapter().getInstance().ready();
+    afterAll(async () => {
+      await app.close();
+    });
+
+    it('GET /health returns 200 with the dependency details', async () => {
+      const response = await request(app.getHttpServer()).get('/health');
+      const body = response.body as HealthResponseDto;
+
+      expect(response.status).toBe(200);
+      expect(body.status).toBe('ok');
+      expect(typeof body.checkedAt).toBe('string');
+      expect(body.dependencies).toEqual([
+        { name: 'database', status: 'up', latencyMs: 12 },
+        { name: 'cache', status: 'up', latencyMs: 3 },
+      ]);
+    });
+
+    it('GET /health is not exposed under the /api/v1 prefix', async () => {
+      const response = await request(app.getHttpServer()).get('/api/v1/health');
+
+      expect(response.status).toBe(404);
+    });
   });
 
-  afterEach(async () => {
-    await app.close();
-  });
+  describe('when a dependency is down', () => {
+    let app: NestFastifyApplication;
 
-  it('GET /health returns 200 with an ok status', async () => {
-    const response = await request(app.getHttpServer()).get('/health');
-    const body = response.body as { status: string; checkedAt: string };
+    beforeAll(async () => {
+      app = await buildApp([
+        buildIndicator(new DependencyHealth('database', 'up', 12)),
+        buildIndicator(new DependencyHealth('cache', 'down', null)),
+      ]);
+    });
 
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({ status: 'ok' });
-    expect(typeof body.checkedAt).toBe('string');
+    afterAll(async () => {
+      await app.close();
+    });
+
+    it('GET /health returns 503 with a degraded status', async () => {
+      const response = await request(app.getHttpServer()).get('/health');
+      const body = response.body as HealthResponseDto;
+
+      expect(response.status).toBe(503);
+      expect(body.status).toBe('degraded');
+      expect(body.dependencies).toContainEqual({ name: 'cache', status: 'down', latencyMs: null });
+    });
   });
 });

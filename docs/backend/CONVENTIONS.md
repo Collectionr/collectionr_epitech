@@ -277,6 +277,36 @@ export interface Carte {
 
 ---
 
+##  Journalisation d'audit (`@Audit`)
+
+Le module `src/modules/audit/` fournit un décorateur `@Audit` et un interceptor global, réutilisables par tous les domaines (cf. `.claude/contexts/architecture.md` ADR-011). Poser `@Audit` sur un handler de contrôleur suffit à faire tracer l'action dans `audit_logs` — succès et échec, y compris un rejet par un guard (401/403/429).
+
+### Quand poser `@Audit` ?
+
+Une action mérite `@Audit` si elle remplit **au moins un** de ces critères :
+
+1. **Elle est explicitement listée par `docs/security/S05-logs-audit.md` §3.3** : tentative de connexion, création de compte, changement de mot de passe, accès refusé (403), suppression de compte, action administrative.
+2. **Elle supprime des données** (une collection entière, un compte, un lot de cartes…).
+3. **Elle est irréversible**, ou difficile à annuler.
+
+**Ne pas** l'utiliser par réflexe sur toute route `POST`/`PATCH`/`DELETE` : un audit qui trace tout perd sa valeur d'investigation (principe de traçabilité ciblée, S05 §2). Les lectures (`GET`) et les mises à jour mineures ne sont pas concernées — en cas de doute, en discuter en revue de PR plutôt que de décorer par défaut.
+
+### Comment l'utiliser
+
+```typescript
+@Delete(':id')
+@Audit({ action: 'collection.delete', targetType: 'collection', targetIdParam: 'id' })
+async supprimer(@Param('id') id: string): Promise<void> {
+  return this.deleteCollectionUseCase.execute(id);
+}
+```
+
+- `action` : format `domaine.verbe` (ex. `collection.delete`) ; un échec est tracé automatiquement sous `<action>.failed`.
+- `bodyFields` : liste blanche explicite des champs du body à copier dans `metadata` — jamais le body entier. Un nom de champ reconnu comme sensible (mot de passe, token, secret…) fait échouer le démarrage de l'application.
+- Aucun câblage supplémentaire n'est nécessaire dans le `Module` du domaine : l'interceptor est déjà global.
+
+---
+
 ##  Checklist de Validation
 
 Avant de soumettre une Pull Request, vérifiez que :
@@ -290,6 +320,7 @@ Avant de soumettre une Pull Request, vérifiez que :
 - [ ] Les décorateurs NestJS standard sont privilégiés (`@Body()`, etc.)
 - [ ] L'accès Fastify natif n'est utilisé que si nécessaire (documenté)
 - [ ] Les tests unitaires couvrent la logique métier
+- [ ] Les actions sensibles (suppression, irréversible, ou listées en S05 §3.3) portent `@Audit`
 
 ---
 
@@ -303,6 +334,6 @@ Avant de soumettre une Pull Request, vérifiez que :
 
 ---
 
-**Dernière mise à jour** : Mars 2026  
+**Dernière mise à jour** : Septembre 2026  
 **Mainteneurs** : Équipe Backend  
 **Remarques** : N'hésitez pas à proposer des améliorations ! 

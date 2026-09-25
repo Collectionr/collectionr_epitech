@@ -145,7 +145,7 @@ Réponse :
 | Donnée | Source | Voie |
 |--------|--------|------|
 | Métadonnées + images | TCGdex | `Worker TCG API` → PostgreSQL |
-| Prix EUR (Cardmarket) + USD (TCGPlayer/eBay), gradés PSA/BGS/CGC | TCGdex → PokeTrace → eBay Browse → TCGFast | `Worker TCG API` / `Worker TCG Fallback` → PostgreSQL |
+| Prix EUR (Cardmarket) + USD (TCGPlayer/eBay), gradés PSA/BGS/CGC | TCGdex → PokeTrace → eBay Browse → TCGFast | `Worker TCG API` / `Worker TCG Scraping` → PostgreSQL |
 | Estimation de prix | Modèle IA | `Worker TCG Prediction` |
 
 ---

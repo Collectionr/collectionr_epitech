@@ -49,7 +49,7 @@ dans le cluster K3s :
 - Worker OCR
 - Worker TCG API
 - Worker TCG Scraping
-- Worker TCG Prediction (V2)
+- Worker TCG Prediction (Beta)
 - Worker Grading IA (V2)
 - Redis OCR et Redis TCG
 - PostgreSQL
@@ -126,7 +126,7 @@ composant et la justification associée.
 | Worker OCR | Deployment | 1-3 | Scalable selon charge OCR |
 | Worker TCG API | Deployment | 1 | Appels API externes |
 | Worker TCG Scraping | Deployment | 1 | Scraping Marketplace |
-| Worker TCG Prediction | Deployment | 1 | V2 — inférence prix |
+| Worker TCG Prediction | Deployment | 1 | Beta — inférence prix |
 | Worker Grading IA | Deployment | 1 | V2 — gradation carte |
 | Redis OCR | StatefulSet | 1 | Stateful — file d'attente OCR |
 | Redis TCG | StatefulSet | 1 | Stateful — file d'attente TCG |
@@ -196,11 +196,13 @@ la couche d'observabilité déployée dans le cluster :
 graph LR
     A[Frontend] --> B[Backend NestJS]
     B --> C[Redis OCR]
-    B --> D[Redis TCG]
+    B --> M[Microservice TCG]
+    M --> D[Redis TCG]
     C --> E[Worker OCR Python]
     D --> F[Worker TCG Scraping]
     E --> G[Stockage Partagé]
     B --> H[PostgreSQL]
+    M --> H
     
     subgraph k8s[Kubernetes K3s]
     B
@@ -210,6 +212,7 @@ graph LR
     F
     G
     H
+    M
     end
     
     subgraph observability[Observabilité]
@@ -221,9 +224,11 @@ graph LR
     B --> I
     E --> I
     F --> I
+    M --> I
     B --> L
     E --> L
     F --> L
+    M --> L
 ```
 
 ### 4.2 Pipeline Grading IA (V2)
@@ -297,20 +302,23 @@ graph LR
     end
 
     subgraph tcg["Pipeline TCG"]
-        RTCG["Redis TCG"] --> WTCGAPI["Worker TCG API"]
+        MICROTCG["Microservice TCG"] --> RTCG["Redis TCG"]
+        RTCG --> WTCGAPI["Worker TCG API"]
         RTCG --> WTCGSCRAPING["Worker TCG Scraping"]
         RTCG --> WTCGPRED["Worker TCG Prediction"]
     end
 
     subgraph grading["Pipeline Grading IA"]
-        RGRADING["Redis Grading"] --> WGRADING["Worker Grading"]
+        MICROGRADING["Microservice Grading"] --> RGRADING["Redis Grading"]
+        RGRADING --> WGRADING["Worker Grading"]
         WGRADING --> MODELE["Modèle Vision IA"]
     end
 
     Backend["Backend"] --> ROCR
-    Backend --> RTCG
-    Backend --> RGRADING
+    Backend --> MICROTCG
+    Backend --> MICROGRADING
     WOCR --> PG["PostgreSQL"]
+    MICROTCG --> PG
     WTCGAPI --> PG
     WTCGSCRAPING --> PG
     WTCGPRED --> PG
@@ -337,8 +345,7 @@ les réponses API standards.
 | Mode | Technologie | Utilisé pour |
 |---|---|---|
 | Synchrone | API REST HTTP | Backend ↔ Frontend, Backend ↔ Microservice TCG |
-| Asynchrone | Redis (file d'attente) | Backend → Workers OCR et TCG |
-| Temps réel | SSE (Server-Sent Events) | Backend → Client (notifications job_id) |
+| Asynchrone | Redis (file d'attente) | Backend → Redis OCR → Worker OCR (direct) ; Backend → Microservice TCG → Redis TCG → Workers TCG (indirect) | Temps réel | SSE (Server-Sent Events) | Backend → Client (notifications job_id) |
 
 ### 5.2 Flux de communication runtime
 
@@ -535,12 +542,17 @@ non explicitement autorisée est refusée.
 
 Règles principales :
 
-- le Backend peut contacter Redis OCR, Redis TCG 
+- le Backend peut contacter Redis OCR, le Microservice TCG 
+  et PostgreSQL ;
+- le Microservice TCG peut contacter Redis TCG 
   et PostgreSQL ;
 - les Workers ne peuvent pas contacter le Frontend ;
 - le Worker OCR n'a pas accès au réseau externe ;
 - les Workers TCG API et Scraping peuvent contacter 
-  les APIs externes uniquement.
+  les APIs externes uniquement (cascade TCGdex → PokeTrace 
+  → eBay Browse API → TCGFast Trader) ;
+- le Worker TCG Prediction n'a pas accès au réseau externe 
+  (lecture/écriture PostgreSQL uniquement).
 
 ### 9.2 RBAC Kubernetes
 

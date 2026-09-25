@@ -1,0 +1,58 @@
+// Low limit injected before AppModule loads, to make the test deterministic.
+process.env.THROTTLE_LIMIT = '3';
+process.env.THROTTLE_TTL = '60';
+
+import { Controller, Get, Module } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { FastifyAdapter } from '@nestjs/platform-fastify';
+import request from 'supertest';
+import { AppModule } from '../../src/app.module';
+import { configureApp } from '../../src/shared/bootstrap/ConfigureApp';
+import type { StandardErrorResponse } from '../../src/shared/interface/filters/AllExceptionsFilter';
+
+@Controller('ping')
+class PingTestController {
+  @Get()
+  ping(): { pong: boolean } {
+    return { pong: true };
+  }
+}
+
+@Module({ controllers: [PingTestController] })
+class PingTestModule {}
+
+describe('Global rate limiting (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule, PingTestModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    await configureApp(app);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('returns 429 in the standard error format once the limit is exceeded', async () => {
+    for (let i = 0; i < 3; i += 1) {
+      const response = await request(app.getHttpServer()).get('/api/v1/ping');
+      expect(response.status).toBe(200);
+    }
+
+    const throttled = await request(app.getHttpServer()).get('/api/v1/ping');
+    const body = throttled.body as StandardErrorResponse;
+
+    expect(throttled.status).toBe(429);
+    expect(body.statusCode).toBe(429);
+    expect(body.path).toBe('/api/v1/ping');
+    expect(typeof body.timestamp).toBe('string');
+  });
+});
