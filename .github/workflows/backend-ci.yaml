@@ -1,0 +1,138 @@
+name: Backend CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - dev
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Security - Gitleaks Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Discord on Gitleaks failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "Aucun secret DISCORD_WEBHOOK_URL configuré, notification ignorée."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg pr_num "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            --arg pr_url "$PR_URL" \
+            --arg run_url "$RUN_URL" \
+            --arg actor "$ACTOR" \
+            '{
+              embeds: [{
+                title: ("🚨 Alerte Sécurité : Secret détecté par Gitleaks (PR #" + $pr_num + ")"),
+                description: ("Un secret en clair a été détecté dans les commits de la Pull Request.\n**Titre :** " + $pr_title + "\n**Auteur :** @" + $actor),
+                color: 15158332,
+                fields: [
+                  { name: "Pull Request", value: ("[PR #" + $pr_num + "](" + $pr_url + ")"), inline: true },
+                  { name: "Logs d'\''échec", value: ("[Consulter l'\''exécution](" + $run_url + ")"), inline: true }
+                ],
+                timestamp: (now | todate)
+              }]
+            }')
+
+          curl -s -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+
+  backend:
+    name: Backend - Lint, Build & Tests
+    needs: [gitleaks]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check code formatting
+        run: npm run format:check
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run unit tests with coverage (>= 70%)
+        run: npm run test:cov
+
+      - name: Run E2E / API integration tests
+        run: npm run test:e2e
+
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "Aucun secret DISCORD_WEBHOOK_URL configuré, notification ignorée."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg pr_num "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            --arg pr_url "$PR_URL" \
+            --arg run_url "$RUN_URL" \
+            --arg actor "$ACTOR" \
+            '{
+              embeds: [{
+                title: ("❌ Échec de la CI Backend (PR #" + $pr_num + ")"),
+                description: ("Le pipeline Backend a rencontré une erreur (format, lint, build ou tests).\n**Titre :** " + $pr_title + "\n**Auteur :** @" + $actor),
+                color: 15158332,
+                fields: [
+                  { name: "Pull Request", value: ("[PR #" + $pr_num + "](" + $pr_url + ")"), inline: true },
+                  { name: "Logs d'\''échec", value: ("[Consulter l'\''exécution](" + $run_url + ")"), inline: true }
+                ],
+                timestamp: (now | todate)
+              }]
+            }')
+
+          curl -s -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DISCORD_WEBHOOK"
