@@ -1,0 +1,11 @@
+# Contexte de build Docker de frontend/ (voir apps/web/Dockerfile)
+.git
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.env*
+!**/.env.example
+**/*.test.ts
+**/*.test.tsx
+apps/mobile
