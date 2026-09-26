@@ -80,6 +80,18 @@ Module `src/modules/audit/`. Table `audit_logs` (colonnes du schéma `docs/datab
 - **`metadata` : défense en profondeur par forme de valeur.** En plus de la liste blanche `bodyFields` et du refus au démarrage des noms de champs sensibles (`SensitiveFields.ts`, élargi : `apiKey`, `pin`, `cvv`, `ssn`, `iban`), `ReadAuditContext.ts` redige (`"[redacted]"`) toute valeur qui *ressemble* à un JWT ou à un hash bcrypt/argon2, **quel que soit le nom du champ whitelisté**. Ça ne couvre pas tout (un champ nommé innocemment mais contenant un secret arbitraire sans forme reconnaissable resterait visible) — mais ça retire la dépendance totale à la vigilance du développeur pour les deux cas les plus probables (un token ou un hash qui traîne dans un champ autorisé par erreur).
 **Limite connue restante** : la **purge** des entrées expirées n'est pas implémentée (déclencheur à trancher avec Cloud/DevOps, cf. `project_state.md`).
 
+## ADR-012 — Table `data_retention_policies` sans module applicatif (COLLR-664)
+
+Modèle Prisma `DataRetentionPolicy` → table `data_retention_policies` (colonnes de `docs/database/schema-sql.md` : `id`, `entityType`, `retentionDays`, `description`, `updatedAt`). Données de référence des durées S04 §5 : écrites par le seeder (COLLR-543), lues par le cronjob de suppression (COLLR-544), tous deux hors `backend/`.
+**Décisions** :
+- **Pas de module Clean Architecture** (ni port, ni repository, ni use case) : aucun code backend ne lit la table. Même principe que COLLR-412/437. Un module sera créé quand un use case en aura besoin.
+- **Mêmes conventions que `audit_logs`** : nom de table snake_case pluriel (`@@map`), `id` en `@db.Uuid`, dates en `@db.Timestamptz(6)`.
+- **`entityType` unique** : une seule politique par type de donnée. Sinon le cronjob ne saurait pas quelle durée appliquer, et le seeder peut faire un `upsert` idempotent sur `entityType`. Les valeurs sont en snake_case singulier (`account`, `application_log`, `audit_log`…) ; la liste définitive revient au seeder.
+- **`retentionDays` est compté depuis l'événement de référence de chaque type** (clôture du compte pour `account`, création pour les logs), pas depuis `updatedAt`.
+**Limites connues** :
+- Pas de contrainte `CHECK (retentionDays >= 0)` : Prisma ne sait pas la déclarer dans le schéma. À ajouter en SQL dans une migration si un besoin de validation en base apparaît.
+- **Deux sources pour la rétention d'audit** : `AUDIT_LOG_RETENTION_DAYS` (variable d'env, calcule `audit_logs.expiresAt` à l'écriture, ADR-011) et la ligne `audit_log` de cette table. Elles doivent rester égales (90 j) jusqu'à ce que COLLR-544 décide laquelle fait foi.
+
 ## Couches et responsabilités
 
 | Couche | Rôle | Interdit |
