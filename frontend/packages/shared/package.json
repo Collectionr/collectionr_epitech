@@ -1,0 +1,11 @@
+{
+  "name": "@collectionr/shared",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Logique partagée web + mobile (hooks, stores, services, types…) — aucun JSX.",
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

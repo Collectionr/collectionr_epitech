@@ -108,7 +108,7 @@ l'horodatage de la dernière mise à jour. **Aucune erreur bloquante pour l'util
 
 ## Langage du worker : **Python**
 
-Les workers (`Worker TCG API`, `Worker TCG Fallback`, `Worker TCG Prediction`) sont écrits en
+Les workers (`Worker TCG API`, `Worker TCG Scraping`, `Worker TCG Prediction`) sont écrits en
 **Python**, pour :
 
 - s'aligner sur le **« Pipeline de Données » Python** décrit dans
@@ -131,6 +131,7 @@ sont des composants **découplés** qui écrivent dans PostgreSQL.
 | Accès PostgreSQL | **psycopg 3** | UPSERT idempotents |
 | Retry / back-off | **tenacity** | HTTP 429, erreurs transitoires |
 | Limitation de débit | **aiolimiter** | politesse envers les APIs tierces |
+| Consommation Redis TCG | **redis-py** | Redis Streams (`XREADGROUP`/`XACK`), même protocole nativement parlé par le producteur Node (`ioredis`) |
 
 **Sources de prix retenues (cascade) :**
 

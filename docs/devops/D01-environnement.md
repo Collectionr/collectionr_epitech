@@ -119,7 +119,7 @@ graph TD
     Frontend -->|"requêtes HTTP"| Backend
     Backend -->|"appels métier TCG"| MicroTCG
     Backend -->|"publie les jobs"| RedisOCR
-    Backend -->|"publie les jobs"| RedisTCG
+    MicroTCG -->|"publie les jobs par rôle"| RedisTCG
     RedisOCR -->|"consomme les jobs"| WOCR
     RedisTCG -->|"consomme les jobs"| WTCG
     WOCR -->|"écrit les résultats"| PG
@@ -220,7 +220,6 @@ garantissant la conformité RGPD.
 |---|---|---|---|
 | Hetzner | Allemagne / Finlande | 4 vCPU / 8 Go RAM | 15-25 € / mois |
 | Scaleway | France | 4 vCPU / 8 Go RAM | 20-30 € / mois |
-| OVH | France | 4 vCPU / 8 Go RAM | 20-35 € / mois |
 
 ### 3.3 Critères de passage develop → staging
 
@@ -262,7 +261,7 @@ développement et staging seront pleinement validés.
 
 > **Note :** Ce coût correspond à un déploiement K3s VPS
 > multi-nœuds autogéré. Le passage vers un Kubernetes managé
-> (Scaleway Kapsule, OVHcloud) représente un coût estimé entre
+> (Scaleway Kapsule) représente un coût estimé entre
 > 500 et 2 000 €/mois — voir `C02-choix-solutions-cloud.md`
 > section 6.
 

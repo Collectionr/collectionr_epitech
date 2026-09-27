@@ -9,9 +9,11 @@ Son rôle est de **synchroniser les métadonnées de cartes** et de **collecter 
 des cartes Pokémon TCG, puis de les stocker dans PostgreSQL.
 
 > **Important** : le Microservice TCG et ses workers sont des **composants d'arrière-plan**. Ils
-> n'exposent **aucune API REST** aux clients. Seul le backend **NestJS (sur adaptateur Fastify)**
-> expose des endpoints. Les workers sont écrits en **Python** (cohérent avec le Pipeline de Données
-> Python décrit dans [clean-architecture.md](../../backend/clean-architecture.md)).
+> n'exposent **aucune API REST aux clients**. Seul le backend **NestJS (sur adaptateur Fastify)**
+> expose des endpoints publics. L'**orchestrateur** (Microservice TCG) expose toutefois un unique
+> endpoint **REST interne** (**FastAPI**, `POST /sync`) appelé uniquement par le backend ; les
+> **workers**, eux, n'exposent rien du tout. Les workers sont écrits en **Python** (cohérent avec le
+> Pipeline de Données Python décrit dans [clean-architecture.md](../../backend/clean-architecture.md)).
 
 ---
 
@@ -22,13 +24,12 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
 | Worker | Rôle | Sources |
 |--------|------|---------|
 | **Worker TCG API** | Synchronise les **métadonnées** et les **prix agrégés** | TCGdex (niveau 1) — catalogue FR + EN |
-| **Worker TCG Fallback** | Interroge PokeTrace, eBay Browse API et TCGFast quand TCGdex est indisponible | PokeTrace (niv. 2) → eBay Browse API (niv. 3) → TCGFast Trader (niv. 4) |
+| **Worker TCG Scraping** | Interroge PokeTrace, eBay Browse API et TCGFast quand TCGdex est indisponible | PokeTrace (niv. 2) → eBay Browse API (niv. 3) → TCGFast Trader (niv. 4) |
 | **Worker TCG Prediction** | Prédit/estime des prix (IA) à partir de l'historique | Service Python `/predict-price` (cf. clean-architecture) |
 
-> **Note sur le Worker TCG Fallback.** Ce worker, anciennement nommé « Worker TCG Scraping », ne
-> réalise **aucun scraping**. Il appelle exclusivement les APIs officielles de niveau 2 (PokeTrace),
-> niveau 3 (eBay Browse) et niveau 4 (TCGFast) en relais de TCGdex. Le nom a été mis à jour pour
-> refléter son rôle réel.
+> **Note sur le Worker TCG Scraping.** Malgré son nom, ce worker ne réalise **aucun scraping**. Il
+> appelle exclusivement les APIs officielles de niveau 2 (PokeTrace), niveau 3 (eBay Browse) et
+> niveau 4 (TCGFast) en relais de TCGdex.
 
 ---
 
@@ -42,10 +43,10 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
                                   ▼
                   BACKEND NESTJS (adaptateur Fastify)
                  API · auth · LECTURE des prix en base
-                                  │  planifie (Redis TCG / BullMQ)
+                                  │  requête REST HTTP (POST /sync)
                                   ▼
-                   MICROSERVICE TCG (orchestrateur)
-                                  │  distribue les tâches via Redis TCG
+                   MICROSERVICE TCG (orchestrateur, FastAPI)
+                                  │  distribue les tâches via Redis TCG (Streams)
         ┌─────────────────────────┼─────────────────────────┐
         ▼                         ▼                          ▼
  ┌──────────────┐        ┌──────────────────┐      ┌──────────────────┐
@@ -79,7 +80,7 @@ Le Microservice TCG **orchestre trois workers** via une file Redis dédiée (`Re
 |----------------|--------|-------------|
 | Synchronisation cartes | TCG API | Métadonnées + images (URLs uniquement) |
 | Collecte des prix — niv. 1 | TCG API | Prix agrégés Cardmarket/TCGPlayer via TCGdex |
-| Collecte des prix — niv. 2-4 | TCG Fallback | PokeTrace → eBay Browse → TCGFast si TCGdex indisponible |
+| Collecte des prix — niv. 2-4 | TCG Scraping | PokeTrace → eBay Browse → TCGFast si TCGdex indisponible |
 | Estimation de prix | TCG Prediction | Modèle IA sur l'historique |
 | Normalisation | tous | Devise → EUR, état, **langue**, noms |
 | Stockage | tous | Écriture idempotente en PostgreSQL |
@@ -118,13 +119,13 @@ Cascade par ordre de priorité (cf. [decision-technique.md](decision-technique.m
 1. **TCGdex (niveau 1 — principal)** — `Worker TCG API` interroge TCGdex pour les métadonnées et
    les prix agrégés Cardmarket (EUR) + TCGPlayer (USD) avec historique avg1/avg7/avg30. Catalogue
    **français (FR) et anglais (EN)** dès la V1. Toujours consulté en premier.
-2. **PokeTrace (niveau 2 — fallback EUR)** — `Worker TCG Fallback`, activé si TCGdex est
+2. **PokeTrace (niveau 2 — fallback EUR)** — `Worker TCG Scraping`, activé si TCGdex est
    indisponible. Fournit prix EUR Cardmarket + USD TCGPlayer/eBay avec **ventilation par état** (NM,
    LP…) et **grade** (PSA/BGS/CGC). Freemium 250 req/jour ; plan Pro 10 000 req/jour.
    Clé : `POKETRACE_API_KEY` en Secrets Kubernetes.
-3. **eBay Browse API (niveau 3 — complément USD)** — `Worker TCG Fallback`, annonces actives via
+3. **eBay Browse API (niveau 3 — complément USD)** — `Worker TCG Scraping`, annonces actives via
    OAuth ; utilisé si TCGdex et PokeTrace sont simultanément indisponibles.
-4. **TCGFast Trader (niveau 4 — fallback payant)** — `Worker TCG Fallback`, plan Trader 14,99 $/mois.
+4. **TCGFast Trader (niveau 4 — fallback payant)** — `Worker TCG Scraping`, plan Trader 14,99 $/mois.
    Apporte : prix eBay (ventes réelles), **prix gradués PSA/BGS/CGC**, historique. SDK Python. Activé
    uniquement si niveaux 1, 2 et 3 sont simultanément indisponibles. Clé : `TCGFAST_API_KEY`.
 5. **Cache PostgreSQL (filet de sécurité permanent)** — si les 4 sources sont indisponibles, le
@@ -132,10 +133,12 @@ Cascade par ordre de priorité (cf. [decision-technique.md](decision-technique.m
 
 ---
 
-# 5. Planification des tâches (Cron / BullMQ)
+# 5. Planification des tâches (Cron / REST + Redis Streams)
 
-La planification est **déclenchée** par le backend NestJS (cron) ; le **Microservice TCG** publie les jobs dans **BullMQ (Redis TCG)**,
-et les workers Python **consomment** la file.
+La planification est **déclenchée** par le backend NestJS (cron), via un **appel REST HTTP** vers
+l'endpoint **FastAPI** du **Microservice TCG** (`POST /sync`) ; celui-ci publie ensuite les tâches
+par rôle sur **Redis TCG (Redis Streams)**, et chaque worker Python les **consomme** via son propre
+consumer group (`XREADGROUP`/`XACK`).
 
 Rappel de la syntaxe cron (5 champs) :
 
@@ -277,8 +280,11 @@ un Pod défaillant.
 # 9. Intégration avec le backend NestJS
 
 - Le backend **NestJS (Fastify)** déclenche la planification (cron) et **lit** les prix en base.
-- Le **Microservice TCG** publie les jobs dans **BullMQ (Redis TCG)**.
-- Les **workers Python consomment** la file Redis (lib `bullmq` Python) et **écrivent** en PostgreSQL via `psycopg 3`.
+- Le backend envoie une **requête REST HTTP** (`POST /sync`) à l'endpoint **FastAPI** du
+  **Microservice TCG** (orchestrateur), qui publie les tâches par rôle sur **Redis TCG (Redis
+  Streams)**.
+- Les **workers Python consomment** leur stream dédié (lib `redis-py`, consumer groups
+  `XREADGROUP`/`XACK`) et **écrivent** en PostgreSQL via `psycopg 3`.
 - La collecte n'est **jamais** déclenchée par une requête utilisateur.
 
 ```
@@ -290,17 +296,16 @@ Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture
 
 | Composant | Rôle |
 |-----------|------|
-| Microservice TCG | Orchestre les workers, planifie via Redis TCG |
+| Microservice TCG | Reçoit le déclenchement REST du backend (**FastAPI**), orchestre les workers via Redis TCG |
 | Worker TCG API | Collecte via TCGdex (niveau 1), écrit en base |
-| Worker TCG Fallback | Collecte via PokeTrace + eBay Browse + TCGFast (niveaux 2-4), écrit en base |
+| Worker TCG Scraping | Collecte via PokeTrace + eBay Browse + TCGFast (niveaux 2-4), écrit en base |
 | Worker TCG Prediction | Estime les prix (IA), écrit en base |
 | Backend NestJS (Fastify) | Expose les endpoints, lit les données |
 | PostgreSQL | Source de vérité des prix + cache permanent |
-| Redis TCG | File BullMQ (planification), pas de stockage de prix |
+| Redis TCG | Redis Streams (planification par rôle), pas de stockage de prix |
 
-> **Réserve technique :** la lib `bullmq` Python est en statut *Alpha* (parité incomplète avec Node).
-> Valider tôt un **POC d'interopérabilité** Node→Python sur une file de test ; prévoir un repli
-> `APScheduler` si l'interop pose problème.
+> **Redis TCG** utilise des **Redis Streams** natifs : `ioredis` (Node, côté backend/orchestrateur si
+> besoin) et `redis-py` (Python, côté workers) parlent tous les deux le protocole Redis directement.
 
 ---
 
@@ -309,14 +314,14 @@ Client ──▶ GET /market/swsh3-20 ──▶ Backend NestJS ──▶ lecture
 Conformément à [03-flux-techniques-plateforme.md](../../architecture/03-flux-techniques-plateforme.md),
 chaque composant est un **Pod K3s** :
 
-- **Deployments** distincts pour `Worker TCG API`, `Worker TCG Fallback`, `Worker TCG Prediction` et
+- **Deployments** distincts pour `Worker TCG API`, `Worker TCG Scraping`, `Worker TCG Prediction` et
   le `Microservice TCG` (orchestrateur).
 - **Secrets Kubernetes** pour les clés/identifiants externes (OAuth eBay, `POKETRACE_API_KEY`,
   `TCGFAST_API_KEY`). TCGdex ne requiert aucune clé.
 - **NetworkPolicies** : les workers communiquent uniquement via Redis TCG ; pas d'accès réseau
   latéral entre eux.
-- **Redis TCG** déployé comme service interne (file BullMQ).
-- **Ressources** : limites CPU/mémoire par worker ; le `Worker TCG Fallback` est léger (appels API
+- **Redis TCG** déployé comme service interne (Redis Streams).
+- **Ressources** : limites CPU/mémoire par worker ; le `Worker TCG Scraping` est léger (appels API
   uniquement) — budget mémoire standard.
 
 Exemple (extrait de manifest) :
@@ -426,14 +431,14 @@ Le **code métier critique du Worker TCG** à couvrir en priorité (QA §4.1) :
 ## Flux 1 — Collecte périodique (automatique)
 
 ```
-CRON / BullMQ (Redis TCG)
-        │  job planifié
+CRON (Backend NestJS)
+        │  requête REST HTTP → Microservice TCG (FastAPI, POST /sync)
         ▼
-Microservice TCG ──▶ distribue aux workers
+Microservice TCG ──▶ publie les tâches par rôle sur Redis TCG (Streams)
         │
         ├─▶ Worker TCG API ──▶ TCGdex (niv. 1) ──▶ métadonnées + prix
         │       │ si indisponible ──▶
-        ├─▶ Worker TCG Fallback ──▶ PokeTrace (niv. 2) / eBay Browse (niv. 3) / TCGFast (niv. 4)
+        ├─▶ Worker TCG Scraping ──▶ PokeTrace (niv. 2) / eBay Browse (niv. 3) / TCGFast (niv. 4)
         └─▶ Worker TCG Prediction ──▶ estimation IA
         ▼
 Normalisation (EUR, état, langue) ──▶ PostgreSQL (card_prices, price_history)
@@ -467,7 +472,8 @@ Le Microservice TCG, refondu, repose sur une architecture **conforme au runtime 
 
 - **Cascade API 4 niveaux** : TCGdex (principal, FR + EN) → PokeTrace (fallback EUR) → eBay Browse API (USD) → TCGFast (fallback payant) ;
 - **cache PostgreSQL permanent** comme filet de sécurité — aucune erreur bloquante pour l'utilisateur ;
-- orchestration des **trois workers** (API, Fallback, Prediction) via **Redis TCG (BullMQ)** ;
+- orchestration des **trois workers** (API, Scraping, Prediction) via **Redis TCG (Redis Streams)**,
+  déclenchée par le backend via l'endpoint **FastAPI** de l'orchestrateur ;
 - modèle de données intégrant la **langue**, source de vérité **PostgreSQL** ;
 - **garde-fous légaux** explicites et **stratégie de tests alignée Doc QA** (≥ 50 % service Python).
 

@@ -1,0 +1,8 @@
+# Dépendances et artefacts de build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Variables d'environnement (seul le modèle est versionné)
+.env*
+!.env.example

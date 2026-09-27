@@ -31,3 +31,17 @@ model AuditLog {
   @@index([expiresAt])
   @@map("audit_logs")
 }
+
+/// Retention period per entity type (GDPR Art. 5.1.e, docs/security/S04-rgpd-conformite.md §5).
+/// Reference data: rows are written by the seeder (COLLR-543) and read by the deletion job (COLLR-544).
+model DataRetentionPolicy {
+  id            String   @id @default(uuid()) @db.Uuid
+  /// snake_case identifier of the data category (e.g. account, application_log, audit_log). One policy per type.
+  entityType    String   @unique
+  /// Counted from the entity's reference event (account closure for accounts, creation for logs).
+  retentionDays Int
+  description   String
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("data_retention_policies")
+}

@@ -267,9 +267,8 @@ L’accès aux logs est restreint aux membres autorisés de l’équipe.
 
 Les rôles sont répartis de la manière suivante :
 
-- équipe Cloud / DevOps : logs d’infrastructure
+- équipe Cloud / DevOps (incluant le volet Cyber) : logs d'infrastructure et logs d'audit
 - équipe Backend : logs applicatifs
-- équipe sécurité : logs d’audit
 
 Dans l'environnement K3s, l'accès aux logs est contrôlé 
 via le RBAC Kubernetes. Chaque rôle dispose uniquement 

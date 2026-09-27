@@ -122,9 +122,9 @@ Aucune valeur magique : tout passe par un **token**. Couleurs sémantiques, poli
 | Pipeline OCR | Reconnaît une carte depuis une photo (suivi SSE) | V1 |
 | Grading IA | Pré-gradation état/centrage par vision IA | Bonus V1 |
 
-### Microservice TCG — 3 workers (files Redis / BullMQ)
+### Microservice TCG — orchestrateur FastAPI + 3 workers (Redis Streams)
 - **TCG API** : métadonnées + prix agrégés (TCGdex, niveau 1).
-- **TCG Fallback** : eBay Browse API (niv. 2) puis TCGFast Trader (niv. 3) — **aucun scraping**.
+- **TCG Scraping** : PokeTrace (niv. 2) puis eBay Browse API (niv. 3) puis TCGFast Trader (niv. 4) — **aucun scraping**.
 - **TCG Prediction** : estimation IA sur l'historique de prix.
 - Écriture PostgreSQL via `psycopg 3` (UPSERT idempotents). La **langue** fait partie de l'identité d'un prix (`cardId, source, condition, language`).
 
@@ -133,7 +133,7 @@ Aucune valeur magique : tout passe par un **token**. Couleurs sémantiques, poli
 - **API externe TCGdex** : fournisseur principal (REST/GraphQL, MIT, sans clé) de métadonnées + prix agrégés, caché localement.
 
 ### Stratégie « zéro scraping »
-Cascade **TCGdex → eBay Browse → TCGFast** + cache PostgreSQL (filet permanent) ; Cardmarket/TCGPlayer/eBay directs écartés (CGU + Cloudflare). Stack Python : `httpx`, `selectolax`/`BeautifulSoup4`, `pydantic`, `tenacity` + `aiolimiter`.
+Cascade **TCGdex → PokeTrace → eBay Browse → TCGFast** + cache PostgreSQL (filet permanent) ; Cardmarket/TCGPlayer/eBay directs écartés (CGU + Cloudflare). Stack Python : `httpx`, `selectolax`/`BeautifulSoup4`, `pydantic`, `tenacity` + `aiolimiter`.
 
 **Message slide** : « Backend NestJS sur PostgreSQL + workers Python découplés (TCG, OCR, Grading) ; prix et cartes via une cascade 100 % API officielle, sans scraping. »
 

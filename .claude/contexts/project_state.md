@@ -2,7 +2,7 @@
 
 > Mettre à jour ce fichier quand un ticket est terminé, une décision prise, ou un piège découvert.
 
-_Dernière mise à jour : 2026-09-21 (COLLR-413 — journalisation d'audit)_
+_Dernière mise à jour : 2026-09-23 (COLLR-664 — table de rétention RGPD)_
 
 ## Fait
 
@@ -15,6 +15,8 @@ _Dernière mise à jour : 2026-09-21 (COLLR-413 — journalisation d'audit)_
 - **COLLR-438** — Scaffolding du script de seed (sous-tâche de COLLR-412). Volontairement minimal : `prisma/seed.ts` se connecte (Prisma + adapter-pg) et exécute `SELECT 1` pour valider le câblage, sans données de démo — aucun modèle métier n'existe encore (Users/Collection/CardEntry/Catalogue sont portés par des epics fonctionnels non démarrés), donc rien à seeder pour l'instant. À remplir progressivement, epic par epic. Câblé via `prisma.config.ts` (`migrations.seed`) et `npm run prisma:seed`. A nécessité un contournement supplémentaire (`prisma/registerGeneratedClientResolution.js`, cf. piège ci-dessous) : `ts-node` seul ne résout pas les imports `.js` du client Prisma généré (contrairement à `nest build`/Jest). Lint clean, build OK, 34 tests unitaires + 16 e2e OK, couverture inchangée (96,27 %), `prisma:seed` testé (échec propre ECONNREFUSED sur un host injoignable, confirmant que la connexion réelle est bien tentée).
 
 - **COLLR-413** — Journalisation d'audit (branche `COLLR-413/feat/journal-audit-log`), **hors purge** (cf. TODO ci-dessous). Table `audit_logs` (1re migration du projet, `prisma/migrations/20260921140000_add_audit_logs`) — **migration validée contre un vrai PostgreSQL 16 le 2026-09-22** (`npm run prisma:migrate` via Prisma Studio, `_prisma_migrations.applied_steps_count = 1`). Module `src/modules/audit/` (décorateur `@Audit`, `AuditInterceptor`, `RecordAuditEntryUseCase`) + `AuditContextGuard` (capture les rejets de guard — 401/403/429 — via `AllExceptionsFilter`, cf. ADR-011) + défense en profondeur sur `metadata` (redaction par forme de valeur, pas seulement par nom de champ). Variable `AUDIT_LOG_RETENTION_DAYS` (défaut 90). Décisions et limites : ADR-011. Lint clean, build OK, 130 tests unitaires + 22 e2e OK, couverture 98,3 % lignes / 94,15 % branches (les branches restantes sont des artefacts d'instrumentation TS sur des constructeurs à injection Nest, pas des trous fonctionnels). Aucun endpoint métier n'utilise encore `@Audit` — le branchement Auth (login, register, mot de passe) est porté par COLLR-442, avec la FK `userId → users`.
+
+- **COLLR-664 / COLLR-666** — Table de rétention RGPD (épique COLLR-404). Branche `COLLR-664/feat/retention-donnees-rgpd`. Modèle Prisma `DataRetentionPolicy` → table `data_retention_policies` (migration `prisma/migrations/20260923140354_add_data_retention_policies`, `entityType` unique). **Migration validée contre un vrai PostgreSQL 16 (16.15) le 2026-09-23** : conteneur Docker `postgres:16` temporaire, `prisma migrate dev` depuis une base vide (les 2 migrations ont `applied_steps_count = 1`), `prisma migrate status` à jour, unicité de `entityType` vérifiée par un doublon rejeté. Conteneur supprimé ensuite. **Aucun module applicatif** : la table n'est lue par aucun code backend (ADR-012). Lint clean, build OK. Pas de nouveau test : aucune logique ajoutée. Débloque COLLR-543 (seeder) et COLLR-544 (cronjob de suppression), tous deux dans l'épique Infrastructure K3s.
 
 ## En cours / à venir
 

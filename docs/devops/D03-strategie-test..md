@@ -6,9 +6,9 @@ associés, les objectifs de couverture et l'intégration dans
 la pipeline CI/CD.
 
 Cette stratégie est conçue pour être réaliste au regard du 
-rythme de travail de l'équipe (1 jour par semaine, rendu avril 
-2027) tout en garantissant un niveau de qualité suffisant pour 
-une mise en production progressive.
+rythme de travail de l'équipe (1 jour par semaine + 1 semaine 
+pleine toutes les 9 semaines) tout en garantissant un niveau 
+de qualité suffisant pour une mise en production progressive.
 
 Elle est cohérente avec les documents suivants :
 - `D02-cicd.md` — pipeline d'exécution automatique des tests ;
@@ -177,9 +177,9 @@ Ces seuils sont vérifiés automatiquement via GitHub Actions
 en dessous du seuil cible est bloquée jusqu'à correction.
 
 > **Note :** Les seuils définis reflètent une approche pragmatique 
-> adaptée au rythme de l'équipe (1 jour par semaine, rendu avril 2027) 
-> et concentrent les efforts de test là où le risque métier est 
-> le plus élevé. Un coverage à 100% n'est ni un objectif réaliste 
+> adaptée au rythme de l'équipe (1 jour par semaine + 1 semaine 
+> pleine toutes les 9 semaines) et concentrent les efforts de test 
+> là où le risque métier est le plus élevé. Un coverage à 100% n'est ni un objectif réaliste 
 > ni un indicateur de qualité suffisant — il donnerait une fausse 
 > impression de sécurité tout en ralentissant le développement. 
 > Ces seuils seront réévalués à chaque sprint selon les retours 
@@ -360,7 +360,7 @@ graph LR
     Secrets --> Unit["Tests unitaires
     Jest + Pytest"]
     Unit --> Integration["Tests intégration
-    Jest + Supertest"]
+    Jest + light-my-request"]
     Integration --> Infra["Tests infrastructure
     k3d + kubectl"]
     Infra --> Security["Tests sécurité

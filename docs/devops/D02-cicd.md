@@ -74,12 +74,12 @@ gitGraph
     branch develop
     checkout develop
     commit id: "feature A"
-    branch feature/scan-ocr
-    checkout feature/scan-ocr
+    branch COLLR-12/feat/scan-ocr
+    checkout COLLR-12/feat/scan-ocr
     commit id: "ajout OCR"
     commit id: "tests OCR"
     checkout develop
-    merge feature/scan-ocr id: "PR validée"
+    merge COLLR-12/feat/scan-ocr id: "PR validée"
     commit id: "feature B"
     branch staging
     checkout staging
@@ -96,29 +96,24 @@ gitGraph
 | `main` | Code stable — déployé en production, merge uniquement depuis `staging` | 🔴 Protégée |
 | `staging` | Pré-prod permanente — validation déploiement et perfs avant production | 🔴 Protégée |
 | `develop` | Intégration quotidienne du travail de l'équipe | 🟡 Protégée |
-| `feature/*` | Développement d'une fonctionnalité | 🟢 Libre |
-| `fix/*` | Correction de bug | 🟢 Libre |
-| `devops/*` | Modifications infra et manifests K3s | 🟢 Libre |
-| `release/*` | Branche temporaire de préparation de release | 🟡 Temporaire |
+| `COLLR-<NUM>/feat/*` | Développement d'une Feature ou Subtask, tous domaines confondus (Front/Back/IA/DevOps) | 🟢 Libre |
+| `COLLR-<NUM>/fix/*` | Correction d'un bug identifié en review, staging ou production | 🟢 Libre |
 
 La branche `staging` est une branche permanente pour la pré-production et les tests. Elle possède le même niveau de sécurité que `main` et n'est accessible qu'à un nombre restreint de membres de l'équipe pour validation avant le déploiement en production.
 
 
 ### 2.2 Règles de nommage des branches
 
-Pour maintenir une cohérence dans le dépôt, 
-les branches doivent respecter le format suivant :
+Pour maintenir une cohérence dans le dépôt et la traçabilité 
+avec Jira, les branches doivent respecter le format suivant :
 
-```
-feature/nom-de-la-feature
-fix/description-du-bug
-devops/modification-infra
-```
+COLLR-<NUM>/feat/nom-de-la-feature
+COLLR-<NUM>/fix/description-du-bug
 
 Exemples :
-- `feature/scan-carte-pokemon`
-- `fix/token-expiration`
-- `devops/networkpolicy-worker-ocr`
+- `COLLR-42/feat/scan-carte-pokemon`
+- `COLLR-58/fix/token-expiration`
+- `COLLR-25/feat/networkpolicy-worker-ocr`
 
 ---
 
@@ -216,7 +211,7 @@ de chaque fonction ou composant isolément :
 Les tests d'intégration vérifient que les services 
 communiquent correctement entre eux :
 
-- **Jest + Supertest** : endpoints API Backend ;
+- **Jest + light-my-request** : endpoints API Backend (compatible NestJS Fastify natif) ;
 - communication Backend → Redis → Worker ;
 - communication Backend → PostgreSQL.
 
@@ -307,7 +302,8 @@ graph TD
 
 | Événement | Environnement cible | Commande |
 |---|---|---|
-| Merge sur `develop` | Staging | `kubectl apply -n staging` |
+| Merge sur `develop` | Development | `kubectl apply -n development` |
+| Merge sur `staging` | Staging | `kubectl apply -n staging` |
 | Merge sur `main` | Production | `kubectl apply -n production` |
 
 > **Note phase actuelle :** le déploiement automatique 

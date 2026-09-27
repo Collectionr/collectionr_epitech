@@ -160,7 +160,7 @@ Les logs doivent être :
 - protégés contre l’altération,
 - exploitables pour l’audit et l’investigation.
 
-Les outils envisagés pour la centralisation des logs sont Loki et Grafana, déployables nativement sur K3s. Le détail est disponible dans `S05-logs-audit.md`.
+Les outils envisagés pour la centralisation des logs sont Loki, Grafana et Promtail, déployables nativement sur K3s. Le détail est disponible dans `S05-logs-audit.md`.
 
 
 ---
