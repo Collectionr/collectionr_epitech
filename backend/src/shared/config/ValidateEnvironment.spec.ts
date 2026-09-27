@@ -19,11 +19,18 @@ describe('validateEnvironment', () => {
     expect(environment.SWAGGER_ENABLED).toBe(false);
     expect(environment.CORS_ORIGINS).toBe('http://localhost:5173');
     expect(environment.AUDIT_LOG_RETENTION_DAYS).toBe(90);
+    expect(environment.PASSWORD_MIN_LENGTH).toBe(8);
   });
 
   it('rejects an AUDIT_LOG_RETENTION_DAYS lower than 1', () => {
     expect(() => validateEnvironment({ ...validConfig, AUDIT_LOG_RETENTION_DAYS: '0' })).toThrow(
       /AUDIT_LOG_RETENTION_DAYS/,
+    );
+  });
+
+  it.each(['7', '65'])('rejects a PASSWORD_MIN_LENGTH of %s outside the 8-64 range', (value) => {
+    expect(() => validateEnvironment({ ...validConfig, PASSWORD_MIN_LENGTH: value })).toThrow(
+      /PASSWORD_MIN_LENGTH/,
     );
   });
 

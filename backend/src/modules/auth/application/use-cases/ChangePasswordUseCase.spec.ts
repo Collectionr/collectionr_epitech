@@ -14,6 +14,8 @@ function buildUser(): User {
   });
 }
 
+const DEFAULT_PASSWORD_MIN_LENGTH = 8;
+
 describe('ChangePasswordUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
   const findById = jest.fn();
@@ -22,10 +24,10 @@ describe('ChangePasswordUseCase', () => {
   const verify = jest.fn();
   let existingUser: User;
 
-  function build(): ChangePasswordUseCase {
+  function build(passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH): ChangePasswordUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail };
     const passwordHasher: IPasswordHasher = { hash, verify };
-    return new ChangePasswordUseCase(userRepository, passwordHasher);
+    return new ChangePasswordUseCase(userRepository, passwordHasher, passwordMinLength);
   }
 
   beforeEach(() => {
@@ -82,6 +84,18 @@ describe('ChangePasswordUseCase', () => {
         newPassword: 'short',
       }),
     ).rejects.toThrow(/at least 8 characters/);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('enforces the injected PASSWORD_MIN_LENGTH rather than a hardcoded value', async () => {
+    await expect(
+      build(12).execute({
+        userId: existingUser.id,
+        currentPassword: 'old-password1',
+        // 9 chars: satisfies the default minLength (8) but not this test's stricter one (12).
+        newPassword: 'newpass12',
+      }),
+    ).rejects.toThrow(/at least 12 characters/);
     expect(save).not.toHaveBeenCalled();
   });
 });

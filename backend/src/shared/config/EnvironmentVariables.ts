@@ -74,4 +74,10 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   AUDIT_LOG_RETENTION_DAYS: number = 90;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(8)
+  @Max(64)
+  PASSWORD_MIN_LENGTH: number = 8;
 }

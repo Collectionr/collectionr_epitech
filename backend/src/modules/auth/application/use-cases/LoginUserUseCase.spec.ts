@@ -66,6 +66,35 @@ describe('LoginUserUseCase', () => {
     expect(issueTokenPair).not.toHaveBeenCalled();
   });
 
+  it('still runs a hash comparison for an unknown email (timing side channel)', async () => {
+    findByEmail.mockResolvedValue(null);
+
+    await expect(
+      build().execute({ email: 'unknown@example.com', plainPassword: 'abcd1234' }),
+    ).rejects.toThrow(InvalidCredentialsError);
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify).toHaveBeenCalledWith(
+      'abcd1234',
+      '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    );
+  });
+
+  it('uses a syntactically valid bcrypt hash as the dummy (format bcryptjs/bcrypt will accept)', async () => {
+    findByEmail.mockResolvedValue(null);
+
+    await expect(
+      build().execute({ email: 'unknown@example.com', plainPassword: 'abcd1234' }),
+    ).rejects.toThrow(InvalidCredentialsError);
+
+    const [, dummyHash] = verify.mock.calls[0] as [string, string];
+    // $2<a|b|y>$<cost>$<22-char salt><31-char hash>, 60 chars total (RFC-less
+    // but universally implemented bcrypt format). Not proof a real bcrypt
+    // lib accepts it (never exercised against one in this test suite — every
+    // IPasswordHasher here is mocked), but rules out a malformed placeholder.
+    expect(dummyHash).toMatch(/^\$2[aby]\$\d{2}\$[A-Za-z0-9./]{53}$/);
+  });
+
   it('rejects a wrong password as invalid credentials', async () => {
     verify.mockResolvedValue(false);
 
@@ -80,5 +109,6 @@ describe('LoginUserUseCase', () => {
       build().execute({ email: 'not-an-email', plainPassword: 'abcd1234' }),
     ).rejects.toThrow(InvalidCredentialsError);
     expect(findByEmail).not.toHaveBeenCalled();
+    expect(verify).not.toHaveBeenCalled();
   });
 });

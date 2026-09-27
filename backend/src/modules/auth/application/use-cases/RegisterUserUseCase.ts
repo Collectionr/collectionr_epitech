@@ -5,6 +5,7 @@ import { Password } from '../../domain/value-objects/Password';
 import { ConsentRequiredError, EmailAlreadyUsedError } from '../errors/AuthErrors';
 import { PASSWORD_HASHER } from '../ports/IPasswordHasher';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
+import { PASSWORD_MIN_LENGTH } from '../ports/PasswordPolicy';
 import { USER_REPOSITORY } from '../ports/IUserRepository';
 import type { IUserRepository } from '../ports/IUserRepository';
 
@@ -21,6 +22,7 @@ export class RegisterUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
     @Inject(PASSWORD_HASHER) private readonly passwordHasher: IPasswordHasher,
+    @Inject(PASSWORD_MIN_LENGTH) private readonly passwordMinLength: number,
   ) {}
 
   async execute(input: RegisterUserInput): Promise<User> {
@@ -29,7 +31,7 @@ export class RegisterUserUseCase {
     }
 
     const email = Email.create(input.email);
-    const password = Password.create(input.plainPassword);
+    const password = Password.create(input.plainPassword, this.passwordMinLength);
 
     const existing = await this.userRepository.findByEmail(email);
     if (existing !== null) {

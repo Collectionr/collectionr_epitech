@@ -19,6 +19,10 @@ export interface LoginUserResult {
   readonly tokens: AuthTokenPair;
 }
 
+// Syntactically plausible but arbitrary — never the hash of a real
+// credential. Used only so verify() always has a hash to compare against.
+const DUMMY_PASSWORD_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
 @Injectable()
 export class LoginUserUseCase {
   constructor(
@@ -38,15 +42,17 @@ export class LoginUserUseCase {
     }
 
     const user = await this.userRepository.findByEmail(email);
-    if (user === null) {
-      throw new InvalidCredentialsError();
-    }
 
+    // Always run the hash comparison, even for an unknown account: a bcrypt
+    // verify takes measurable time, so short-circuiting on `user === null`
+    // would make login faster for unregistered emails than for registered
+    // ones — a timing side channel that lets an attacker enumerate accounts.
     const passwordMatches = await this.passwordHasher.verify(
       input.plainPassword,
-      user.passwordHash,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
     );
-    if (!passwordMatches) {
+
+    if (user === null || !passwordMatches) {
       throw new InvalidCredentialsError();
     }
 
