@@ -2,7 +2,7 @@ name: Backend CI NestJs
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - dev
       - main
@@ -16,6 +16,7 @@ permissions:
 jobs:
   gitleaks:
     name: Security - Gitleaks Scan
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,6 +33,7 @@ jobs:
   backend:
     name: Backend - Lint, Build & Tests
     needs: [gitleaks]
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     defaults:
       run:
