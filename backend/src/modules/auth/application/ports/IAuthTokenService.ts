@@ -18,4 +18,11 @@ export interface IAuthTokenService {
 
   /** Idempotent: revoking an already-revoked or unknown token must not throw. */
   revokeRefreshToken(refreshToken: string): Promise<void>;
+
+  /**
+   * Revokes every refresh token of the user (all devices). Used when
+   * credentials change: already-issued refresh tokens must stop working.
+   * Access tokens stay valid until they expire (short-lived, stateless).
+   */
+  revokeAllRefreshTokens(userId: string): Promise<void>;
 }
