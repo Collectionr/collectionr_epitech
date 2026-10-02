@@ -13,10 +13,12 @@ datasource db {
 }
 
 /// Audit trail of sensitive actions (docs/database/schema-sql.md, docs/security/S05-logs-audit.md).
-/// Append-only. `userId` has no foreign key yet: the users table does not exist (COLLR-442 adds it).
+/// Append-only. `userId` FK added by COLLR-442 (ADR-011): ON DELETE SET NULL so a GDPR account
+/// deletion never destroys the trace of past actions.
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String?  @db.Uuid
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// Convention `domain.verb`, suffixed `.failed` when the action failed (e.g. auth.login.failed).
   action     String
   targetType String?
@@ -30,6 +32,51 @@ model AuditLog {
   @@index([action, timestamp])
   @@index([expiresAt])
   @@map("audit_logs")
+}
+
+/// Registered users (COLLR-415/COLLR-447). Mirrors src/modules/auth/domain/entities/User.ts;
+/// `role` is a minimal, forward-compatible scaffold for RBAC (docs/security/S03-api-security.md
+/// §5) — not the full ROLE/PERMISSION join tables from docs/database/schema-sql.md, which no
+/// current use case reads or writes (see COLLR-415 summary).
+model User {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique
+  passwordHash   String
+  username       String
+  role           UserRole  @default(USER)
+  /// RGPD scaffold: the moment the user accepted the terms of service at registration.
+  consentGivenAt DateTime  @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+  sessions       Session[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+/// Refresh token sessions (docs/database/schema-sql.md SESSION, COLLR-633/COLLR-450).
+/// `id` doubles as the JWT refresh token's `jti` claim, so a lookup never needs to scan hashes.
+/// `refreshTokenHash` (sha256) is defense in depth only — revocation is keyed by `id`.
+model Session {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  /// Not populated yet: IAuthTokenService.issueTokenPair(userId) has no request context
+  /// to read it from (application/ports/IAuthTokenService.ts is frozen, see COLLR-415 summary).
+  ipAddress        String?
+  isRevoked        Boolean  @default(false)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt        DateTime @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 /// Retention period per entity type (GDPR Art. 5.1.e, docs/security/S04-rgpd-conformite.md §5).

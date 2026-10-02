@@ -80,4 +80,40 @@ export class EnvironmentVariables {
   @Min(8)
   @Max(64)
   PASSWORD_MIN_LENGTH: number = 8;
+
+  /** Access token lifetime, in seconds (default 900 = 15 min, S03 §4.2). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  JWT_ACCESS_TOKEN_TTL_SECONDS: number = 900;
+
+  /** Refresh token / session lifetime, in seconds (default 604800 = 7 days, S03 §4.2). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  JWT_REFRESH_TOKEN_TTL_SECONDS: number = 604800;
+
+  /** Max /auth/login attempts per IP within the window below (default 5, S03 §7). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  AUTH_LOGIN_RATE_LIMIT: number = 5;
+
+  /** Window for AUTH_LOGIN_RATE_LIMIT, in seconds (default 60, S03 §7). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS: number = 60;
+
+  /** Max /auth/register attempts per IP within the window below (default 10, S03 §7 — indicative). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  AUTH_REGISTER_RATE_LIMIT: number = 10;
+
+  /** Window for AUTH_REGISTER_RATE_LIMIT, in seconds (default 3600, S03 §7 — indicative). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  AUTH_REGISTER_RATE_LIMIT_WINDOW_SECONDS: number = 3600;
 }
