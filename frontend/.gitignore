@@ -7,3 +7,8 @@ coverage/
 # Variables d'environnement (seul le modèle est versionné)
 .env*
 !.env.example
+
+# Expo : cache local et projets natifs générés (prebuild)
+.expo/
+apps/mobile/ios/
+apps/mobile/android/

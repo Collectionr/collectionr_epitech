@@ -1,0 +1,22 @@
+{
+  "name": "@collectionr/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Application mobile Collectionr (Expo + React Native).",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "expo start",
+    "export": "expo export",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@collectionr/shared": "*",
+    "expo": "~57.0.26",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.18"
+  }
+}
