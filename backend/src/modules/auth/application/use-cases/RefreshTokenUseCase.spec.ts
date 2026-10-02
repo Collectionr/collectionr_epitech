@@ -6,12 +6,14 @@ describe('RefreshTokenUseCase', () => {
   const issueTokenPair = jest.fn();
   const rotateRefreshToken = jest.fn();
   const revokeRefreshToken = jest.fn();
+  const revokeAllRefreshTokens = jest.fn();
 
   function build(): RefreshTokenUseCase {
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
       rotateRefreshToken,
       revokeRefreshToken,
+      revokeAllRefreshTokens,
     };
     return new RefreshTokenUseCase(authTokenService);
   }

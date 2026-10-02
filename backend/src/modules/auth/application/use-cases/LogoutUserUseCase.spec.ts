@@ -5,12 +5,14 @@ describe('LogoutUserUseCase', () => {
   const issueTokenPair = jest.fn();
   const rotateRefreshToken = jest.fn();
   const revokeRefreshToken = jest.fn();
+  const revokeAllRefreshTokens = jest.fn();
 
   function build(): LogoutUserUseCase {
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
       rotateRefreshToken,
       revokeRefreshToken,
+      revokeAllRefreshTokens,
     };
     return new LogoutUserUseCase(authTokenService);
   }

@@ -23,6 +23,8 @@ export interface NewUserProps {
 
 export interface UserProps extends NewUserProps {
   readonly id: string;
+  /** A deactivated account (admin action, CDC §3.5) must not be able to log in. */
+  readonly isActive: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -34,6 +36,7 @@ export class User {
     public readonly passwordHash: string,
     public readonly username: string,
     public readonly consentGivenAt: Date,
+    public readonly isActive: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {}
@@ -48,6 +51,7 @@ export class User {
       props.passwordHash,
       props.username.trim(),
       props.consentGivenAt,
+      true,
       now,
       now,
     );
@@ -63,6 +67,7 @@ export class User {
       props.passwordHash,
       props.username.trim(),
       props.consentGivenAt,
+      props.isActive,
       props.createdAt,
       props.updatedAt,
     );
@@ -75,6 +80,7 @@ export class User {
       passwordHash,
       this.username,
       this.consentGivenAt,
+      this.isActive,
       this.createdAt,
       new Date(),
     );
@@ -89,6 +95,7 @@ export class User {
       this.passwordHash,
       username.trim(),
       this.consentGivenAt,
+      this.isActive,
       this.createdAt,
       new Date(),
     );

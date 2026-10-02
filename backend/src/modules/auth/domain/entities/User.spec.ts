@@ -22,6 +22,10 @@ describe('User', () => {
       expect(user.consentGivenAt).toEqual(consentGivenAt);
     });
 
+    it('creates an active account', () => {
+      expect(User.register(buildProps()).isActive).toBe(true);
+    });
+
     it('trims the username', () => {
       const user = User.register({ ...buildProps(), username: '  trainer42  ' });
 
@@ -51,6 +55,7 @@ describe('User', () => {
       const user = User.restore({
         ...buildProps(),
         id: 'fixed-id',
+        isActive: true,
         createdAt,
         updatedAt,
       });
@@ -58,6 +63,33 @@ describe('User', () => {
       expect(user.id).toBe('fixed-id');
       expect(user.createdAt).toEqual(createdAt);
       expect(user.updatedAt).toEqual(updatedAt);
+    });
+
+    it('keeps a deactivated account deactivated', () => {
+      const user = User.restore({
+        ...buildProps(),
+        id: 'fixed-id',
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(user.isActive).toBe(false);
+    });
+  });
+
+  describe('immutable updates', () => {
+    const deactivated = User.restore({
+      ...buildProps(),
+      id: 'fixed-id',
+      isActive: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    it('never reactivates a deactivated account', () => {
+      expect(deactivated.withPasswordHash('new-hash').isActive).toBe(false);
+      expect(deactivated.withUsername('newname').isActive).toBe(false);
     });
   });
 

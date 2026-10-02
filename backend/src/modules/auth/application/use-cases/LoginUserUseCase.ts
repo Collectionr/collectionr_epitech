@@ -52,7 +52,9 @@ export class LoginUserUseCase {
       user?.passwordHash ?? DUMMY_PASSWORD_HASH,
     );
 
-    if (user === null || !passwordMatches) {
+    // A deactivated account gets the same generic error as a wrong password,
+    // checked after verify() so it is neither observable nor faster.
+    if (user === null || !passwordMatches || !user.isActive) {
       throw new InvalidCredentialsError();
     }
 

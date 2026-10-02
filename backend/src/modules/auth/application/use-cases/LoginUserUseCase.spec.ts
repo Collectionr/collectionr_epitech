@@ -24,6 +24,7 @@ describe('LoginUserUseCase', () => {
   const issueTokenPair = jest.fn();
   const rotateRefreshToken = jest.fn();
   const revokeRefreshToken = jest.fn();
+  const revokeAllRefreshTokens = jest.fn();
 
   function build(): LoginUserUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail };
@@ -32,6 +33,7 @@ describe('LoginUserUseCase', () => {
       issueTokenPair,
       rotateRefreshToken,
       revokeRefreshToken,
+      revokeAllRefreshTokens,
     };
     return new LoginUserUseCase(userRepository, passwordHasher, authTokenService);
   }
@@ -93,6 +95,27 @@ describe('LoginUserUseCase', () => {
     // lib accepts it (never exercised against one in this test suite — every
     // IPasswordHasher here is mocked), but rules out a malformed placeholder.
     expect(dummyHash).toMatch(/^\$2[aby]\$\d{2}\$[A-Za-z0-9./]{53}$/);
+  });
+
+  it('rejects a deactivated account with the same generic error, even with the right password', async () => {
+    findByEmail.mockResolvedValue(
+      User.restore({
+        email: Email.create('user@example.com'),
+        passwordHash: 'hashed-password',
+        username: 'trainer42',
+        consentGivenAt: new Date(),
+        id: 'fixed-id',
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+
+    await expect(
+      build().execute({ email: 'user@example.com', plainPassword: 'abcd1234' }),
+    ).rejects.toThrow(InvalidCredentialsError);
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(issueTokenPair).not.toHaveBeenCalled();
   });
 
   it('rejects a wrong password as invalid credentials', async () => {
