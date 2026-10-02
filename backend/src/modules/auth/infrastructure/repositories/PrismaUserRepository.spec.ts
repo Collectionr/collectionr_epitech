@@ -21,6 +21,7 @@ function buildPrismaRecord(user: User): Record<string, unknown> {
     passwordHash: user.passwordHash,
     username: user.username,
     role: 'USER',
+    isActive: user.isActive,
     consentGivenAt: user.consentGivenAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -42,6 +43,30 @@ describe('PrismaUserRepository', () => {
       );
       expect(saved.id).toBe(user.id);
       expect(saved.email.value).toBe(user.email.value);
+      expect(saved.isActive).toBe(true);
+    });
+
+    it('persists and restores a deactivated account as deactivated', async () => {
+      const user = User.restore({
+        ...buildUser(),
+        email: Email.create('off@example.com'),
+        id: 'fixed-id',
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const upsert = jest.fn().mockResolvedValue(buildPrismaRecord(user));
+      const prismaClient = { user: { upsert } } as unknown as PrismaClient;
+
+      const saved = await new PrismaUserRepository(prismaClient).save(user);
+
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ isActive: false }) as unknown,
+          update: expect.objectContaining({ isActive: false }) as unknown,
+        }) as unknown,
+      );
+      expect(saved.isActive).toBe(false);
     });
 
     it('translates a unique constraint violation into EmailAlreadyUsedError', async () => {

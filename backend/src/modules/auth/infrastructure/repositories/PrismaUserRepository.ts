@@ -24,6 +24,7 @@ export class PrismaUserRepository implements IUserRepository {
           passwordHash: user.passwordHash,
           username: user.username,
           consentGivenAt: user.consentGivenAt,
+          isActive: user.isActive,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         } satisfies Prisma.UserUncheckedCreateInput,
@@ -31,6 +32,7 @@ export class PrismaUserRepository implements IUserRepository {
           email: user.email.value,
           passwordHash: user.passwordHash,
           username: user.username,
+          isActive: user.isActive,
           updatedAt: user.updatedAt,
         } satisfies Prisma.UserUncheckedUpdateInput,
       });
@@ -68,6 +70,7 @@ function toDomain(record: PrismaUser): User {
     passwordHash: record.passwordHash,
     username: record.username,
     consentGivenAt: record.consentGivenAt,
+    isActive: record.isActive,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   });

@@ -173,4 +173,15 @@ describe('JwtAuthTokenService', () => {
       expect(sessionUpdateMany).not.toHaveBeenCalled();
     });
   });
+
+  describe('revokeAllRefreshTokens', () => {
+    it('revokes every not-yet-revoked session of the user', async () => {
+      await service.revokeAllRefreshTokens(USER_ID);
+
+      expect(sessionUpdateMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID, isRevoked: false },
+        data: { isRevoked: true },
+      });
+    });
+  });
 });

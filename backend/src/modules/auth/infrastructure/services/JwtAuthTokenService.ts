@@ -82,6 +82,13 @@ export class JwtAuthTokenService implements IAuthTokenService {
     });
   }
 
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await this.prismaClient.session.updateMany({
+      where: { userId, isRevoked: false },
+      data: { isRevoked: true },
+    });
+  }
+
   private async issuePairForSession(userId: string, sessionId: string): Promise<AuthTokenPair> {
     const accessToken = this.jwtTokenCodec.sign(
       { sub: userId } satisfies AccessTokenPayload,

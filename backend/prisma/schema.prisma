@@ -44,6 +44,8 @@ model User {
   passwordHash   String
   username       String
   role           UserRole  @default(USER)
+  /// A deactivated account (admin action, CDC §3.5) cannot log in.
+  isActive       Boolean   @default(true)
   /// RGPD scaffold: the moment the user accepted the terms of service at registration.
   consentGivenAt DateTime  @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
