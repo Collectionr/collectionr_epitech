@@ -67,6 +67,14 @@ describe('RegisterUserUseCase', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it('rejects an invalid username before the lookup and before paying for a hash', async () => {
+    await expect(build().execute({ ...buildInput(), username: 'ab' })).rejects.toThrow(
+      /Username must be/,
+    );
+    expect(findByEmail).not.toHaveBeenCalled();
+    expect(hash).not.toHaveBeenCalled();
+  });
+
   it('rejects an invalid email before touching the repository', async () => {
     await expect(build().execute({ ...buildInput(), email: 'not-an-email' })).rejects.toThrow(
       /Invalid email address/,

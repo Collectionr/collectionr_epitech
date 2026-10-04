@@ -1,4 +1,5 @@
 import { User } from './User';
+import { DomainValidationError } from '../errors/DomainValidationError';
 import { Email } from '../value-objects/Email';
 
 const consentGivenAt = new Date('2026-01-01T00:00:00.000Z');
@@ -39,6 +40,23 @@ describe('User', () => {
       },
     );
 
+    it.each([
+      ['null byte', 'trainer\u000042'],
+      ['zero-width space', 'train​er42'],
+      ['right-to-left override', 'train‮er42'],
+      ['line feed', 'trainer\n42'],
+      ['line separator', 'trainer 42'],
+    ])('rejects a username containing a %s', (_label, username) => {
+      expect(() => User.register({ ...buildProps(), username })).toThrow(DomainValidationError);
+      expect(() => User.register({ ...buildProps(), username })).toThrow(/control or invisible/);
+    });
+
+    it('allows a regular space inside a username', () => {
+      expect(User.register({ ...buildProps(), username: 'ash ketchum' }).username).toBe(
+        'ash ketchum',
+      );
+    });
+
     it('generates a different id for each registration', () => {
       const first = User.register(buildProps());
       const second = User.register(buildProps());
@@ -63,6 +81,19 @@ describe('User', () => {
       expect(user.id).toBe('fixed-id');
       expect(user.createdAt).toEqual(createdAt);
       expect(user.updatedAt).toEqual(updatedAt);
+    });
+
+    it('does not re-validate persisted data (a rule tightened later must not lock out old accounts)', () => {
+      expect(() =>
+        User.restore({
+          ...buildProps(),
+          username: 'ab',
+          id: 'fixed-id',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ).not.toThrow();
     });
 
     it('keeps a deactivated account deactivated', () => {

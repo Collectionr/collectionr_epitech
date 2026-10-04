@@ -1,17 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import { DomainValidationError } from '../errors/DomainValidationError';
 import type { Email } from '../value-objects/Email';
 
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 
-function assertValidUsername(username: string): void {
-  const trimmed = username.trim();
-  if (trimmed.length < USERNAME_MIN_LENGTH || trimmed.length > USERNAME_MAX_LENGTH) {
-    throw new Error(
-      `Username must be between ${USERNAME_MIN_LENGTH} and ${USERNAME_MAX_LENGTH} characters long`,
-    );
-  }
-}
+// Control, format (zero-width, bidi overrides) and line/paragraph separators:
+// invisible characters let two usernames look identical. A regular space is allowed.
+const USERNAME_FORBIDDEN_CHARACTERS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
 export interface NewUserProps {
   readonly email: Email;
@@ -41,8 +37,21 @@ export class User {
     public readonly updatedAt: Date,
   ) {}
 
+  /** Exposed so callers can reject a bad username before paying for a password hash. */
+  static assertValidUsername(username: string): void {
+    const trimmed = username.trim();
+    if (trimmed.length < USERNAME_MIN_LENGTH || trimmed.length > USERNAME_MAX_LENGTH) {
+      throw new DomainValidationError(
+        `Username must be between ${USERNAME_MIN_LENGTH} and ${USERNAME_MAX_LENGTH} characters long`,
+      );
+    }
+    if (USERNAME_FORBIDDEN_CHARACTERS.test(trimmed)) {
+      throw new DomainValidationError('Username must not contain control or invisible characters');
+    }
+  }
+
   static register(props: NewUserProps): User {
-    assertValidUsername(props.username);
+    User.assertValidUsername(props.username);
     const now = new Date();
 
     return new User(
@@ -57,10 +66,13 @@ export class User {
     );
   }
 
-  /** Rebuilds a User from data already persisted (used by repository implementations). */
+  /**
+   * Rebuilds a User from data already persisted (used by repository
+   * implementations). Deliberately does not re-validate: stored data was valid
+   * under the rules of its time, and tightening a rule later must not make
+   * existing accounts impossible to load.
+   */
   static restore(props: UserProps): User {
-    assertValidUsername(props.username);
-
     return new User(
       props.id,
       props.email,
@@ -87,7 +99,7 @@ export class User {
   }
 
   withUsername(username: string): User {
-    assertValidUsername(username);
+    User.assertValidUsername(username);
 
     return new User(
       this.id,
