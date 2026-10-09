@@ -119,9 +119,10 @@ nvm install   # lit .nvmrc (24.18.0), l'installe si besoin et l'active
 # 2. Installer les dependances
 npm install
 
-# 3. Configurer les variables d'environnement
-cp .env.example .env
-# Editer .env avec les valeurs fournies par l'equipe (demander a Ginn pour l'URL de l'API)
+# 3. Configurer les variables d'environnement de l'app web
+cp apps/web/.env.example apps/web/.env
+# VITE_API_BASE_URL : /api/v1 par defaut, suffit derriere l'Ingress (meme domaine)
+# API_PROXY_TARGET : cible du proxy /api de npm run dev (defaut http://localhost:3000)
 
 # 4. Lancer l'application web
 npm run dev
@@ -137,6 +138,19 @@ L'application est prête quand :
 - Web : la page d'accueil s'affiche sur `http://localhost:5173`
 - Mobile : l'application démarre sur l'émulateur ou le téléphone
 - Pas d'erreur TypeScript dans le terminal (`tsc --noEmit` passe)
+
+### Image Docker du web
+
+L'application web est livrée sous forme d'image multi-stage : build Vite sur Node, puis fichiers statiques servis par nginx non-root sur le port 8080.
+
+```bash
+# Depuis frontend/
+docker build -f apps/web/Dockerfile -t collectionr-web:local .
+docker run --rm -p 8080:8080 collectionr-web:local
+curl http://localhost:8080/healthz   # ok
+```
+
+`VITE_API_BASE_URL` est figée au build. L'image utilise la valeur par défaut `/api/v1` : c'est la même image pour tous les environnements, derrière l'Ingress.
 
 ### Template Pull Request
 
@@ -233,7 +247,8 @@ Les tests protègent le projet contre les régressions. Sans tests, chaque modif
 
 | Outil | Usage | Plateforme |
 |---|---|---|
-| Jest | Runner de tests, assertions, mocks | Web et Mobile |
+| Vitest | Runner de tests, assertions, mocks | Web et shared |
+| À définir avec COLLR-593 | Runner de tests | Mobile |
 | React Testing Library | Rendu et interaction des composants | Web |
 | React Native Testing Library | Rendu et interaction des composants | Mobile |
 | MSW (Mock Service Worker) | Mock des appels API HTTP | Web et Mobile |
@@ -281,7 +296,9 @@ CardPreview/
 ```typescript
 // hooks/usePriceFormatter.test.ts
 
+import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
+
 import { usePriceFormatter } from './usePriceFormatter';
 
 describe('usePriceFormatter', () => {
@@ -318,8 +335,14 @@ describe('usePriceFormatter', () => {
 # Tous les tests unitaires et integration
 npm test
 
+# Mode watch
+npm run test:watch
+
 # Tests avec couverture
 npm test -- --coverage
+
+# Un seul projet Vitest (ex. : shared)
+npm test -- --project shared
 
 # Tests E2E web (Playwright)
 npm run test:e2e:web
@@ -341,5 +364,5 @@ En cas de doute sur où placer du code, comment nommer un composant, ou quelle a
 
 ---
 
-**Dernière mise à jour** : Juin 2026
+**Dernière mise à jour** : Septembre 2026
 **Pour aller plus loin** : Workflow & Contribution Guide — OneDrive Collectionr
