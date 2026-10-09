@@ -13,7 +13,9 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @collectionr/web",
+    "dev:mobile": "npm run dev -w @collectionr/mobile",
     "build": "npm run build --workspaces --if-present",
+    "export:mobile": "npm run export -w @collectionr/mobile",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
