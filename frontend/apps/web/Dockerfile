@@ -9,6 +9,8 @@ ARG NODE_VERSION=24.18.0
 FROM node:${NODE_VERSION}-alpine AS build
 WORKDIR /app
 
+# Seuls les manifestes de web et shared sont copiés avant npm ci : le workspace mobile
+# reste absent, ce qui garde Expo et React Native hors de l'image.
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
