@@ -78,7 +78,7 @@ describe('LoginUserUseCase', () => {
     expect(verify).toHaveBeenCalledTimes(1);
     expect(verify).toHaveBeenCalledWith(
       'abcd1234',
-      '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+      '$2b$12$7irbQ5LXMyoaQFmTLtzC1eySZGqAcpYWel1GwQEWJsTOh/ZWRtL7e',
     );
   });
 

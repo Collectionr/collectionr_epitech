@@ -32,6 +32,9 @@ export class RegisterUserUseCase {
 
     const email = Email.create(input.email);
     const password = Password.create(input.plainPassword, this.passwordMinLength);
+    // Every cheap check runs before the DB lookup and the (CPU-heavy) hash,
+    // so a request that will be rejected anyway costs almost nothing.
+    User.assertValidUsername(input.username);
 
     const existing = await this.userRepository.findByEmail(email);
     if (existing !== null) {

@@ -19,9 +19,12 @@ export interface LoginUserResult {
   readonly tokens: AuthTokenPair;
 }
 
-// Syntactically plausible but arbitrary — never the hash of a real
-// credential. Used only so verify() always has a hash to compare against.
-const DUMMY_PASSWORD_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+// Syntactically valid bcrypt hash of a throwaway value — never a real
+// credential. Its cost factor (12) MUST equal the one the real hasher uses
+// (BcryptPasswordHasher.BCRYPT_SALT_ROUNDS): bcrypt time doubles per cost
+// step, so a lower cost makes unknown accounts measurably faster (measured:
+// cost 10 = ~64 ms vs cost 12 = ~254 ms) and defeats the timing protection.
+const DUMMY_PASSWORD_HASH = '$2b$12$7irbQ5LXMyoaQFmTLtzC1eySZGqAcpYWel1GwQEWJsTOh/ZWRtL7e';
 
 @Injectable()
 export class LoginUserUseCase {
