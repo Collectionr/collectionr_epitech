@@ -15,7 +15,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.{ts,tsx}', 'apps/*/src/**/*.{ts,tsx}'],
-      exclude: ['**/*.test.{ts,tsx}', '**/index.ts', '**/*.d.ts'],
+      // apps/mobile est testé par Jest (jest-expo), pas par Vitest : l'inclure le listerait à 0 %.
+      exclude: ['**/*.test.{ts,tsx}', '**/index.ts', '**/*.d.ts', 'apps/mobile/**'],
     },
   },
 });
