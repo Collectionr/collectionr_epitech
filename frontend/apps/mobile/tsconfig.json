@@ -9,5 +9,5 @@
       "@shared/*": ["../../packages/shared/src/*"]
     }
   },
-  "include": ["index.ts", "App.tsx", "src"]
+  "include": ["index.ts", "App.tsx", "nativewind-env.d.ts", "src"]
 }
