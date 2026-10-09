@@ -3,7 +3,11 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "customConditions": ["react-native"],
-    "types": []
+    "types": [],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@shared/*": ["../../packages/shared/src/*"]
+    }
   },
   "include": ["index.ts", "App.tsx", "src"]
 }

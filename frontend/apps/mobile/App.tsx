@@ -1,11 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+
+import { HomeScreen } from '@/screens';
 
 /** Racine de l'application mobile. */
 export function App() {
   return (
-    <View>
+    <>
+      <HomeScreen />
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
