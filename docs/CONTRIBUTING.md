@@ -104,7 +104,7 @@ Cette section regroupe les règles propres à l'application **frontend** (web + 
 | Node.js | 24.18.0 (fixée par `.nvmrc`) | [nvm](https://github.com/nvm-sh/nvm) : `nvm install` (lit `.nvmrc`) |
 | npm | 11.x | Inclus avec Node.js 24 |
 | Git | 2.40+ | https://git-scm.com |
-| Expo CLI | Dernière version | `npm install -g expo-cli` |
+| Expo CLI | Incluse dans le paquet `expo` du projet | Aucune installation globale : `npx expo` depuis `apps/mobile/` (`expo-cli` est déprécié) |
 | Émulateur iOS | Xcode 15+ (macOS) | App Store |
 | Émulateur Android | Android Studio + SDK 34 | https://developer.android.com/studio |
 
@@ -124,11 +124,16 @@ cp apps/web/.env.example apps/web/.env
 # VITE_API_BASE_URL : /api/v1 par defaut, suffit derriere l'Ingress (meme domaine)
 # API_PROXY_TARGET : cible du proxy /api de npm run dev (defaut http://localhost:3000)
 
-# 4. Lancer l'application web
+# 4. Configurer les variables d'environnement de l'app mobile
+cp apps/mobile/.env.example apps/mobile/.env
+# EXPO_PUBLIC_API_URL : URL absolue obligatoire, sans defaut
+# (http://localhost:3000/api/v1 sur simulateur iOS, http://10.0.2.2:3000/api/v1 sur emulateur Android)
+
+# 5. Lancer l'application web
 npm run dev
 
-# 5. Lancer l'application mobile (Expo)
-npx expo start
+# 6. Lancer l'application mobile (Expo)
+npm run dev:mobile   # equivaut a npx expo start dans apps/mobile/
 # Puis scanner le QR code avec Expo Go (telephone) ou appuyer sur 'i' (iOS) / 'a' (Android)
 ```
 
@@ -151,6 +156,8 @@ curl http://localhost:8080/healthz   # ok
 ```
 
 `VITE_API_BASE_URL` est figée au build. L'image utilise la valeur par défaut `/api/v1` : c'est la même image pour tous les environnements, derrière l'Ingress.
+
+L'image n'embarque ni Expo ni React Native : avant `npm ci`, le Dockerfile ne copie que les manifestes de `apps/web` et `packages/shared`, et `apps/mobile` est exclu du contexte de build. Ne pas ajouter `apps/mobile` à ces `COPY`.
 
 ### Template Pull Request
 
@@ -248,11 +255,15 @@ Les tests protègent le projet contre les régressions. Sans tests, chaque modif
 | Outil | Usage | Plateforme |
 |---|---|---|
 | Vitest | Runner de tests, assertions, mocks | Web et shared |
-| À définir avec COLLR-593 | Runner de tests | Mobile |
+| Jest + jest-expo | Runner de tests (preset officiel Expo : transform React Native, mocks des modules natifs) | Mobile |
 | React Testing Library | Rendu et interaction des composants | Web |
 | React Native Testing Library | Rendu et interaction des composants | Mobile |
 | MSW (Mock Service Worker) | Mock des appels API HTTP | Web et Mobile |
 | Playwright | Tests E2E navigateur | Web |
+
+Vitest ne gère pas officiellement React Native : le mobile utilise donc Jest avec le preset `jest-expo`, aligné sur le SDK Expo. Dans les tests mobiles, `describe`, `it`, `expect` et `jest` s'importent depuis `@jest/globals` (pas de types Jest globaux, pour ne pas entrer en conflit avec Vitest).
+
+> **Note** : `test-renderer` (utilisé par React Native Testing Library) est figé en `~1.2.0` : la 1.3.x exige React 19.3, incompatible avec Expo SDK 57 (React 19.2.3). À relever avec le passage à un SDK qui embarque React 19.3.
 
 #### Ce qu'on teste en priorité
 
@@ -332,17 +343,21 @@ describe('usePriceFormatter', () => {
 #### Lancer les tests
 
 ```bash
-# Tous les tests unitaires et integration
+# Tous les tests unitaires et integration (Vitest pour web et shared, puis Jest pour le mobile)
 npm test
 
-# Mode watch
+# Mode watch (Vitest)
 npm run test:watch
 
 # Tests avec couverture
-npm test -- --coverage
+npx vitest run --coverage
+npm run test -w @collectionr/mobile -- --coverage
 
 # Un seul projet Vitest (ex. : shared)
-npm test -- --project shared
+npx vitest run --project shared
+
+# Tests mobiles seuls (Jest)
+npm run test -w @collectionr/mobile
 
 # Tests E2E web (Playwright)
 npm run test:e2e:web
