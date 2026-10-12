@@ -1,5 +1,6 @@
 import { ChangePasswordUseCase } from './ChangePasswordUseCase';
 import { User } from '../../domain/entities/User';
+import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { Email } from '../../domain/value-objects/Email';
 import { IncorrectCurrentPasswordError, UserNotFoundError } from '../errors/AuthErrors';
 import type { IAuthTokenService } from '../ports/IAuthTokenService';
@@ -31,7 +32,7 @@ describe('ChangePasswordUseCase', () => {
 
   function build(passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH): ChangePasswordUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail };
-    const passwordHasher: IPasswordHasher = { hash, verify };
+    const passwordHasher: IPasswordHasher = { hash, verify, getDummyHash: jest.fn() };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
       rotateRefreshToken,
@@ -116,6 +117,19 @@ describe('ChangePasswordUseCase', () => {
     ).rejects.toThrow(IncorrectCurrentPasswordError);
     expect(save).not.toHaveBeenCalled();
     expect(revokeAllRefreshTokens).not.toHaveBeenCalled();
+  });
+
+  it('rejects a new password identical to the current one, before hashing or revoking anything', async () => {
+    await expect(
+      build().execute({
+        userId: existingUser.id,
+        currentPassword: 'old-password1',
+        newPassword: 'old-password1',
+      }),
+    ).rejects.toThrow(DomainValidationError);
+    expect(hash).not.toHaveBeenCalled();
+    expect(revokeAllRefreshTokens).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('rejects a new password that fails the policy', async () => {

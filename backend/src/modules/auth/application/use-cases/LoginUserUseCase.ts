@@ -19,13 +19,6 @@ export interface LoginUserResult {
   readonly tokens: AuthTokenPair;
 }
 
-// Syntactically valid bcrypt hash of a throwaway value — never a real
-// credential. Its cost factor (12) MUST equal the one the real hasher uses
-// (BcryptPasswordHasher.BCRYPT_SALT_ROUNDS): bcrypt time doubles per cost
-// step, so a lower cost makes unknown accounts measurably faster (measured:
-// cost 10 = ~64 ms vs cost 12 = ~254 ms) and defeats the timing protection.
-const DUMMY_PASSWORD_HASH = '$2b$12$7irbQ5LXMyoaQFmTLtzC1eySZGqAcpYWel1GwQEWJsTOh/ZWRtL7e';
-
 @Injectable()
 export class LoginUserUseCase {
   constructor(
@@ -52,7 +45,7 @@ export class LoginUserUseCase {
     // ones — a timing side channel that lets an attacker enumerate accounts.
     const passwordMatches = await this.passwordHasher.verify(
       input.plainPassword,
-      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+      user?.passwordHash ?? this.passwordHasher.getDummyHash(),
     );
 
     // A deactivated account gets the same generic error as a wrong password,

@@ -25,7 +25,7 @@ describe('RegisterUserUseCase', () => {
 
   function build(passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH): RegisterUserUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail };
-    const passwordHasher: IPasswordHasher = { hash, verify };
+    const passwordHasher: IPasswordHasher = { hash, verify, getDummyHash: jest.fn() };
     return new RegisterUserUseCase(userRepository, passwordHasher, passwordMinLength);
   }
 

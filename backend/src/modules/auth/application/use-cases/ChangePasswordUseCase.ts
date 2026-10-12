@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { User } from '../../domain/entities/User';
+import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { Password } from '../../domain/value-objects/Password';
 import { IncorrectCurrentPasswordError, UserNotFoundError } from '../errors/AuthErrors';
 import { AUTH_TOKEN_SERVICE } from '../ports/IAuthTokenService';
@@ -37,6 +38,12 @@ export class ChangePasswordUseCase {
     );
     if (!currentMatches) {
       throw new IncorrectCurrentPasswordError();
+    }
+
+    // The current password is proven correct at this point, so a plain comparison is enough:
+    // "changing" to the same password would revoke every session for nothing.
+    if (input.newPassword === input.currentPassword) {
+      throw new DomainValidationError('The new password must differ from the current one');
     }
 
     const newPassword = Password.create(input.newPassword, this.passwordMinLength);
