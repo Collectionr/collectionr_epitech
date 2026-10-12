@@ -39,3 +39,14 @@ export class ConsentRequiredError extends Error {
     this.name = 'ConsentRequiredError';
   }
 }
+
+/**
+ * The aggregate was changed by someone else since it was loaded (optimistic lock on
+ * User.version): saving the stale copy would silently undo that change. The caller reloads and retries.
+ */
+export class ConcurrentModificationError extends Error {
+  constructor() {
+    super('The resource was modified concurrently');
+    this.name = 'ConcurrentModificationError';
+  }
+}

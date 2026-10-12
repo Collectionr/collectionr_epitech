@@ -2,7 +2,10 @@ import { Prisma } from '../../../../generated/prisma/client.js';
 import type { PrismaClient } from '../../../../generated/prisma/client.js';
 import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
-import { EmailAlreadyUsedError } from '../../application/errors/AuthErrors';
+import {
+  ConcurrentModificationError,
+  EmailAlreadyUsedError,
+} from '../../application/errors/AuthErrors';
 import { PrismaUserRepository } from './PrismaUserRepository';
 
 function buildUser(): User {
@@ -14,7 +17,7 @@ function buildUser(): User {
   });
 }
 
-function buildPrismaRecord(user: User): Record<string, unknown> {
+function recordOf(user: User, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: user.id,
     email: user.email.value,
@@ -22,117 +25,227 @@ function buildPrismaRecord(user: User): Record<string, unknown> {
     username: user.username,
     role: 'USER',
     isActive: user.isActive,
+    version: user.version,
     consentGivenAt: user.consentGivenAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
+    ...overrides,
+  };
+}
+
+interface Harness {
+  repository: PrismaUserRepository;
+  lock: jest.Mock;
+  create: jest.Mock;
+  update: jest.Mock;
+  revokeSessions: jest.Mock;
+  findUnique: jest.Mock;
+}
+
+/** `lock` is the `SELECT ... FOR UPDATE` row (or none) the transaction reads before writing. */
+function harness(
+  storedState: Record<string, unknown> | null,
+  saved?: Record<string, unknown>,
+): Harness {
+  const lock = jest.fn().mockResolvedValue(storedState === null ? [] : [storedState]);
+  const create = jest.fn().mockResolvedValue(saved);
+  const update = jest.fn().mockResolvedValue(saved);
+  const revokeSessions = jest.fn().mockResolvedValue({ count: 1 });
+  const findUnique = jest.fn();
+  const tx = { $queryRaw: lock, user: { create, update }, session: { updateMany: revokeSessions } };
+  const prismaClient = {
+    $transaction: (callback: (client: unknown) => Promise<unknown>) => callback(tx),
+    user: { findUnique },
+  } as unknown as PrismaClient;
+
+  return {
+    repository: new PrismaUserRepository(prismaClient),
+    lock,
+    create,
+    update,
+    revokeSessions,
+    findUnique,
   };
 }
 
 describe('PrismaUserRepository', () => {
-  describe('save', () => {
-    it('upserts the user and returns the restored domain entity', async () => {
+  describe('save — new account', () => {
+    it('inserts the account when no row exists yet and returns the restored entity', async () => {
       const user = buildUser();
-      const upsert = jest.fn().mockResolvedValue(buildPrismaRecord(user));
-      const prismaClient = { user: { upsert } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null, recordOf(user));
 
-      const saved = await repository.save(user);
+      const saved = await h.repository.save(user);
 
-      expect(upsert).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: user.id } }) as unknown,
-      );
+      expect(h.create).toHaveBeenCalledTimes(1);
+      expect(h.update).not.toHaveBeenCalled();
       expect(saved.id).toBe(user.id);
-      expect(saved.email.value).toBe(user.email.value);
-      expect(saved.isActive).toBe(true);
+      expect(saved.version).toBe(0);
     });
 
-    it('persists and restores a deactivated account as deactivated', async () => {
-      const user = User.restore({
-        ...buildUser(),
-        email: Email.create('off@example.com'),
-        id: 'fixed-id',
-        isActive: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    it('refuses a copy that claims a past version of a row that no longer exists', async () => {
+      const stale = buildUser().withUsername('another');
+      const loaded = User.restore({
+        id: stale.id,
+        email: stale.email,
+        passwordHash: stale.passwordHash,
+        username: stale.username,
+        consentGivenAt: stale.consentGivenAt,
+        isActive: true,
+        version: 3,
+        createdAt: stale.createdAt,
+        updatedAt: stale.updatedAt,
       });
-      const upsert = jest.fn().mockResolvedValue(buildPrismaRecord(user));
-      const prismaClient = { user: { upsert } } as unknown as PrismaClient;
+      const h = harness(null);
 
-      const saved = await new PrismaUserRepository(prismaClient).save(user);
-
-      expect(upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({ isActive: false }) as unknown,
-          update: expect.objectContaining({ isActive: false }) as unknown,
-        }) as unknown,
-      );
-      expect(saved.isActive).toBe(false);
+      await expect(h.repository.save(loaded)).rejects.toBeInstanceOf(ConcurrentModificationError);
+      expect(h.create).not.toHaveBeenCalled();
     });
 
-    it('translates a unique constraint violation into EmailAlreadyUsedError', async () => {
+    it('translates a unique email violation into EmailAlreadyUsedError', async () => {
       const user = buildUser();
-      const conflict = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-        code: 'P2002',
-        clientVersion: '7.10.0',
-      });
-      const upsert = jest.fn().mockRejectedValue(conflict);
-      const prismaClient = { user: { upsert } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null);
+      h.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '7.10.0',
+        }),
+      );
 
-      await expect(repository.save(user)).rejects.toThrow(EmailAlreadyUsedError);
+      await expect(h.repository.save(user)).rejects.toBeInstanceOf(EmailAlreadyUsedError);
     });
 
     it('rethrows any other error as-is', async () => {
-      const user = buildUser();
-      const upsert = jest.fn().mockRejectedValue(new Error('connection lost'));
-      const prismaClient = { user: { upsert } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null);
+      h.create.mockRejectedValue(new Error('connection lost'));
 
-      await expect(repository.save(user)).rejects.toThrow('connection lost');
+      await expect(h.repository.save(buildUser())).rejects.toThrow('connection lost');
+    });
+  });
+
+  describe('save — existing account (optimistic lock)', () => {
+    function stored(user: User, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+      return { version: 0, passwordHash: user.passwordHash, isActive: true, ...overrides };
+    }
+
+    it('locks the row, updates it and bumps the version', async () => {
+      const user = buildUser();
+      const h = harness(stored(user), recordOf(user, { version: 1 }));
+
+      const saved = await h.repository.save(user.withUsername('renamed'));
+
+      expect(h.lock).toHaveBeenCalledTimes(1);
+      expect(h.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: user.id },
+          data: expect.objectContaining({
+            version: { increment: 1 },
+            username: 'renamed',
+          }) as unknown,
+        }),
+      );
+      expect(saved.version).toBe(1);
+    });
+
+    it('rejects a stale copy without writing anything', async () => {
+      const user = buildUser();
+      const h = harness(stored(user, { version: 4 }));
+
+      await expect(h.repository.save(user.withUsername('renamed'))).rejects.toBeInstanceOf(
+        ConcurrentModificationError,
+      );
+      expect(h.update).not.toHaveBeenCalled();
+      expect(h.revokeSessions).not.toHaveBeenCalled();
+    });
+
+    it('revokes every session of the user in the same transaction when the password changes', async () => {
+      const user = buildUser();
+      const h = harness(stored(user), recordOf(user, { version: 1 }));
+
+      await h.repository.save(user.withPasswordHash('$2b$12$another'));
+
+      expect(h.revokeSessions).toHaveBeenCalledWith({
+        where: { userId: user.id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+    });
+
+    it('revokes every session of the user when the account is deactivated', async () => {
+      const user = buildUser();
+      const h = harness(stored(user), recordOf(user, { version: 1, isActive: false }));
+
+      await h.repository.save(user.deactivate());
+
+      expect(h.revokeSessions).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves sessions alone for a change that is not security relevant', async () => {
+      const user = buildUser();
+      const h = harness(stored(user), recordOf(user, { version: 1 }));
+
+      await h.repository.save(user.withUsername('renamed'));
+
+      expect(h.revokeSessions).not.toHaveBeenCalled();
     });
   });
 
   describe('findById', () => {
     it('returns the restored domain entity when found', async () => {
       const user = buildUser();
-      const findUnique = jest.fn().mockResolvedValue(buildPrismaRecord(user));
-      const prismaClient = { user: { findUnique } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null);
+      h.findUnique.mockResolvedValue(recordOf(user));
 
-      const found = await repository.findById(user.id);
+      const found = await h.repository.findById(user.id);
 
-      expect(findUnique).toHaveBeenCalledWith({ where: { id: user.id } });
+      expect(h.findUnique).toHaveBeenCalledWith({ where: { id: user.id } });
       expect(found?.id).toBe(user.id);
     });
 
     it('returns null when not found', async () => {
-      const findUnique = jest.fn().mockResolvedValue(null);
-      const prismaClient = { user: { findUnique } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null);
+      h.findUnique.mockResolvedValue(null);
 
-      await expect(repository.findById('unknown-id')).resolves.toBeNull();
+      await expect(
+        h.repository.findById('0b1f6c1e-6c1e-4b1e-8b1e-1b1e6c1e4b1e'),
+      ).resolves.toBeNull();
+    });
+
+    it('returns null for an id that is not a UUID, without querying (the column is a uuid)', async () => {
+      const h = harness(null);
+
+      await expect(h.repository.findById('pas-un-uuid')).resolves.toBeNull();
+      expect(h.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("loads an account whose stored email no longer passes today's validation (Email.restore, not create)", async () => {
+      const user = buildUser();
+      const h = harness(null);
+      h.findUnique.mockResolvedValue(recordOf(user, { email: 'Legacy..Address@Example.COM' }));
+
+      const found = await h.repository.findById(user.id);
+
+      expect(found?.email.value).toBe('Legacy..Address@Example.COM');
     });
   });
 
   describe('findByEmail', () => {
     it('returns the restored domain entity when found', async () => {
       const user = buildUser();
-      const findUnique = jest.fn().mockResolvedValue(buildPrismaRecord(user));
-      const prismaClient = { user: { findUnique } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null);
+      h.findUnique.mockResolvedValue(recordOf(user));
 
-      const found = await repository.findByEmail(user.email);
+      const found = await h.repository.findByEmail(user.email);
 
-      expect(findUnique).toHaveBeenCalledWith({ where: { email: user.email.value } });
+      expect(h.findUnique).toHaveBeenCalledWith({ where: { email: user.email.value } });
       expect(found?.email.value).toBe(user.email.value);
     });
 
     it('returns null when not found', async () => {
-      const findUnique = jest.fn().mockResolvedValue(null);
-      const prismaClient = { user: { findUnique } } as unknown as PrismaClient;
-      const repository = new PrismaUserRepository(prismaClient);
+      const h = harness(null);
+      h.findUnique.mockResolvedValue(null);
 
-      await expect(repository.findByEmail(Email.create('nobody@example.com'))).resolves.toBeNull();
+      await expect(
+        h.repository.findByEmail(Email.create('nobody@example.com')),
+      ).resolves.toBeNull();
     });
   });
 });

@@ -73,6 +73,7 @@ describe('User', () => {
       const user = User.restore({
         ...buildProps(),
         id: 'fixed-id',
+        version: 0,
         isActive: true,
         createdAt,
         updatedAt,
@@ -89,6 +90,7 @@ describe('User', () => {
           ...buildProps(),
           username: 'ab',
           id: 'fixed-id',
+          version: 0,
           isActive: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -100,6 +102,7 @@ describe('User', () => {
       const user = User.restore({
         ...buildProps(),
         id: 'fixed-id',
+        version: 0,
         isActive: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -113,6 +116,7 @@ describe('User', () => {
     const deactivated = User.restore({
       ...buildProps(),
       id: 'fixed-id',
+      version: 0,
       isActive: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -121,6 +125,53 @@ describe('User', () => {
     it('never reactivates a deactivated account', () => {
       expect(deactivated.withPasswordHash('new-hash').isActive).toBe(false);
       expect(deactivated.withUsername('newname').isActive).toBe(false);
+    });
+  });
+
+  describe('version (optimistic lock)', () => {
+    it('starts a new account at version 0', () => {
+      expect(User.register(buildProps()).version).toBe(0);
+    });
+
+    it('restores the persisted version', () => {
+      const user = User.restore({
+        ...buildProps(),
+        id: 'fixed-id',
+        version: 7,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(user.version).toBe(7);
+    });
+
+    it('keeps the version it was loaded at across updates (it is the expected base version)', () => {
+      const user = User.restore({
+        ...buildProps(),
+        id: 'fixed-id',
+        version: 7,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(user.withPasswordHash('new-hash').version).toBe(7);
+      expect(user.withUsername('newname').version).toBe(7);
+      expect(user.deactivate().version).toBe(7);
+    });
+  });
+
+  describe('deactivate', () => {
+    it('returns a deactivated copy and leaves the original untouched', () => {
+      const user = User.register(buildProps());
+
+      const deactivated = user.deactivate();
+
+      expect(deactivated.isActive).toBe(false);
+      expect(user.isActive).toBe(true);
+      expect(deactivated.id).toBe(user.id);
+      expect(deactivated.passwordHash).toBe(user.passwordHash);
     });
   });
 

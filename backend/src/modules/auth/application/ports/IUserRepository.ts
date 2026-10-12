@@ -14,8 +14,20 @@ export interface IUserRepository {
    * from both passing it. Only a DB-level unique constraint on email, with
    * this method translating its violation into EmailAlreadyUsedError,
    * actually guarantees no duplicate accounts.
+   *
+   * Optimistic lock: `user.version` is the version the copy was loaded at (0 for a new account).
+   * If the stored version moved on, MUST reject with ConcurrentModificationError instead of
+   * overwriting — a stale copy would otherwise silently undo a concurrent password change or
+   * deactivation. The returned User carries the new version.
+   *
+   * Security-relevant changes are atomic with their consequence: when the saved password hash
+   * differs from the stored one, or the account goes from active to inactive, every refresh token
+   * of the user is revoked in the SAME transaction. There is no window where the credential has
+   * changed but an old session is still alive.
    */
   save(user: User): Promise<User>;
+
+  /** Returns null (never throws) for an id that cannot exist, e.g. one that is not a UUID. */
   findById(id: string): Promise<User | null>;
   findByEmail(email: Email): Promise<User | null>;
 }
