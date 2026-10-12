@@ -81,39 +81,69 @@ export class EnvironmentVariables {
   @Max(64)
   PASSWORD_MIN_LENGTH: number = 8;
 
-  /** Access token lifetime, in seconds (default 900 = 15 min, S03 §4.2). */
+  /** Access token lifetime, in seconds (default 900 = 15 min, S03 §4.2). Capped: tokens are stateless between checks. */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(3600)
   JWT_ACCESS_TOKEN_TTL_SECONDS: number = 900;
 
-  /** Refresh token / session lifetime, in seconds (default 604800 = 7 days, S03 §4.2). */
+  /** Refresh token lifetime, in seconds (default 604800 = 7 days, S03 §4.2). */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(2592000)
   JWT_REFRESH_TOKEN_TTL_SECONDS: number = 604800;
 
-  /** Max /auth/login attempts per IP within the window below (default 5, S03 §7). */
+  /**
+   * Hard end of a login chain, in seconds (default 2592000 = 30 days): however often it is refreshed,
+   * a session cannot outlive this — otherwise a stolen refresh token that keeps rotating lives forever.
+   */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(7776000)
+  JWT_SESSION_MAX_LIFETIME_SECONDS: number = 2592000;
+
+  /** Max /auth/login attempts per account and address within the window below (default 5, S03 §7). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
   AUTH_LOGIN_RATE_LIMIT: number = 5;
 
   /** Window for AUTH_LOGIN_RATE_LIMIT, in seconds (default 60, S03 §7). */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(86400)
   AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS: number = 60;
 
-  /** Max /auth/register attempts per IP within the window below (default 10, S03 §7 — indicative). */
+  /** How long a login is refused once the limit is exceeded, in seconds (default 900 = 15 min, S03 §7). */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(86400)
+  AUTH_LOGIN_BLOCK_SECONDS: number = 900;
+
+  /** Max /auth/register attempts per address within the window below (default 10, S03 §7 — indicative). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
   AUTH_REGISTER_RATE_LIMIT: number = 10;
 
   /** Window for AUTH_REGISTER_RATE_LIMIT, in seconds (default 3600, S03 §7 — indicative). */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(86400)
   AUTH_REGISTER_RATE_LIMIT_WINDOW_SECONDS: number = 3600;
+
+  /**
+   * Reverse proxies (ingress, load balancer) whose X-Forwarded-For is believed: comma-separated IP
+   * addresses or CIDR ranges. Empty (default) trusts nobody. Validated in ValidateEnvironment.ts.
+   */
+  @IsString()
+  TRUSTED_PROXIES: string = '';
 }
