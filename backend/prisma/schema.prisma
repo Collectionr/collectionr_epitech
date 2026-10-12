@@ -51,7 +51,7 @@ model DataRetentionPolicy {
 /// No `users` relation yet: COLLR-447 adds users.roleId as a NOT NULL foreign key to this table.
 model Role {
   id          String           @id @default(uuid()) @db.Uuid
-  /// Upper case identifier (USER, ADMIN, MODERATOR). Unique so the seed can upsert on it.
+  /// Upper case identifier (USER, ADMIN). Unique so the seed can upsert on it.
   name        String           @unique
   permissions RolePermission[]
 
