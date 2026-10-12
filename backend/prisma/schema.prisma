@@ -46,6 +46,9 @@ model User {
   role           UserRole  @default(USER)
   /// A deactivated account (admin action, CDC §3.5) cannot log in.
   isActive       Boolean   @default(true)
+  /// Optimistic lock (User.version): incremented by every update, which must match the version the
+  /// caller loaded, or a stale copy would overwrite a concurrent password change/deactivation.
+  version        Int       @default(0)
   /// RGPD scaffold: the moment the user accepted the terms of service at registration.
   consentGivenAt DateTime  @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
@@ -62,21 +65,33 @@ enum UserRole {
 }
 
 /// Refresh token sessions (docs/database/schema-sql.md SESSION, COLLR-633/COLLR-450).
-/// `id` doubles as the JWT refresh token's `jti` claim, so a lookup never needs to scan hashes.
+/// `id` doubles as the JWT refresh token's `jti` claim, so a lookup never needs to scan hashes, and as
+/// the `sid` claim of the access token issued with it (revoking the row kills that access token too).
 /// `refreshTokenHash` (sha256) is defense in depth only — revocation is keyed by `id`.
+/// One row per issued refresh token: a rotation retires the row (`rotatedAt`) and creates the next
+/// one in the same `familyId`, so a token presented twice can be recognised as stolen and the whole
+/// chain revoked.
 model Session {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @db.Uuid
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokenHash String
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Every token of one login chain shares it (set at login, inherited at each rotation).
+  familyId          String    @db.Uuid
+  refreshTokenHash  String
   /// Not populated yet: IAuthTokenService.issueTokenPair(userId) has no request context
   /// to read it from (application/ports/IAuthTokenService.ts is frozen, see COLLR-415 summary).
-  ipAddress        String?
-  isRevoked        Boolean  @default(false)
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  expiresAt        DateTime @db.Timestamptz(6)
+  ipAddress         String?
+  isRevoked         Boolean   @default(false)
+  /// Set when the token was exchanged for a new one. Distinguishes "rotated" (replaying it = theft)
+  /// from "logged out / revoked" (replaying it is just a dead token).
+  rotatedAt         DateTime? @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt         DateTime  @db.Timestamptz(6)
+  /// Hard end of the whole family, inherited unchanged: rotation can never extend a login past it.
+  absoluteExpiresAt DateTime  @db.Timestamptz(6)
 
   @@index([userId])
+  @@index([familyId])
   @@index([expiresAt])
   @@map("sessions")
 }
