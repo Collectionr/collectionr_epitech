@@ -11,25 +11,31 @@ import { LogoutUserUseCase } from './application/use-cases/LogoutUserUseCase';
 import { ChangePasswordUseCase } from './application/use-cases/ChangePasswordUseCase';
 import { UpdateProfileUseCase } from './application/use-cases/UpdateProfileUseCase';
 import { GetCurrentUserUseCase } from './application/use-cases/GetCurrentUserUseCase';
+import { DeactivateUserUseCase } from './application/use-cases/DeactivateUserUseCase';
+import { PurgeExpiredSessionsUseCase } from './application/use-cases/PurgeExpiredSessionsUseCase';
+import { ACCESS_TOKEN_VERIFIER } from './application/ports/IAccessTokenVerifier';
 import { USER_REPOSITORY } from './application/ports/IUserRepository';
 import { PASSWORD_HASHER } from './application/ports/IPasswordHasher';
 import { AUTH_TOKEN_SERVICE } from './application/ports/IAuthTokenService';
+import { SESSION_PURGER } from './application/ports/ISessionPurger';
 import { PASSWORD_MIN_LENGTH } from './application/ports/PasswordPolicy';
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository';
+import { AccessTokenVerifier } from './infrastructure/services/AccessTokenVerifier';
 import { BcryptPasswordHasher } from './infrastructure/services/BcryptPasswordHasher';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   JwtAuthTokenService,
   REFRESH_TOKEN_TTL_SECONDS,
+  SESSION_MAX_LIFETIME_SECONDS,
 } from './infrastructure/services/JwtAuthTokenService';
 import { JwtTokenCodec } from './infrastructure/services/JwtTokenCodec';
 import { PrismaModule } from '../../shared/infrastructure/database/PrismaModule';
 import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
 
 /**
- * Wires the frozen Auth domain/application (COLLR-414) to concrete infrastructure and HTTP
- * endpoints (COLLR-415): Prisma-backed users/sessions, bcrypt hashing, JWT access/refresh tokens,
- * Redis-backed rate limiting on /auth/login and /auth/register (ADR-008).
+ * Wires the Auth domain/application (COLLR-414) to concrete infrastructure and HTTP endpoints
+ * (COLLR-415): Prisma-backed users/sessions, bcrypt hashing, JWT access/refresh tokens,
+ * Redis-backed rate limiting on the auth routes (ADR-008).
  */
 @Module({
   imports: [PrismaModule, RedisModule],
@@ -42,12 +48,17 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
     ChangePasswordUseCase,
     UpdateProfileUseCase,
     GetCurrentUserUseCase,
+    DeactivateUserUseCase,
+    PurgeExpiredSessionsUseCase,
     JwtTokenCodec,
     JwtAuthGuard,
     RedisRateLimitGuard,
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     { provide: PASSWORD_HASHER, useClass: BcryptPasswordHasher },
     { provide: AUTH_TOKEN_SERVICE, useClass: JwtAuthTokenService },
+    // The same instance serves both ports: one class owns the sessions table.
+    { provide: SESSION_PURGER, useExisting: AUTH_TOKEN_SERVICE },
+    { provide: ACCESS_TOKEN_VERIFIER, useClass: AccessTokenVerifier },
     {
       provide: PASSWORD_MIN_LENGTH,
       inject: [ConfigService],
@@ -66,8 +77,16 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
       useFactory: (configService: ConfigService): number =>
         configService.get<number>('JWT_REFRESH_TOKEN_TTL_SECONDS', 604800),
     },
+    {
+      provide: SESSION_MAX_LIFETIME_SECONDS,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): number =>
+        configService.get<number>('JWT_SESSION_MAX_LIFETIME_SECONDS', 2592000),
+    },
   ],
-  // JwtAuthGuard is meant to protect routes in other (future) modules too.
-  exports: [JwtAuthGuard],
+  // What another module needs to put `@UseGuards(JwtAuthGuard)` on its own routes: Nest builds a
+  // guard in the module of the controller that uses it, so the guard's dependency must be exported
+  // with it (exporting the guard alone leaves the importing module unable to resolve it).
+  exports: [JwtAuthGuard, ACCESS_TOKEN_VERIFIER],
 })
 export class AuthModule {}
