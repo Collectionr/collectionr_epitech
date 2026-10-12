@@ -37,6 +37,12 @@ describe('GetCurrentUserUseCase', () => {
     expect(result).toBe(existingUser);
   });
 
+  it('treats a deactivated account as not found', async () => {
+    findById.mockResolvedValue(existingUser.deactivate());
+
+    await expect(build().execute({ userId: existingUser.id })).rejects.toThrow(UserNotFoundError);
+  });
+
   it('rejects when the user does not exist', async () => {
     findById.mockResolvedValue(null);
 
