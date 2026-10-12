@@ -80,6 +80,18 @@ Module `src/modules/audit/`. Table `audit_logs` (colonnes du schéma `docs/datab
 - **`metadata` : défense en profondeur par forme de valeur.** En plus de la liste blanche `bodyFields` et du refus au démarrage des noms de champs sensibles (`SensitiveFields.ts`, élargi : `apiKey`, `pin`, `cvv`, `ssn`, `iban`), `ReadAuditContext.ts` redige (`"[redacted]"`) toute valeur qui *ressemble* à un JWT ou à un hash bcrypt/argon2, **quel que soit le nom du champ whitelisté**. Ça ne couvre pas tout (un champ nommé innocemment mais contenant un secret arbitraire sans forme reconnaissable resterait visible) — mais ça retire la dépendance totale à la vigilance du développeur pour les deux cas les plus probables (un token ou un hash qui traîne dans un champ autorisé par erreur).
 **Limite connue restante** : la **purge** des entrées expirées n'est pas implémentée (déclencheur à trancher avec Cloud/DevOps, cf. `project_state.md`).
 
+## ADR-012 — Table `data_retention_policies` sans module applicatif (COLLR-664)
+
+Modèle Prisma `DataRetentionPolicy` → table `data_retention_policies` (colonnes de `docs/database/schema-sql.md` : `id`, `entityType`, `retentionDays`, `description`, `updatedAt`). Données de référence des durées S04 §5 : écrites par le seeder (COLLR-543), lues par le cronjob de suppression (COLLR-544), tous deux hors `backend/`.
+**Décisions** :
+- **Pas de module Clean Architecture** (ni port, ni repository, ni use case) : aucun code backend ne lit la table. Même principe que COLLR-412/437. Un module sera créé quand un use case en aura besoin.
+- **Mêmes conventions que `audit_logs`** : nom de table snake_case pluriel (`@@map`), `id` en `@db.Uuid`, dates en `@db.Timestamptz(6)`.
+- **`entityType` unique** : une seule politique par type de donnée. Sinon le cronjob ne saurait pas quelle durée appliquer, et le seeder peut faire un `upsert` idempotent sur `entityType`. Les valeurs sont en snake_case singulier (`account`, `application_log`, `audit_log`…) ; la liste définitive revient au seeder.
+- **`retentionDays` est compté depuis l'événement de référence de chaque type** (clôture du compte pour `account`, création pour les logs), pas depuis `updatedAt`.
+**Limites connues** :
+- Pas de contrainte `CHECK (retentionDays >= 0)` : Prisma ne sait pas la déclarer dans le schéma. À ajouter en SQL dans une migration si un besoin de validation en base apparaît.
+- **Deux sources pour la rétention d'audit** : `AUDIT_LOG_RETENTION_DAYS` (variable d'env, calcule `audit_logs.expiresAt` à l'écriture, ADR-011) et la ligne `audit_log` de cette table. Elles doivent rester égales (90 j) jusqu'à ce que COLLR-544 décide laquelle fait foi.
+
 ## ADR-013 — Tables RBAC `roles` / `permissions` / `role_permissions` sans module applicatif (COLLR-665)
 
 Modèles Prisma `Role`, `Permission`, `RolePermission` (colonnes de `docs/database/schema-sql.md` : `id` + `name` pour les deux premiers, `roleId` + `permissionId` pour la jointure). Migration `prisma/migrations/20260924132529_add_roles_permissions`. Le RBAC repose sur un modèle relationnel (et non un enum Prisma) pour que `users.roleId` soit une vraie FK dès la création de la table `users` (COLLR-447) — pas de migration enum → FK à prévoir plus tard.
@@ -95,6 +107,7 @@ Modèles Prisma `Role`, `Permission`, `RolePermission` (colonnes de `docs/databa
 **Question ouverte — rôles insérés par le seed ou par une migration ?**
 Pour l'instant les rôles sont écrits par `prisma/seed.ts`. Or, dès COLLR-447, `users.roleId` sera une FK `NOT NULL` : **la ligne `USER` doit exister dans tous les environnements, prod comprise**, sinon aucune inscription ne passe. Aujourd'hui rien ne garantit que le seed tourne en prod : aucune doc de déploiement (`docs/`, `devops/`) ne mentionne `prisma migrate deploy` ni `prisma db seed`, et Prisma 7 ne lance plus le seed automatiquement après `migrate dev` (constaté sur COLLR-665 : `roles` vide après la migration). De plus, `seed.ts` est prévu pour accueillir des données de démo (COLLR-438 : utilisateurs, collections), qui ne doivent **pas** aller en prod — l'exécuter en prod n'est donc pas une solution durable.
 **Recommandation** : dans la migration de COLLR-447 (celle qui crée `users`), insérer les rôles de référence en SQL avant de poser la FK — `INSERT INTO "roles" ("id", "name") VALUES (gen_random_uuid(), 'USER'), … ON CONFLICT ("name") DO NOTHING;` (`gen_random_uuid()` est natif depuis PG13). Les migrations sont la seule étape exécutée partout (`migrate deploy`) ; le `ON CONFLICT` rend l'insertion sans effet là où le seed est déjà passé. L'`upsert` du seed peut rester (sans effet si les lignes existent) ou être retiré à ce moment-là — à trancher dans COLLR-447, en gardant `ROLE_NAMES` et la migration synchronisés.
+
 
 ## Couches et responsabilités
 
