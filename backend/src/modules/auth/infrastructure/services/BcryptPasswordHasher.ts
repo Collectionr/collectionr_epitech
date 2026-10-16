@@ -6,9 +6,6 @@ import type { IPasswordHasher } from '../../application/ports/IPasswordHasher';
 /** Cost factor for bcrypt hashing. Fixed (not env-specific): a security-reviewed value, not config. */
 const BCRYPT_SALT_ROUNDS = 12;
 
-/** bcrypt only reads the first 72 BYTES of its input; the domain refuses longer passwords (Password.ts). */
-const BCRYPT_MAX_INPUT_BYTES = 72;
-
 /**
  * Native bcrypt (libuv thread pool), not bcryptjs: the pure-JS implementation runs on the event
  * loop, so a handful of concurrent logins (~230 ms each at cost 12) froze every other request,
@@ -17,6 +14,10 @@ const BCRYPT_MAX_INPUT_BYTES = 72;
  */
 @Injectable()
 export class BcryptPasswordHasher implements IPasswordHasher {
+  // bcrypt reads the first 72 BYTES of its input and silently ignores the rest. This is the one place
+  // that knows it: the domain enforces the ceiling through the port (Password.create).
+  readonly maxPasswordBytes = 72;
+
   // Computed once at construction (so at application boot) with the SAME cost as hash(): the
   // hasher is the only one who knows its work factor, which is what makes the "unknown account"
   // branch of the login exactly as slow as the "known account" one. Synchronous on purpose: a
@@ -30,7 +31,7 @@ export class BcryptPasswordHasher implements IPasswordHasher {
   async verify(plainPassword: string, passwordHash: string): Promise<boolean> {
     // bcrypt would silently compare only the first 72 bytes: "<72 bytes>ANYTHING" must not pass.
     // A password this long can never have been stored, so answering early reveals nothing.
-    if (Buffer.byteLength(plainPassword, 'utf8') > BCRYPT_MAX_INPUT_BYTES) {
+    if (Buffer.byteLength(plainPassword, 'utf8') > this.maxPasswordBytes) {
       return false;
     }
 

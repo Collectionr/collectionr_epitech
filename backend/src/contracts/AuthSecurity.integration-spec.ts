@@ -31,8 +31,9 @@ async function createAccount(): Promise<User> {
     User.register({
       email: Email.create(`sec${randomUUID().slice(0, 12)}@example.com`),
       passwordHash: '$2b$12$' + 'x'.repeat(53),
-      username: 'security',
-      consentGivenAt: new Date(),
+      username: `security-${randomUUID().slice(0, 8)}`,
+      termsAcceptedAt: new Date(),
+      termsVersion: '1',
     }),
   );
 }
@@ -200,7 +201,7 @@ describe('credential changes are atomic with the session revocation (points 3 an
     const user = await createAccount();
     await service.issueTokenPair(user.id);
 
-    await repository.save(user.withUsername('renamed_user'));
+    await repository.save(user.withUsername(`renamed-${randomUUID().slice(0, 8)}`));
 
     expect(await liveSessions(user.id)).toBe(1);
   });
@@ -256,8 +257,10 @@ describe('loading accounts stored under older rules (point "à faire en premier"
         id,
         email: `Legacy..Address${id.slice(0, 6)}@Example.COM`,
         passwordHash: 'legacy',
-        username: 'legacy',
-        consentGivenAt: new Date(),
+        username: `legacy-${randomUUID().slice(0, 8)}`,
+        usernameKey: `legacy-${randomUUID().slice(0, 8)}`,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
       },
     });
 

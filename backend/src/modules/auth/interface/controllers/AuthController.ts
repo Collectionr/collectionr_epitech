@@ -72,7 +72,7 @@ export class AuthController {
         email: dto.email,
         plainPassword: dto.password,
         username: dto.username,
-        hasAcceptedTerms: dto.hasAcceptedTerms,
+        acceptedTermsVersion: dto.acceptedTermsVersion ?? null,
       });
       setAuditSubject(request, { actorId: user.id, targetId: user.id });
       return UserResponseDto.fromProfile(user);

@@ -37,7 +37,12 @@ describe('UsersController (e2e)', () => {
   async function registerAndLogin(email: string): Promise<AuthSessionBody> {
     await http()
       .post('/api/v1/auth/register')
-      .send({ email, password: PASSWORD, username: 'ash_ketchum', hasAcceptedTerms: true });
+      .send({
+        email,
+        password: PASSWORD,
+        username: `user_${email.split('@')[0]}`,
+        acceptedTermsVersion: '1',
+      });
     context.redis.resetCounters();
     const response = await http().post('/api/v1/auth/login').send({ email, password: PASSWORD });
     context.redis.resetCounters();
@@ -70,7 +75,7 @@ describe('UsersController (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers['cache-control']).toBe('no-store');
-      expect(response.body).toMatchObject({ email: 'me@example.com', username: 'ash_ketchum' });
+      expect(response.body).toMatchObject({ email: 'me@example.com', username: 'user_me' });
       expect(response.body).not.toHaveProperty('passwordHash');
     });
 

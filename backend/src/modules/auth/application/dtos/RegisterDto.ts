@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 // Matches PASSWORD_MIN_LENGTH's own floor (EnvironmentVariables.ts, min 8). If the env var is
 // raised above 8, the domain (Password.create, application/ports/PasswordPolicy.ts) still enforces
@@ -11,6 +19,9 @@ const PASSWORD_MIN_LENGTH_FLOOR = 8;
 const EMAIL_MAX_LENGTH = 254; // RFC 5321
 const PASSWORD_MAX_LENGTH = 128;
 const USERNAME_MAX_LENGTH = 64;
+
+// Same shape as TERMS_VERSION (EnvironmentVariables.ts): the version is an identifier, not free text.
+const TERMS_VERSION_PATTERN = /^[A-Za-z0-9._-]{1,32}$/;
 
 export class RegisterDto {
   @ApiProperty({ example: 'trainer@example.com', maxLength: EMAIL_MAX_LENGTH })
@@ -35,9 +46,14 @@ export class RegisterDto {
   username!: string;
 
   @ApiProperty({
-    example: true,
-    description: 'Must be an explicit, affirmative act — never defaulted to true by a client.',
+    example: '1',
+    required: false,
+    description:
+      'Version of the terms of service the user was shown and accepted. Required: an absent or ' +
+      'blank value is refused (409 if it is not the current version). Never defaulted by the client.',
   })
-  @IsBoolean()
-  hasAcceptedTerms!: boolean;
+  @IsOptional()
+  @IsString()
+  @Matches(TERMS_VERSION_PATTERN)
+  acceptedTermsVersion?: string;
 }

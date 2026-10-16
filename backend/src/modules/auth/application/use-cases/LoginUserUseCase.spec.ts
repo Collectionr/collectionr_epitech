@@ -6,15 +6,15 @@ import type { IAuthTokenService } from '../ports/IAuthTokenService';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
 import type { IUserRepository } from '../ports/IUserRepository';
 
-// The dummy hash is the hasher's own (same cost as hash() by construction) — the use case carries none.
-const HASHER_DUMMY_HASH = '$2b$12$hasherOwnDummyHashhasherOwnDummyHashhasherOwnDummyHashha';
+const DUMMY_HASH = 'dummy-hash-supplied-by-the-hasher';
 
 function buildUser(): User {
   return User.register({
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -22,6 +22,7 @@ describe('LoginUserUseCase', () => {
   const save = jest.fn();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
   const hash = jest.fn();
   const verify = jest.fn();
   const getDummyHash = jest.fn();
@@ -31,8 +32,8 @@ describe('LoginUserUseCase', () => {
   const revokeAllRefreshTokens = jest.fn();
 
   function build(): LoginUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
-    const passwordHasher: IPasswordHasher = { hash, verify, getDummyHash };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const passwordHasher: IPasswordHasher = { maxPasswordBytes: 72, hash, verify, getDummyHash };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
       rotateRefreshToken,
@@ -46,14 +47,14 @@ describe('LoginUserUseCase', () => {
     jest.resetAllMocks();
     findByEmail.mockResolvedValue(buildUser());
     verify.mockResolvedValue(true);
-    getDummyHash.mockReturnValue(HASHER_DUMMY_HASH);
+    getDummyHash.mockReturnValue(DUMMY_HASH);
     issueTokenPair.mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
     });
   });
 
-  it('returns the user and a token pair on valid credentials', async () => {
+  it('returns the profile and a token pair on valid credentials', async () => {
     const result = await build().execute({
       email: 'user@example.com',
       plainPassword: 'abcd1234',
@@ -64,12 +65,14 @@ describe('LoginUserUseCase', () => {
     expect(issueTokenPair).toHaveBeenCalledWith(result.user.id);
   });
 
-  it('never returns the password hash (it is only read internally to verify the password)', async () => {
-    const result = await build().execute({ email: 'user@example.com', plainPassword: 'abcd1234' });
+  it('never returns the password hash', async () => {
+    const result = await build().execute({
+      email: 'user@example.com',
+      plainPassword: 'abcd1234',
+    });
 
     expect(result.user).not.toHaveProperty('passwordHash');
     expect(JSON.stringify(result)).not.toContain('hashed-password');
-    expect(verify).toHaveBeenCalledWith('abcd1234', 'hashed-password');
   });
 
   it('rejects an unknown email as invalid credentials', async () => {
@@ -81,7 +84,7 @@ describe('LoginUserUseCase', () => {
     expect(issueTokenPair).not.toHaveBeenCalled();
   });
 
-  it('still runs a hash comparison for an unknown email, against the hasher-provided dummy hash', async () => {
+  it('compares against the hasher-supplied dummy hash for an unknown email (timing side channel)', async () => {
     findByEmail.mockResolvedValue(null);
 
     await expect(
@@ -89,12 +92,13 @@ describe('LoginUserUseCase', () => {
     ).rejects.toThrow(InvalidCredentialsError);
 
     expect(verify).toHaveBeenCalledTimes(1);
-    expect(verify).toHaveBeenCalledWith('abcd1234', HASHER_DUMMY_HASH);
+    expect(verify).toHaveBeenCalledWith('abcd1234', DUMMY_HASH);
   });
 
-  it('does not ask for the dummy hash when the account exists', async () => {
+  it('asks the hasher for a dummy hash only when the account does not exist', async () => {
     await build().execute({ email: 'user@example.com', plainPassword: 'abcd1234' });
 
+    expect(verify).toHaveBeenCalledWith('abcd1234', 'hashed-password');
     expect(getDummyHash).not.toHaveBeenCalled();
   });
 
@@ -104,10 +108,11 @@ describe('LoginUserUseCase', () => {
         email: Email.create('user@example.com'),
         passwordHash: 'hashed-password',
         username: 'trainer42',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
         id: 'fixed-id',
-        version: 0,
         isActive: false,
+        version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       }),

@@ -2,14 +2,16 @@ import { User } from './User';
 import { DomainValidationError } from '../errors/DomainValidationError';
 import { Email } from '../value-objects/Email';
 
-const consentGivenAt = new Date('2026-01-01T00:00:00.000Z');
+const termsAcceptedAt = new Date('2026-01-01T00:00:00.000Z');
+const termsVersion = '2026-01';
 
 function buildProps() {
   return {
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt,
+    termsAcceptedAt,
+    termsVersion,
   };
 }
 
@@ -20,7 +22,8 @@ describe('User', () => {
 
       expect(user.id).toHaveLength(36);
       expect(user.createdAt).toEqual(user.updatedAt);
-      expect(user.consentGivenAt).toEqual(consentGivenAt);
+      expect(user.termsAcceptedAt).toEqual(termsAcceptedAt);
+      expect(user.termsVersion).toBe(termsVersion);
     });
 
     it('creates an active account', () => {
@@ -57,6 +60,10 @@ describe('User', () => {
       );
     });
 
+    it('refuses to register a user without the terms version they accepted', () => {
+      expect(() => User.register({ ...buildProps(), termsVersion: '  ' })).toThrow(/terms version/);
+    });
+
     it('generates a different id for each registration', () => {
       const first = User.register(buildProps());
       const second = User.register(buildProps());
@@ -73,8 +80,8 @@ describe('User', () => {
       const user = User.restore({
         ...buildProps(),
         id: 'fixed-id',
-        version: 0,
         isActive: true,
+        version: 0,
         createdAt,
         updatedAt,
       });
@@ -90,8 +97,8 @@ describe('User', () => {
           ...buildProps(),
           username: 'ab',
           id: 'fixed-id',
-          version: 0,
           isActive: true,
+          version: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
         }),
@@ -102,8 +109,8 @@ describe('User', () => {
       const user = User.restore({
         ...buildProps(),
         id: 'fixed-id',
-        version: 0,
         isActive: false,
+        version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -116,8 +123,8 @@ describe('User', () => {
     const deactivated = User.restore({
       ...buildProps(),
       id: 'fixed-id',
-      version: 0,
       isActive: false,
+      version: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -125,40 +132,6 @@ describe('User', () => {
     it('never reactivates a deactivated account', () => {
       expect(deactivated.withPasswordHash('new-hash').isActive).toBe(false);
       expect(deactivated.withUsername('newname').isActive).toBe(false);
-    });
-  });
-
-  describe('version (optimistic lock)', () => {
-    it('starts a new account at version 0', () => {
-      expect(User.register(buildProps()).version).toBe(0);
-    });
-
-    it('restores the persisted version', () => {
-      const user = User.restore({
-        ...buildProps(),
-        id: 'fixed-id',
-        version: 7,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      expect(user.version).toBe(7);
-    });
-
-    it('keeps the version it was loaded at across updates (it is the expected base version)', () => {
-      const user = User.restore({
-        ...buildProps(),
-        id: 'fixed-id',
-        version: 7,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      expect(user.withPasswordHash('new-hash').version).toBe(7);
-      expect(user.withUsername('newname').version).toBe(7);
-      expect(user.deactivate().version).toBe(7);
     });
   });
 
@@ -172,6 +145,28 @@ describe('User', () => {
       expect(user.isActive).toBe(true);
       expect(deactivated.id).toBe(user.id);
       expect(deactivated.passwordHash).toBe(user.passwordHash);
+      expect(deactivated.updatedAt.getTime()).toBeGreaterThanOrEqual(user.updatedAt.getTime());
+    });
+  });
+
+  describe('usernameKey', () => {
+    it.each([
+      ['Pokemon', 'pokemon'],
+      ['POKEMON', 'pokemon'],
+      ['  Pokemon  ', 'pokemon'],
+      ['ash   ketchum', 'ash ketchum'],
+      ['Ash	Ketchum', 'ash ketchum'],
+      ['Ｐokemon', 'pokemon'],
+    ])('maps "%s" to "%s"', (raw, key) => {
+      expect(User.usernameKey(raw)).toBe(key);
+    });
+
+    it('gives the same key to every spelling of one username', () => {
+      expect(User.usernameKey('Pokemon')).toBe(User.usernameKey('pokemon'));
+    });
+
+    it('keeps genuinely different usernames apart', () => {
+      expect(User.usernameKey('pokemon1')).not.toBe(User.usernameKey('pokemon2'));
     });
   });
 

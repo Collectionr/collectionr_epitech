@@ -40,10 +40,10 @@ export class LoginUserUseCase {
 
     const user = await this.userRepository.findByEmail(email);
 
-    // Always run the hash comparison, even for an unknown account: a bcrypt
-    // verify takes measurable time, so short-circuiting on `user === null`
-    // would make login faster for unregistered emails than for registered
-    // ones — a timing side channel that lets an attacker enumerate accounts.
+    // Always run the hash comparison, even for an unknown account: a verify takes measurable time,
+    // so short-circuiting on `user === null` would make login faster for unregistered emails than
+    // for registered ones — a timing side channel that lets an attacker enumerate accounts. The
+    // hasher supplies the throwaway hash because only it knows the cost its real hashes have.
     const passwordMatches = await this.passwordHasher.verify(
       input.plainPassword,
       user?.passwordHash ?? this.passwordHasher.getDummyHash(),
@@ -57,6 +57,7 @@ export class LoginUserUseCase {
 
     const tokens = await this.authTokenService.issueTokenPair(user.id);
 
+    // The hash stays in this method: what leaves the use case is a profile without it.
     return { user: toUserProfile(user), tokens };
   }
 }

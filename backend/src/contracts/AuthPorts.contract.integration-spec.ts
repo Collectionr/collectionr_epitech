@@ -28,8 +28,10 @@ authTokenServiceContract('JwtAuthTokenService (real PostgreSQL)', () => ({
         id,
         email: `t${id.slice(0, 8)}@example.com`,
         passwordHash: 'not-a-real-hash',
-        username: 'tok',
-        consentGivenAt: new Date(),
+        username: `tok-${id.slice(0, 8)}`,
+        usernameKey: `tok-${id.slice(0, 8)}`,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
       },
     });
     return id;

@@ -11,7 +11,11 @@ export interface DeactivateUserInput {
   readonly userId: string;
 }
 
-/** Admin action (CDC §3.5). No HTTP route yet: it needs the RBAC guard, which does not exist. */
+/**
+ * Deactivates an account AND ends its sessions: a flag alone would leave every refresh token the
+ * account already holds usable. Who may call this (admin only, CDC §3.5) is an interface concern
+ * (role guard), not decided here.
+ */
 @Injectable()
 export class DeactivateUserUseCase {
   constructor(
@@ -22,16 +26,16 @@ export class DeactivateUserUseCase {
   async execute(input: DeactivateUserInput): Promise<UserProfile> {
     const user = await this.userRepository.findById(input.userId);
     if (user === null) {
-      throw new UserNotFoundError(input.userId);
+      throw new UserNotFoundError();
     }
 
-    const deactivated = user.isActive ? await this.userRepository.save(user.deactivate()) : user;
-
-    // Also when the account was already deactivated: this is what makes a retry after a failure
-    // here converge. Rotation and the access guard refuse inactive accounts regardless, this just
-    // stops leaving live sessions behind.
+    // Deactivate first: from that moment no new session can be opened (login refuses the account).
+    // Revoking first would leave a window in which the user logs in again and gets a fresh session.
+    // An already deactivated account is not saved again, but its sessions are still revoked, so
+    // repeating the call finishes a previous attempt that failed halfway.
+    const current = user.isActive ? await this.userRepository.save(user.deactivate()) : user;
     await this.authTokenService.revokeAllRefreshTokens(user.id);
 
-    return toUserProfile(deactivated);
+    return toUserProfile(current);
   }
 }

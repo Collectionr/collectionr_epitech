@@ -49,7 +49,7 @@ describe('JwtAuthGuard used from another module (e2e)', () => {
       email: 'reuse@example.com',
       password: 'Str0ngPassw0rd!',
       username: 'reuse_user',
-      hasAcceptedTerms: true,
+      acceptedTermsVersion: '1',
     };
     const registered = await request(context.app.getHttpServer())
       .post('/api/v1/auth/register')

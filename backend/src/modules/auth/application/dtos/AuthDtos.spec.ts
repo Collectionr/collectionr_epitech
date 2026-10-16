@@ -20,7 +20,7 @@ const validRegistration = {
   email: 'ash@example.com',
   password: 'Str0ngPassw0rd!',
   username: 'ash_ketchum',
-  hasAcceptedTerms: true,
+  acceptedTermsVersion: '1',
 };
 
 describe('RegisterDto', () => {
@@ -55,6 +55,33 @@ describe('RegisterDto', () => {
       propertiesInError(RegisterDto, { ...validRegistration, username: 'u'.repeat(65) }),
     ).resolves.toContain('username');
   });
+});
+
+describe('RegisterDto terms acceptance', () => {
+  it('accepts a well-formed terms version', async () => {
+    await expect(
+      propertiesInError(RegisterDto, {
+        ...validRegistration,
+        acceptedTermsVersion: '2026-01.fr_B',
+      }),
+    ).resolves.toEqual([]);
+  });
+
+  it('accepts an absent version: the use case answers ConsentRequiredError, a 400 too', async () => {
+    const withoutAcceptance: Record<string, unknown> = { ...validRegistration };
+    delete withoutAcceptance.acceptedTermsVersion;
+
+    await expect(propertiesInError(RegisterDto, withoutAcceptance)).resolves.toEqual([]);
+  });
+
+  it.each(['', ' ', 'v 1', 'v1;drop', 'é', 'x'.repeat(33)])(
+    'refuses the malformed version %j',
+    async (acceptedTermsVersion) => {
+      await expect(
+        propertiesInError(RegisterDto, { ...validRegistration, acceptedTermsVersion }),
+      ).resolves.toContain('acceptedTermsVersion');
+    },
+  );
 });
 
 describe('LoginDto', () => {

@@ -30,7 +30,8 @@ function buildUser(): User {
     email: Email.create('trainer@example.com'),
     passwordHash: 'hashed',
     username: 'ash_ketchum',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -69,7 +70,7 @@ describe('UsersController', () => {
 
     it('answers 404 when the account is gone', async () => {
       const controller = buildController({
-        getCurrentUser: { execute: jest.fn().mockRejectedValue(new UserNotFoundError('user-1')) },
+        getCurrentUser: { execute: jest.fn().mockRejectedValue(new UserNotFoundError()) },
       });
 
       await expect(controller.getMe({ id: 'user-1' })).rejects.toThrow(NotFoundException);

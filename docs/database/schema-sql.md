@@ -61,6 +61,8 @@ erDiagram
         uuid roleId FK
         boolean isActive
         string locale
+        datetime termsAcceptedAt
+        string termsVersion
         datetime lastLoginAt
         datetime createdAt
         datetime deletedAt

@@ -1,9 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { Password } from '../../domain/value-objects/Password';
 import { toUserProfile } from '../dtos/UserProfile';
 import type { UserProfile } from '../dtos/UserProfile';
-import { IncorrectCurrentPasswordError, UserNotFoundError } from '../errors/AuthErrors';
+import {
+  IncorrectCurrentPasswordError,
+  SamePasswordError,
+  UserNotFoundError,
+} from '../errors/AuthErrors';
 import { AUTH_TOKEN_SERVICE } from '../ports/IAuthTokenService';
 import type { IAuthTokenService } from '../ports/IAuthTokenService';
 import { PASSWORD_HASHER } from '../ports/IPasswordHasher';
@@ -29,9 +32,9 @@ export class ChangePasswordUseCase {
 
   async execute(input: ChangePasswordInput): Promise<UserProfile> {
     const user = await this.userRepository.findById(input.userId);
-    // A deactivated account is treated as unknown: no password check, no hash, no session touched.
+    // A deactivated account is treated as unknown: nothing is verified, hashed or revoked for it.
     if (user === null || !user.isActive) {
-      throw new UserNotFoundError(input.userId);
+      throw new UserNotFoundError();
     }
 
     const currentMatches = await this.passwordHasher.verify(
@@ -42,13 +45,16 @@ export class ChangePasswordUseCase {
       throw new IncorrectCurrentPasswordError();
     }
 
-    // The current password is proven correct at this point, so a plain comparison is enough:
-    // "changing" to the same password would revoke every session for nothing.
-    if (input.newPassword === input.currentPassword) {
-      throw new DomainValidationError('The new password must differ from the current one');
+    const newPassword = Password.create(
+      input.newPassword,
+      this.passwordMinLength,
+      this.passwordHasher.maxPasswordBytes,
+    );
+    // Same password again would revoke every session for no change at all.
+    if (await this.passwordHasher.verify(newPassword.value, user.passwordHash)) {
+      throw new SamePasswordError();
     }
 
-    const newPassword = Password.create(input.newPassword, this.passwordMinLength);
     const newPasswordHash = await this.passwordHasher.hash(newPassword.value);
     const updated = user.withPasswordHash(newPasswordHash);
 

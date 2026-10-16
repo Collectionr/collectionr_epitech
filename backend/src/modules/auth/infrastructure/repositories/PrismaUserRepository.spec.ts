@@ -5,6 +5,7 @@ import { Email } from '../../domain/value-objects/Email';
 import {
   ConcurrentModificationError,
   EmailAlreadyUsedError,
+  UsernameAlreadyUsedError,
 } from '../../application/errors/AuthErrors';
 import { PrismaUserRepository } from './PrismaUserRepository';
 
@@ -13,7 +14,8 @@ function buildUser(): User {
     email: Email.create('trainer@example.com'),
     passwordHash: '$2b$12$hashhashhashhashhashhashhashhashhashhashhashhashhashh',
     username: 'ash_ketchum',
-    consentGivenAt: new Date('2026-09-01T00:00:00.000Z'),
+    termsAcceptedAt: new Date('2026-09-01T00:00:00.000Z'),
+    termsVersion: '1',
   });
 }
 
@@ -26,7 +28,8 @@ function recordOf(user: User, overrides: Record<string, unknown> = {}): Record<s
     role: 'USER',
     isActive: user.isActive,
     version: user.version,
-    consentGivenAt: user.consentGivenAt,
+    termsAcceptedAt: user.termsAcceptedAt,
+    termsVersion: user.termsVersion,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     ...overrides,
@@ -89,7 +92,8 @@ describe('PrismaUserRepository', () => {
         email: stale.email,
         passwordHash: stale.passwordHash,
         username: stale.username,
-        consentGivenAt: stale.consentGivenAt,
+        termsAcceptedAt: stale.termsAcceptedAt,
+        termsVersion: stale.termsVersion,
         isActive: true,
         version: 3,
         createdAt: stale.createdAt,
@@ -101,17 +105,44 @@ describe('PrismaUserRepository', () => {
       expect(h.create).not.toHaveBeenCalled();
     });
 
-    it('translates a unique email violation into EmailAlreadyUsedError', async () => {
-      const user = buildUser();
-      const h = harness(null);
-      h.create.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-          code: 'P2002',
-          clientVersion: '7.10.0',
-        }),
-      );
+    // The shape the driver adapter reports for a real violation (checked against PostgreSQL).
+    function uniqueViolation(index: string | undefined): Prisma.PrismaClientKnownRequestError {
+      return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '7.10.0',
+        meta: {
+          driverAdapterError: {
+            cause: {
+              kind: 'UniqueConstraintViolation',
+              table: 'users',
+              constraint: index === undefined ? undefined : { index },
+            },
+          },
+        },
+      });
+    }
 
-      await expect(h.repository.save(user)).rejects.toBeInstanceOf(EmailAlreadyUsedError);
+    it('translates a unique email violation into EmailAlreadyUsedError', async () => {
+      const h = harness(null);
+      h.create.mockRejectedValue(uniqueViolation('users_email_key'));
+
+      await expect(h.repository.save(buildUser())).rejects.toBeInstanceOf(EmailAlreadyUsedError);
+    });
+
+    it('translates a unique username-key violation into UsernameAlreadyUsedError', async () => {
+      const h = harness(null);
+      h.create.mockRejectedValue(uniqueViolation('users_usernameKey_key'));
+
+      await expect(h.repository.save(buildUser())).rejects.toBeInstanceOf(UsernameAlreadyUsedError);
+    });
+
+    it('leaves a unique violation on another index as an internal error, not a duplicate', async () => {
+      const h = harness(null);
+      h.create.mockRejectedValue(uniqueViolation('users_some_other_key'));
+
+      await expect(h.repository.save(buildUser())).rejects.toBeInstanceOf(
+        Prisma.PrismaClientKnownRequestError,
+      );
     });
 
     it('rethrows any other error as-is', async () => {

@@ -19,6 +19,7 @@ import { PASSWORD_HASHER } from './application/ports/IPasswordHasher';
 import { AUTH_TOKEN_SERVICE } from './application/ports/IAuthTokenService';
 import { SESSION_PURGER } from './application/ports/ISessionPurger';
 import { PASSWORD_MIN_LENGTH } from './application/ports/PasswordPolicy';
+import { CURRENT_TERMS_VERSION } from './application/ports/TermsPolicy';
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository';
 import { AccessTokenVerifier } from './infrastructure/services/AccessTokenVerifier';
 import { BcryptPasswordHasher } from './infrastructure/services/BcryptPasswordHasher';
@@ -59,6 +60,12 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
     // The same instance serves both ports: one class owns the sessions table.
     { provide: SESSION_PURGER, useExisting: AUTH_TOKEN_SERVICE },
     { provide: ACCESS_TOKEN_VERIFIER, useClass: AccessTokenVerifier },
+    {
+      provide: CURRENT_TERMS_VERSION,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): string =>
+        configService.get<string>('TERMS_VERSION', '1'),
+    },
     {
       provide: PASSWORD_MIN_LENGTH,
       inject: [ConfigService],

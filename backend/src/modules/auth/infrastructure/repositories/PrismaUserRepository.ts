@@ -6,13 +6,18 @@ import { Email } from '../../domain/value-objects/Email';
 import {
   ConcurrentModificationError,
   EmailAlreadyUsedError,
+  UsernameAlreadyUsedError,
 } from '../../application/errors/AuthErrors';
 import type { IUserRepository } from '../../application/ports/IUserRepository';
 import { PRISMA_CLIENT } from '../../../../shared/infrastructure/database/PrismaModule';
 import { isUuid } from '../../../../shared/infrastructure/IsUuid';
 
-/** Unique constraint violation (Prisma error code), e.g. the `users.email` unique index. */
+/** Unique constraint violation (Prisma error code). */
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+
+/** The unique indexes of the users table, as PostgreSQL names them (see the migrations). */
+const EMAIL_INDEX = 'users_email_key';
+const USERNAME_KEY_INDEX = 'users_usernameKey_key';
 
 /** What the write path needs to know about the stored row, read under a row lock. */
 interface StoredSecurityState {
@@ -37,7 +42,13 @@ export class PrismaUserRepository implements IUserRepository {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
-        throw new EmailAlreadyUsedError(user.email.value);
+        const index = uniqueIndexOf(error);
+        if (index === USERNAME_KEY_INDEX) {
+          throw new UsernameAlreadyUsedError();
+        }
+        if (index === EMAIL_INDEX) {
+          throw new EmailAlreadyUsedError();
+        }
       }
       throw error;
     }
@@ -54,6 +65,13 @@ export class PrismaUserRepository implements IUserRepository {
 
   async findByEmail(email: Email): Promise<User | null> {
     const found = await this.prismaClient.user.findUnique({ where: { email: email.value } });
+    return found === null ? null : toDomain(found);
+  }
+
+  async findByUsername(username: string): Promise<User | null> {
+    const found = await this.prismaClient.user.findUnique({
+      where: { usernameKey: User.usernameKey(username) },
+    });
     return found === null ? null : toDomain(found);
   }
 
@@ -79,7 +97,9 @@ export class PrismaUserRepository implements IUserRepository {
           email: user.email.value,
           passwordHash: user.passwordHash,
           username: user.username,
-          consentGivenAt: user.consentGivenAt,
+          usernameKey: User.usernameKey(user.username),
+          termsAcceptedAt: user.termsAcceptedAt,
+          termsVersion: user.termsVersion,
           isActive: user.isActive,
           version: 0,
           createdAt: user.createdAt,
@@ -98,6 +118,7 @@ export class PrismaUserRepository implements IUserRepository {
         email: user.email.value,
         passwordHash: user.passwordHash,
         username: user.username,
+        usernameKey: User.usernameKey(user.username),
         isActive: user.isActive,
         updatedAt: user.updatedAt,
         version: { increment: 1 },
@@ -117,6 +138,30 @@ export class PrismaUserRepository implements IUserRepository {
   }
 }
 
+/**
+ * The unique index a violation was raised on, read from the driver's own report (the constraint name
+ * PostgreSQL gives, e.g. `users_usernameKey_key`). Anything else — another table, another kind of
+ * violation, an unexpected shape — yields nothing, so the error stays a 500 instead of being taken for
+ * a duplicate.
+ */
+function uniqueIndexOf(error: Prisma.PrismaClientKnownRequestError): string | null {
+  const driverError: unknown = error.meta?.driverAdapterError;
+  if (!isRecord(driverError) || !isRecord(driverError.cause)) {
+    return null;
+  }
+  const { cause } = driverError;
+  if (cause.kind !== 'UniqueConstraintViolation' || cause.table !== 'users') {
+    return null;
+  }
+  return isRecord(cause.constraint) && typeof cause.constraint.index === 'string'
+    ? cause.constraint.index
+    : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function toDomain(record: PrismaUser): User {
   return User.restore({
     id: record.id,
@@ -125,7 +170,8 @@ function toDomain(record: PrismaUser): User {
     email: Email.restore(record.email),
     passwordHash: record.passwordHash,
     username: record.username,
-    consentGivenAt: record.consentGivenAt,
+    termsAcceptedAt: record.termsAcceptedAt,
+    termsVersion: record.termsVersion,
     isActive: record.isActive,
     version: record.version,
     createdAt: record.createdAt,

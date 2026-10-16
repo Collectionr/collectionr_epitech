@@ -13,6 +13,7 @@ import { Email } from '../modules/auth/domain/value-objects/Email';
 import {
   ConcurrentModificationError,
   EmailAlreadyUsedError,
+  UsernameAlreadyUsedError,
   InvalidCredentialsError,
   InvalidRefreshTokenError,
 } from '../modules/auth/application/errors/AuthErrors';
@@ -34,7 +35,8 @@ interface StoredUser {
   email: string;
   passwordHash: string;
   username: string;
-  consentGivenAt: Date;
+  termsAcceptedAt: Date;
+  termsVersion: string;
   isActive: boolean;
   version: number;
   createdAt: Date;
@@ -91,13 +93,24 @@ export class InMemoryUserRepository implements IUserRepository {
     return Promise.resolve(found === undefined ? null : toDomain(found));
   }
 
+  findByUsername(username: string): Promise<User | null> {
+    const key = User.usernameKey(username);
+    const found = [...this.store.users.values()].find(
+      (row) => User.usernameKey(row.username) === key,
+    );
+    return Promise.resolve(found === undefined ? null : toDomain(found));
+  }
+
   private persist(user: User): User {
     const stored = this.store.users.get(user.id);
-    const emailTaken = [...this.store.users.values()].some(
-      (row) => row.email === user.email.value && row.id !== user.id,
-    );
-    if (emailTaken) {
-      throw new EmailAlreadyUsedError(user.email.value);
+    const others = [...this.store.users.values()].filter((row) => row.id !== user.id);
+    if (others.some((row) => row.email === user.email.value)) {
+      throw new EmailAlreadyUsedError();
+    }
+    // Same rule as the database's unique index on the username key: case and spacing variants collide.
+    const key = User.usernameKey(user.username);
+    if (others.some((row) => User.usernameKey(row.username) === key)) {
+      throw new UsernameAlreadyUsedError();
     }
 
     if (stored === undefined) {
@@ -125,7 +138,8 @@ export class InMemoryUserRepository implements IUserRepository {
       email: user.email.value,
       passwordHash: user.passwordHash,
       username: user.username,
-      consentGivenAt: user.consentGivenAt,
+      termsAcceptedAt: user.termsAcceptedAt,
+      termsVersion: user.termsVersion,
       isActive: user.isActive,
       version,
       createdAt: user.createdAt,

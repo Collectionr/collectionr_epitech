@@ -47,6 +47,10 @@ describe('BcryptPasswordHasher', () => {
     await expect(hasher.verify(seventyTwoBytes + 'ANYTHING', passwordHash)).resolves.toBe(false);
   });
 
+  it('exposes the 72-byte ceiling it enforces, as the port requires', () => {
+    expect(hasher.maxPasswordBytes).toBe(72);
+  });
+
   describe('dummy hash (login timing equalisation)', () => {
     it('has the same cost as the hashes hash() produces', async () => {
       expect(costOf(hasher.getDummyHash())).toBe(costOf(await hasher.hash('Str0ngPassw0rd!')));

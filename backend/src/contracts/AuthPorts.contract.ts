@@ -10,6 +10,7 @@ import {
   ConcurrentModificationError,
   EmailAlreadyUsedError,
   InvalidRefreshTokenError,
+  UsernameAlreadyUsedError,
 } from '../modules/auth/application/errors/AuthErrors';
 import type { IUserRepository } from '../modules/auth/application/ports/IUserRepository';
 import type { IPasswordHasher } from '../modules/auth/application/ports/IPasswordHasher';
@@ -20,8 +21,9 @@ export const newUser = (email = `c${randomUUID().slice(0, 8)}@example.com`): Use
   User.register({
     email: Email.create(email),
     passwordHash: HASH,
-    username: 'contract',
-    consentGivenAt: new Date(),
+    username: `contract-${randomUUID().slice(0, 8)}`,
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 
 export function userRepositoryContract(name: string, make: () => IUserRepository): void {
@@ -70,12 +72,104 @@ export function userRepositoryContract(name: string, make: () => IUserRepository
       await repo.save(
         u.withPasswordHash('$2b$12$NEWHASHNEWHASHNEWHASHNEWHASHNEWHASHNEWHASHNEWHASHNEWH'),
       ); // password change commits
-      await expect(repo.save(stale.withUsername('renamed'))).rejects.toBeInstanceOf(
-        ConcurrentModificationError,
-      ); // unrelated profile update from stale snapshot
+      await expect(
+        repo.save(stale.withUsername(`renamed-${randomUUID().slice(0, 8)}`)),
+      ).rejects.toBeInstanceOf(ConcurrentModificationError); // unrelated profile update from stale snapshot
       const stored = await repo.findById(u.id);
       expect(stored?.passwordHash).toContain('NEWHASH');
-      expect(stored?.username).toBe('contract');
+      expect(stored?.username).toBe(u.username);
+    });
+
+    it('findByUsername finds a user whatever the case and spacing of the lookup', async () => {
+      const repo = make();
+      const key = `Pokemon${randomUUID().slice(0, 6)} Master`;
+      const u = User.register({
+        email: Email.create(`case${randomUUID().slice(0, 8)}@example.com`),
+        passwordHash: HASH,
+        username: key,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
+      });
+      await repo.save(u);
+      const variants = [key, key.toUpperCase(), `  ${key.toLowerCase().replace(' ', '   ')} `];
+      for (const variant of variants) {
+        expect((await repo.findByUsername(variant))?.id).toBe(u.id);
+      }
+      await expect(repo.findByUsername(`${key}-other`)).resolves.toBeNull();
+    });
+
+    it('rejects a username that differs only by case or spacing, with UsernameAlreadyUsedError', async () => {
+      const repo = make();
+      const suffix = randomUUID().slice(0, 8);
+      const first = User.register({
+        email: Email.create(`u1${randomUUID().slice(0, 8)}@example.com`),
+        passwordHash: HASH,
+        username: `Ash ${suffix}`,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
+      });
+      await repo.save(first);
+      const second = User.register({
+        email: Email.create(`u2${randomUUID().slice(0, 8)}@example.com`),
+        passwordHash: HASH,
+        username: `  ASH   ${suffix.toUpperCase()}  `,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
+      });
+      await expect(repo.save(second)).rejects.toBeInstanceOf(UsernameAlreadyUsedError);
+    });
+
+    it('tells a taken email and a taken username apart', async () => {
+      const repo = make();
+      const taken = User.register({
+        email: Email.create(`tk${randomUUID().slice(0, 8)}@example.com`),
+        passwordHash: HASH,
+        username: `name${randomUUID().slice(0, 8)}`,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
+      });
+      await repo.save(taken);
+      const sameEmail = User.register({
+        email: taken.email,
+        passwordHash: HASH,
+        username: `other${randomUUID().slice(0, 8)}`,
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
+      });
+      const sameName = User.register({
+        email: Email.create(`fresh${randomUUID().slice(0, 8)}@example.com`),
+        passwordHash: HASH,
+        username: taken.username.toUpperCase(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
+      });
+
+      await expect(repo.save(sameEmail)).rejects.toBeInstanceOf(EmailAlreadyUsedError);
+      await expect(repo.save(sameName)).rejects.toBeInstanceOf(UsernameAlreadyUsedError);
+    });
+
+    it('under 15 concurrent registrations of one username: exactly 1 wins, all others get UsernameAlreadyUsedError', async () => {
+      const repo = make();
+      const name = `race${randomUUID().slice(0, 8)}`;
+      const results = await Promise.allSettled(
+        Array.from({ length: 15 }, (_, i) =>
+          repo.save(
+            User.register({
+              email: Email.create(`r${i}${randomUUID().slice(0, 8)}@example.com`),
+              passwordHash: HASH,
+              username: i % 2 === 0 ? name : name.toUpperCase(),
+              termsAcceptedAt: new Date(),
+              termsVersion: '1',
+            }),
+          ),
+        ),
+      );
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      const unexpected = results.filter(
+        (r) => r.status === 'rejected' && !(r.reason instanceof UsernameAlreadyUsedError),
+      );
+      expect(ok).toBe(1);
+      expect(unexpected).toHaveLength(0);
     });
 
     it('refuses a stale snapshot instead of re-activating a deactivated account', async () => {
@@ -84,9 +178,9 @@ export function userRepositoryContract(name: string, make: () => IUserRepository
       await repo.save(u);
       const stale = (await repo.findById(u.id)) as User;
       await repo.save(u.deactivate());
-      await expect(repo.save(stale.withUsername('renamed'))).rejects.toBeInstanceOf(
-        ConcurrentModificationError,
-      );
+      await expect(
+        repo.save(stale.withUsername(`renamed-${randomUUID().slice(0, 8)}`)),
+      ).rejects.toBeInstanceOf(ConcurrentModificationError);
       expect((await repo.findById(u.id))?.isActive).toBe(false);
     });
 
@@ -94,18 +188,21 @@ export function userRepositoryContract(name: string, make: () => IUserRepository
       const repo = make();
       const u = newUser();
       const created = await repo.save(u);
-      const renamed = await repo.save(created.withUsername('second'));
-      const renamedAgain = await repo.save(renamed.withUsername('third'));
+      const third = `third-${randomUUID().slice(0, 8)}`;
+      const renamed = await repo.save(created.withUsername(`second-${randomUUID().slice(0, 8)}`));
+      const renamedAgain = await repo.save(renamed.withUsername(third));
       expect(renamed.version).toBe(created.version + 1);
       expect(renamedAgain.version).toBe(renamed.version + 1);
-      expect((await repo.findById(u.id))?.username).toBe('third');
+      expect((await repo.findById(u.id))?.username).toBe(third);
     });
 
     it('under concurrent updates from the same base version: exactly one wins, the others get ConcurrentModificationError', async () => {
       const repo = make();
       const created = await repo.save(newUser());
       const results = await Promise.allSettled(
-        Array.from({ length: 10 }, (_, i) => repo.save(created.withUsername(`name-${i}-xx`))),
+        Array.from({ length: 10 }, (_, i) =>
+          repo.save(created.withUsername(`name-${i}-${randomUUID().slice(0, 8)}`)),
+        ),
       );
       const won = results.filter((r) => r.status === 'fulfilled').length;
       const unexpected = results.filter(

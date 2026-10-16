@@ -9,7 +9,8 @@ function buildUser(): User {
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -17,10 +18,11 @@ describe('GetCurrentUserUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
   let existingUser: User;
 
   function build(): GetCurrentUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     return new GetCurrentUserUseCase(userRepository);
   }
 

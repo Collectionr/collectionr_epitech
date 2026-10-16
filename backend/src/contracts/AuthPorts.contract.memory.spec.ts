@@ -35,8 +35,9 @@ authTokenServiceContract('InMemoryAuthTokenService (e2e double)', () => {
         User.register({
           email: Email.create(`t${id.slice(0, 8)}@example.com`),
           passwordHash: 'not-a-real-hash',
-          username: 'tok',
-          consentGivenAt: new Date(),
+          username: `tok-${id.slice(0, 8)}`,
+          termsAcceptedAt: new Date(),
+          termsVersion: '1',
         }),
       );
       return user.id;

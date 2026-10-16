@@ -5,12 +5,18 @@ import { UserNotFoundError } from '../errors/AuthErrors';
 import type { IAuthTokenService } from '../ports/IAuthTokenService';
 import type { IUserRepository } from '../ports/IUserRepository';
 
-function buildUser(): User {
-  return User.register({
+function buildUser(isActive = true): User {
+  return User.restore({
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
+    id: 'fixed-id',
+    isActive,
+    version: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 }
 
@@ -18,15 +24,18 @@ describe('DeactivateUserUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
+  const issueTokenPair = jest.fn();
+  const rotateRefreshToken = jest.fn();
+  const revokeRefreshToken = jest.fn();
   const revokeAllRefreshTokens = jest.fn();
-  let existingUser: User;
 
   function build(): DeactivateUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     const authTokenService: IAuthTokenService = {
-      issueTokenPair: jest.fn(),
-      rotateRefreshToken: jest.fn(),
-      revokeRefreshToken: jest.fn(),
+      issueTokenPair,
+      rotateRefreshToken,
+      revokeRefreshToken,
       revokeAllRefreshTokens,
     };
     return new DeactivateUserUseCase(userRepository, authTokenService);
@@ -34,36 +43,60 @@ describe('DeactivateUserUseCase', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    existingUser = buildUser();
-    findById.mockResolvedValue(existingUser);
-    revokeAllRefreshTokens.mockResolvedValue(undefined);
+    findById.mockResolvedValue(buildUser());
     save.mockImplementation((user: User) => Promise.resolve(user));
+    revokeAllRefreshTokens.mockResolvedValue(undefined);
   });
 
-  it('saves the deactivated account and revokes every session of the user', async () => {
-    const result = await build().execute({ userId: existingUser.id });
+  it('deactivates the account and returns its profile', async () => {
+    const profile = await build().execute({ userId: 'fixed-id' });
 
-    expect(result.isActive).toBe(false);
-    expect(result).not.toHaveProperty('passwordHash');
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
-    expect(revokeAllRefreshTokens).toHaveBeenCalledWith(existingUser.id);
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }) as unknown);
+    expect(profile.isActive).toBe(false);
   });
 
-  it('is idempotent: an already deactivated account is not saved again but sessions are still revoked', async () => {
-    findById.mockResolvedValue(existingUser.deactivate());
+  it('revokes every session of the account, so a deactivation ends refresh tokens too', async () => {
+    await build().execute({ userId: 'fixed-id' });
 
-    const result = await build().execute({ userId: existingUser.id });
+    expect(revokeAllRefreshTokens).toHaveBeenCalledWith('fixed-id');
+  });
 
-    expect(result.isActive).toBe(false);
+  it('deactivates BEFORE revoking: no new session can be opened in between', async () => {
+    await build().execute({ userId: 'fixed-id' });
+
+    const saveOrder = save.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY;
+    const revokeOrder = revokeAllRefreshTokens.mock.invocationCallOrder[0] ?? 0;
+    expect(saveOrder).toBeLessThan(revokeOrder);
+  });
+
+  it('keeps the account blocked when the revocation fails, so the call can simply be repeated', async () => {
+    revokeAllRefreshTokens.mockRejectedValue(new Error('session store down'));
+
+    await expect(build().execute({ userId: 'fixed-id' })).rejects.toThrow('session store down');
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }) as unknown);
+  });
+
+  it('is idempotent: an already deactivated account is not saved again but its sessions are revoked', async () => {
+    findById.mockResolvedValue(buildUser(false));
+
+    const profile = await build().execute({ userId: 'fixed-id' });
+
     expect(save).not.toHaveBeenCalled();
-    expect(revokeAllRefreshTokens).toHaveBeenCalledWith(existingUser.id);
+    expect(revokeAllRefreshTokens).toHaveBeenCalledWith('fixed-id');
+    expect(profile.isActive).toBe(false);
   });
 
-  it('rejects when the user does not exist', async () => {
+  it('rejects an unknown account without revoking anything', async () => {
     findById.mockResolvedValue(null);
 
     await expect(build().execute({ userId: 'missing-id' })).rejects.toThrow(UserNotFoundError);
-    expect(save).not.toHaveBeenCalled();
     expect(revokeAllRefreshTokens).not.toHaveBeenCalled();
+  });
+
+  it('never returns the password hash', async () => {
+    const profile = await build().execute({ userId: 'fixed-id' });
+
+    expect(profile).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(profile)).not.toContain('hashed-password');
   });
 });

@@ -1,7 +1,27 @@
+// Messages are fixed on purpose: an error message ends up in an HTTP response and in logs, and
+// must never echo what the caller sent (an email, an id) nor confirm more than the status code does.
 export class EmailAlreadyUsedError extends Error {
-  constructor(email: string) {
-    super(`Email "${email}" is already registered`);
+  constructor() {
+    super('Email is already registered');
     this.name = 'EmailAlreadyUsedError';
+  }
+}
+
+export class UsernameAlreadyUsedError extends Error {
+  constructor() {
+    super('Username is already taken');
+    this.name = 'UsernameAlreadyUsedError';
+  }
+}
+
+/**
+ * The stored record moved on since it was loaded (optimistic lock on User.version): saving the stale
+ * copy would silently undo that change. The caller reloads and retries.
+ */
+export class ConcurrentModificationError extends Error {
+  constructor() {
+    super('The resource was modified concurrently');
+    this.name = 'ConcurrentModificationError';
   }
 }
 
@@ -20,8 +40,8 @@ export class InvalidRefreshTokenError extends Error {
 }
 
 export class UserNotFoundError extends Error {
-  constructor(userId: string) {
-    super(`User "${userId}" not found`);
+  constructor() {
+    super('User not found');
     this.name = 'UserNotFoundError';
   }
 }
@@ -33,6 +53,13 @@ export class IncorrectCurrentPasswordError extends Error {
   }
 }
 
+export class SamePasswordError extends Error {
+  constructor() {
+    super('The new password must differ from the current one');
+    this.name = 'SamePasswordError';
+  }
+}
+
 export class ConsentRequiredError extends Error {
   constructor() {
     super('Registration requires accepting the terms of service');
@@ -40,13 +67,10 @@ export class ConsentRequiredError extends Error {
   }
 }
 
-/**
- * The aggregate was changed by someone else since it was loaded (optimistic lock on
- * User.version): saving the stale copy would silently undo that change. The caller reloads and retries.
- */
-export class ConcurrentModificationError extends Error {
+/** The user accepted a version of the terms that is no longer the current one (or an unknown one). */
+export class TermsVersionMismatchError extends Error {
   constructor() {
-    super('The resource was modified concurrently');
-    this.name = 'ConcurrentModificationError';
+    super('The terms of service have changed; review the current version before accepting');
+    this.name = 'TermsVersionMismatchError';
   }
 }

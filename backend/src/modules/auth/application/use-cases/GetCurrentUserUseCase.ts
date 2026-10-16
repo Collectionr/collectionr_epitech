@@ -17,7 +17,7 @@ export class GetCurrentUserUseCase {
     const user = await this.userRepository.findById(input.userId);
     // A deactivated account is invisible, same as an unknown one.
     if (user === null || !user.isActive) {
-      throw new UserNotFoundError(input.userId);
+      throw new UserNotFoundError();
     }
 
     return toUserProfile(user);

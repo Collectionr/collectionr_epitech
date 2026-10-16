@@ -49,8 +49,12 @@ model User {
   /// Optimistic lock (User.version): incremented by every update, which must match the version the
   /// caller loaded, or a stale copy would overwrite a concurrent password change/deactivation.
   version        Int       @default(0)
-  /// RGPD scaffold: the moment the user accepted the terms of service at registration.
-  consentGivenAt DateTime  @db.Timestamptz(6)
+  /// When the user accepted the terms of service (S04 §4: contract performance, not an optional consent).
+  termsAcceptedAt DateTime  @db.Timestamptz(6)
+  /// The version of the terms that was shown and accepted: the proof of what was agreed to.
+  termsVersion   String
+  /// Canonical username (User.usernameKey): unique, so "Pokemon" and "pokemon" cannot both exist.
+  usernameKey    String    @unique
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
   sessions       Session[]
@@ -108,4 +112,37 @@ model DataRetentionPolicy {
   updatedAt     DateTime @updatedAt @db.Timestamptz(6)
 
   @@map("data_retention_policies")
+}
+
+/// RBAC role (docs/database/schema-sql.md, docs/security/S03-api-security.md §5).
+/// Reference data: rows are written by prisma/seed.ts (names in ROLE_NAMES, src/shared/config/AppConstants.ts).
+/// No `users` relation yet: COLLR-447 adds users.roleId as a NOT NULL foreign key to this table.
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  /// Upper case identifier (USER, ADMIN). Unique so the seed can upsert on it.
+  name        String           @unique
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+/// RBAC permission, named `resource:action` (e.g. collection:write, card:delete — docs/database/documentation-metier.md).
+/// No permission is seeded yet: the list must be agreed with the team before COLLR-449.
+model Permission {
+  id    String           @id @default(uuid()) @db.Uuid
+  name  String           @unique
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+/// Join table between roles and permissions. Deleting a role or a permission deletes its associations.
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }

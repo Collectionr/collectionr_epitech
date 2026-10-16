@@ -45,13 +45,18 @@ describe('AuthController (e2e)', () => {
     context.redis.resetCounters();
   });
 
-  const registration = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
-    email: 'ash@example.com',
-    password: PASSWORD,
-    username: 'ash_ketchum',
-    hasAcceptedTerms: true,
-    ...overrides,
-  });
+  // Usernames are unique in the store: each registration gets its own by default.
+  let registrations = 0;
+  const registration = (overrides: Record<string, unknown> = {}): Record<string, unknown> => {
+    registrations += 1;
+    return {
+      email: 'ash@example.com',
+      password: PASSWORD,
+      username: `ash_${String(registrations).padStart(4, '0')}`,
+      acceptedTermsVersion: '1',
+      ...overrides,
+    };
+  };
 
   async function register(email: string): Promise<void> {
     await http().post('/api/v1/auth/register').send(registration({ email }));
@@ -75,7 +80,7 @@ describe('AuthController (e2e)', () => {
       const response = await http().post('/api/v1/auth/register').send(registration());
 
       expect(response.status).toBe(201);
-      expect(response.body).toMatchObject({ email: 'ash@example.com', username: 'ash_ketchum' });
+      expect(response.body).toMatchObject({ email: 'ash@example.com' });
       expect(response.body).not.toHaveProperty('passwordHash');
       expect(response.body).not.toHaveProperty('password');
     });
@@ -119,7 +124,7 @@ describe('AuthController (e2e)', () => {
     it('rejects a missing consent with 400', async () => {
       const response = await http()
         .post('/api/v1/auth/register')
-        .send(registration({ email: 'noconsent@example.com', hasAcceptedTerms: false }));
+        .send(registration({ email: 'noconsent@example.com', acceptedTermsVersion: undefined }));
 
       expect(response.status).toBe(400);
     });
@@ -169,9 +174,72 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('terms of service and username uniqueness', () => {
+    it('refuses a registration that accepted a terms version which is no longer current, with 409', async () => {
+      const response = await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'old-terms@example.com', acceptedTermsVersion: '0' }));
+
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ statusCode: 409 });
+    });
+
+    it('refuses a missing acceptance with 400, not a registration without proof', async () => {
+      const response = await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'none-terms@example.com', acceptedTermsVersion: undefined }));
+
+      expect(response.status).toBe(400);
+    });
+
+    it('refuses a malformed terms version at validation (400)', async () => {
+      const response = await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'bad-terms@example.com', acceptedTermsVersion: 'v 1; drop' }));
+
+      expect(response.status).toBe(400);
+    });
+
+    it('refuses a username that differs only by case or spacing, with 409 and without echoing it', async () => {
+      await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'taken-name@example.com', username: 'Pokemon Master' }));
+
+      const response = await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'other-name@example.com', username: '  pokemon   MASTER ' }));
+
+      expect(response.status).toBe(409);
+      expect(JSON.stringify(response.body)).not.toMatch(/pokemon/i);
+    });
+
+    it('reports a taken email and a taken username as different errors', async () => {
+      await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'first-user@example.com', username: 'first_name' }));
+
+      const emailClash = await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'first-user@example.com', username: 'fresh_name' }));
+      const usernameClash = await http()
+        .post('/api/v1/auth/register')
+        .send(registration({ email: 'fresh-user@example.com', username: 'first_name' }));
+
+      expect((emailClash.body as StandardErrorResponse).message).toBe(
+        'Email is already registered',
+      );
+      expect((usernameClash.body as StandardErrorResponse).message).toBe(
+        'Username is already taken',
+      );
+    });
+  });
+
   describe('POST /auth/login', () => {
     beforeAll(async () => {
+      // The earlier tests used up the registration allowance: start this fixture from a clean slate.
+      context.redis.resetCounters();
       await register('login@example.com');
+      context.redis.resetCounters();
     });
 
     it('authenticates and returns an access/refresh token pair that must not be cached', async () => {

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { toUserProfile } from '../dtos/UserProfile';
 import type { UserProfile } from '../dtos/UserProfile';
-import { UserNotFoundError } from '../errors/AuthErrors';
+import { UserNotFoundError, UsernameAlreadyUsedError } from '../errors/AuthErrors';
 import { USER_REPOSITORY } from '../ports/IUserRepository';
 import type { IUserRepository } from '../ports/IUserRepository';
 
@@ -16,13 +16,20 @@ export class UpdateProfileUseCase {
 
   async execute(input: UpdateProfileInput): Promise<UserProfile> {
     const user = await this.userRepository.findById(input.userId);
-    // A deactivated account is invisible and read-only, same as an unknown one. The access token
-    // verifier already refuses it; this is the use case not trusting that it always runs first.
+    // A deactivated account is invisible and read-only, same as an unknown one. An authentication
+    // layer normally refuses it earlier; this is the use case not trusting that it always runs first.
     if (user === null || !user.isActive) {
-      throw new UserNotFoundError(input.userId);
+      throw new UserNotFoundError();
     }
 
     const updated = user.withUsername(input.username);
+
+    // The username may be taken by someone else, never by the user themself: changing only the
+    // case of one's own username ("ash" -> "Ash") is a legitimate edit.
+    const owner = await this.userRepository.findByUsername(input.username);
+    if (owner !== null && owner.id !== user.id) {
+      throw new UsernameAlreadyUsedError();
+    }
 
     return toUserProfile(await this.userRepository.save(updated));
   }

@@ -25,7 +25,8 @@ function buildUser(): User {
     email: Email.create('trainer@example.com'),
     passwordHash: 'hashed',
     username: 'ash_ketchum',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -88,7 +89,7 @@ describe('AuthController', () => {
     it('still records the attempted email when registration fails (and no actor)', async () => {
       const req = request();
       const controller = buildController({
-        register: { execute: jest.fn().mockRejectedValue(new EmailAlreadyUsedError('x@y.com')) },
+        register: { execute: jest.fn().mockRejectedValue(new EmailAlreadyUsedError()) },
       });
 
       await expect(controller.register(validRegistration, req)).rejects.toThrow(ConflictException);
@@ -99,7 +100,7 @@ describe('AuthController', () => {
     it('answers 409 without echoing the submitted email', async () => {
       const controller = buildController({
         register: {
-          execute: jest.fn().mockRejectedValue(new EmailAlreadyUsedError('trainer@example.com')),
+          execute: jest.fn().mockRejectedValue(new EmailAlreadyUsedError()),
         },
       });
 

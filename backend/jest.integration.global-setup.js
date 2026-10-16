@@ -10,6 +10,10 @@ module.exports = async function globalSetup() {
       'INTEGRATION_DATABASE_URL points at the development database; use a dedicated database (e.g. collectionr_test).',
     );
   }
+  const databaseName = new URL(url).pathname.replace(/^\//, '');
+  if (!databaseName.includes('test')) {
+    throw new Error(`Refusing to reset "${databaseName}": the integration database name must contain "test".`);
+  }
   process.env.INTEGRATION_DATABASE_URL = url;
 
   try {

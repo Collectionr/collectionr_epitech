@@ -14,6 +14,9 @@ import {
   IncorrectCurrentPasswordError,
   InvalidCredentialsError,
   InvalidRefreshTokenError,
+  SamePasswordError,
+  TermsVersionMismatchError,
+  UsernameAlreadyUsedError,
   UserNotFoundError,
 } from '../application/errors/AuthErrors';
 import { mapAuthError, mapRegistrationOrPasswordError } from './MapAuthError';
@@ -29,11 +32,11 @@ function messageOf(action: () => void): string {
 
 describe('mapAuthError', () => {
   it('maps EmailAlreadyUsedError to 409 Conflict', () => {
-    expect(() => mapAuthError(new EmailAlreadyUsedError('a@b.com'))).toThrow(ConflictException);
+    expect(() => mapAuthError(new EmailAlreadyUsedError())).toThrow(ConflictException);
   });
 
   it('never echoes the submitted email in the 409 message', () => {
-    const message = messageOf(() => mapAuthError(new EmailAlreadyUsedError('victim@example.com')));
+    const message = messageOf(() => mapAuthError(new EmailAlreadyUsedError()));
 
     expect(message).not.toContain('victim@example.com');
     expect(message.length).toBeGreaterThan(0);
@@ -50,8 +53,8 @@ describe('mapAuthError', () => {
   it('maps UserNotFoundError to 404 Not Found without echoing the id', () => {
     const userId = 'b0b0b0b0-0000-4000-8000-000000000000';
 
-    expect(() => mapAuthError(new UserNotFoundError(userId))).toThrow(NotFoundException);
-    expect(messageOf(() => mapAuthError(new UserNotFoundError(userId)))).not.toContain(userId);
+    expect(() => mapAuthError(new UserNotFoundError())).toThrow(NotFoundException);
+    expect(messageOf(() => mapAuthError(new UserNotFoundError()))).not.toContain(userId);
   });
 
   it('maps IncorrectCurrentPasswordError to 401 Unauthorized', () => {
@@ -71,9 +74,30 @@ describe('mapAuthError', () => {
   });
 });
 
+describe('mapAuthError: the terms and username errors', () => {
+  it('maps a taken username to 409 with a fixed message', () => {
+    expect(() => mapAuthError(new UsernameAlreadyUsedError())).toThrow(ConflictException);
+    expect(messageOf(() => mapAuthError(new UsernameAlreadyUsedError()))).toBe(
+      'Username is already taken',
+    );
+  });
+
+  it('maps a stale terms version to 409 (the client must re-read the current terms)', () => {
+    expect(() => mapAuthError(new TermsVersionMismatchError())).toThrow(ConflictException);
+  });
+
+  it('maps a same-password change to 400', () => {
+    expect(() => mapAuthError(new SamePasswordError())).toThrow(BadRequestException);
+  });
+
+  it('maps a concurrent modification to 409', () => {
+    expect(() => mapAuthError(new ConcurrentModificationError())).toThrow(ConflictException);
+  });
+});
+
 describe('mapRegistrationOrPasswordError', () => {
   it('still maps the named AuthErrors', () => {
-    expect(() => mapRegistrationOrPasswordError(new EmailAlreadyUsedError('a@b.com'))).toThrow(
+    expect(() => mapRegistrationOrPasswordError(new EmailAlreadyUsedError())).toThrow(
       ConflictException,
     );
   });
@@ -93,6 +117,12 @@ describe('mapRegistrationOrPasswordError', () => {
     );
 
     expect(() => mapRegistrationOrPasswordError(prismaError)).not.toThrow();
+  });
+
+  it('turns a SamePasswordError into 400 through the registration/password path too', () => {
+    expect(() => mapRegistrationOrPasswordError(new SamePasswordError())).toThrow(
+      BadRequestException,
+    );
   });
 
   it('does NOT turn an arbitrary Error (config, pg...) into a 400', () => {
