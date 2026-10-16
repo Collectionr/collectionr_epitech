@@ -59,9 +59,17 @@ describe('LoginUserUseCase', () => {
       plainPassword: 'abcd1234',
     });
 
-    expect(result.user.email.value).toBe('user@example.com');
+    expect(result.user.email).toBe('user@example.com');
     expect(result.tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
     expect(issueTokenPair).toHaveBeenCalledWith(result.user.id);
+  });
+
+  it('never returns the password hash (it is only read internally to verify the password)', async () => {
+    const result = await build().execute({ email: 'user@example.com', plainPassword: 'abcd1234' });
+
+    expect(result.user).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(result)).not.toContain('hashed-password');
+    expect(verify).toHaveBeenCalledWith('abcd1234', 'hashed-password');
   });
 
   it('rejects an unknown email as invalid credentials', async () => {

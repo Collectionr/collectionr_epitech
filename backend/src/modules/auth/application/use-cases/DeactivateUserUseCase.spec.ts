@@ -44,6 +44,7 @@ describe('DeactivateUserUseCase', () => {
     const result = await build().execute({ userId: existingUser.id });
 
     expect(result.isActive).toBe(false);
+    expect(result).not.toHaveProperty('passwordHash');
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
     expect(revokeAllRefreshTokens).toHaveBeenCalledWith(existingUser.id);
   });

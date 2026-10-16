@@ -58,7 +58,7 @@ describe('ChangePasswordUseCase', () => {
   });
 
   it('hashes and saves the new password when the current one matches', async () => {
-    const updated = await build().execute({
+    await build().execute({
       userId: existingUser.id,
       currentPassword: 'old-password1',
       newPassword: 'newpassword1',
@@ -66,7 +66,35 @@ describe('ChangePasswordUseCase', () => {
 
     expect(verify).toHaveBeenCalledWith('old-password1', 'old-hash');
     expect(hash).toHaveBeenCalledWith('newpassword1');
-    expect(updated.passwordHash).toBe('new-hash');
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ passwordHash: 'new-hash' }));
+  });
+
+  it('never returns a password hash, neither the old nor the new one', async () => {
+    const profile = await build().execute({
+      userId: existingUser.id,
+      currentPassword: 'old-password1',
+      newPassword: 'newpassword1',
+    });
+
+    expect(profile).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(profile)).not.toContain('new-hash');
+    expect(JSON.stringify(profile)).not.toContain('old-hash');
+  });
+
+  it('refuses a deactivated account before verifying, hashing or revoking anything', async () => {
+    findById.mockResolvedValue(existingUser.deactivate());
+
+    await expect(
+      build().execute({
+        userId: existingUser.id,
+        currentPassword: 'old-password1',
+        newPassword: 'newpassword1',
+      }),
+    ).rejects.toThrow(UserNotFoundError);
+    expect(verify).not.toHaveBeenCalled();
+    expect(hash).not.toHaveBeenCalled();
+    expect(revokeAllRefreshTokens).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('revokes every session of the user when the password changes', async () => {

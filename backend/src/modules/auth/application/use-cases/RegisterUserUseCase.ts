@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
 import { Password } from '../../domain/value-objects/Password';
+import { toUserProfile } from '../dtos/UserProfile';
+import type { UserProfile } from '../dtos/UserProfile';
 import { ConsentRequiredError, EmailAlreadyUsedError } from '../errors/AuthErrors';
 import { PASSWORD_HASHER } from '../ports/IPasswordHasher';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
@@ -25,7 +27,7 @@ export class RegisterUserUseCase {
     @Inject(PASSWORD_MIN_LENGTH) private readonly passwordMinLength: number,
   ) {}
 
-  async execute(input: RegisterUserInput): Promise<User> {
+  async execute(input: RegisterUserInput): Promise<UserProfile> {
     if (!input.hasAcceptedTerms) {
       throw new ConsentRequiredError();
     }
@@ -49,6 +51,6 @@ export class RegisterUserUseCase {
       consentGivenAt: new Date(),
     });
 
-    return this.userRepository.save(user);
+    return toUserProfile(await this.userRepository.save(user));
   }
 }

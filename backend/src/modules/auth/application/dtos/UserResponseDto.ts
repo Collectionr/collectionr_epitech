@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { User } from '../../domain/entities/User';
+import type { UserProfile } from './UserProfile';
 
-/** Never includes passwordHash — the response shape is exactly the fields safe to expose. */
+/** The response shape is exactly the fields safe to expose; there is no password hash to leak. */
 export class UserResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -15,12 +15,13 @@ export class UserResponseDto {
   @ApiProperty({ example: '2026-09-27T12:00:00.000Z' })
   createdAt!: string;
 
-  static fromDomain(user: User): UserResponseDto {
+  /** Field by field, on purpose: whatever else a profile object ever carries is not exposed. */
+  static fromProfile(profile: UserProfile): UserResponseDto {
     const dto = new UserResponseDto();
-    dto.id = user.id;
-    dto.email = user.email.value;
-    dto.username = user.username;
-    dto.createdAt = user.createdAt.toISOString();
+    dto.id = profile.id;
+    dto.email = profile.email;
+    dto.username = profile.username;
+    dto.createdAt = profile.createdAt.toISOString();
     return dto;
   }
 }

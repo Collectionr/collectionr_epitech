@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { AuthTokenPair } from '../ports/IAuthTokenService';
-import type { User } from '../../domain/entities/User';
+import type { UserProfile } from './UserProfile';
 import { UserResponseDto } from './UserResponseDto';
 
 /** Response of POST /auth/login: the authenticated user plus its freshly issued token pair. */
@@ -14,9 +14,9 @@ export class AuthSessionResponseDto {
   @ApiProperty({ description: 'Long-lived, single-use token — send to POST /auth/refresh' })
   refreshToken!: string;
 
-  static from(user: User, tokens: AuthTokenPair): AuthSessionResponseDto {
+  static from(user: UserProfile, tokens: AuthTokenPair): AuthSessionResponseDto {
     const dto = new AuthSessionResponseDto();
-    dto.user = UserResponseDto.fromDomain(user);
+    dto.user = UserResponseDto.fromProfile(user);
     dto.accessToken = tokens.accessToken;
     dto.refreshToken = tokens.refreshToken;
     return dto;

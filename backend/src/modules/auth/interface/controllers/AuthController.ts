@@ -75,7 +75,7 @@ export class AuthController {
         hasAcceptedTerms: dto.hasAcceptedTerms,
       });
       setAuditSubject(request, { actorId: user.id, targetId: user.id });
-      return UserResponseDto.fromDomain(user);
+      return UserResponseDto.fromProfile(user);
     } catch (error) {
       mapRegistrationOrPasswordError(error);
       throw error;

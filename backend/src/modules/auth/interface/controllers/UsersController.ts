@@ -35,7 +35,7 @@ export class UsersController {
   async getMe(@CurrentUser() currentUser: AuthenticatedUser): Promise<UserResponseDto> {
     try {
       const user = await this.getCurrentUserUseCase.execute({ userId: currentUser.id });
-      return UserResponseDto.fromDomain(user);
+      return UserResponseDto.fromProfile(user);
     } catch (error) {
       mapAuthError(error);
       throw error;
@@ -53,7 +53,7 @@ export class UsersController {
         userId: currentUser.id,
         username: dto.username,
       });
-      return UserResponseDto.fromDomain(user);
+      return UserResponseDto.fromProfile(user);
     } catch (error) {
       mapRegistrationOrPasswordError(error);
       throw error;
@@ -79,7 +79,7 @@ export class UsersController {
         currentPassword: dto.currentPassword,
         newPassword: dto.newPassword,
       });
-      return UserResponseDto.fromDomain(user);
+      return UserResponseDto.fromProfile(user);
     } catch (error) {
       mapRegistrationOrPasswordError(error);
       throw error;

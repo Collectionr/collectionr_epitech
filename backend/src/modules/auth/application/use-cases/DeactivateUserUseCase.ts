@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { User } from '../../domain/entities/User';
+import { toUserProfile } from '../dtos/UserProfile';
+import type { UserProfile } from '../dtos/UserProfile';
 import { UserNotFoundError } from '../errors/AuthErrors';
 import { AUTH_TOKEN_SERVICE } from '../ports/IAuthTokenService';
 import type { IAuthTokenService } from '../ports/IAuthTokenService';
@@ -18,7 +19,7 @@ export class DeactivateUserUseCase {
     @Inject(AUTH_TOKEN_SERVICE) private readonly authTokenService: IAuthTokenService,
   ) {}
 
-  async execute(input: DeactivateUserInput): Promise<User> {
+  async execute(input: DeactivateUserInput): Promise<UserProfile> {
     const user = await this.userRepository.findById(input.userId);
     if (user === null) {
       throw new UserNotFoundError(input.userId);
@@ -31,6 +32,6 @@ export class DeactivateUserUseCase {
     // stops leaving live sessions behind.
     await this.authTokenService.revokeAllRefreshTokens(user.id);
 
-    return deactivated;
+    return toUserProfile(deactivated);
   }
 }

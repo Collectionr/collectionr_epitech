@@ -32,10 +32,26 @@ describe('UpdateProfileUseCase', () => {
   });
 
   it('updates the username and saves the user', async () => {
-    const updated = await build().execute({ userId: existingUser.id, username: 'newname' });
+    const profile = await build().execute({ userId: existingUser.id, username: 'newname' });
 
-    expect(updated.username).toBe('newname');
-    expect(save).toHaveBeenCalledWith(updated);
+    expect(profile.username).toBe('newname');
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ username: 'newname' }));
+  });
+
+  it('never returns the password hash', async () => {
+    const profile = await build().execute({ userId: existingUser.id, username: 'newname' });
+
+    expect(profile).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(profile)).not.toContain('hashed-password');
+  });
+
+  it('refuses to touch a deactivated account, without saving anything', async () => {
+    findById.mockResolvedValue(existingUser.deactivate());
+
+    await expect(build().execute({ userId: existingUser.id, username: 'newname' })).rejects.toThrow(
+      UserNotFoundError,
+    );
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('rejects when the user does not exist', async () => {

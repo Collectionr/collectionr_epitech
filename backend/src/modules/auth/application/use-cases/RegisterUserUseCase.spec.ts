@@ -37,13 +37,21 @@ describe('RegisterUserUseCase', () => {
   });
 
   it('creates and saves a user when the email is free', async () => {
-    const user = await build().execute(buildInput());
+    const profile = await build().execute(buildInput());
 
-    expect(user.email.value).toBe('user@example.com');
-    expect(user.username).toBe('trainer42');
-    expect(user.passwordHash).toBe('hashed-password');
+    const [saved] = save.mock.calls[0];
+    expect(profile.email).toBe('user@example.com');
+    expect(profile.username).toBe('trainer42');
+    expect(profile.id).toBe(saved.id);
+    expect(saved.passwordHash).toBe('hashed-password');
     expect(hash).toHaveBeenCalledWith('abcd1234');
-    expect(save).toHaveBeenCalledWith(user);
+  });
+
+  it('never returns the password hash', async () => {
+    const profile = await build().execute(buildInput());
+
+    expect(profile).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(profile)).not.toContain('hashed-password');
   });
 
   it('rejects registration without explicit consent', async () => {

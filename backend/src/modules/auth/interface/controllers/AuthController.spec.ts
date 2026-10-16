@@ -5,6 +5,7 @@ import { Prisma } from '../../../../generated/prisma/client.js';
 import { readAuditSubject } from '../../../audit/interface/AuditRequestContext';
 import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { User } from '../../domain/entities/User';
+import { toUserProfile } from '../../application/dtos/UserProfile';
 import { Email } from '../../domain/value-objects/Email';
 import {
   EmailAlreadyUsedError,
@@ -56,7 +57,7 @@ describe('AuthController', () => {
     it('maps the created user to a response DTO', async () => {
       const user = buildUser();
       const controller = buildController({
-        register: { execute: jest.fn().mockResolvedValue(user) },
+        register: { execute: jest.fn().mockResolvedValue(toUserProfile(user)) },
       });
 
       const dto = await controller.register(
@@ -72,7 +73,7 @@ describe('AuthController', () => {
       const user = buildUser();
       const req = request();
       const controller = buildController({
-        register: { execute: jest.fn().mockResolvedValue(user) },
+        register: { execute: jest.fn().mockResolvedValue(toUserProfile(user)) },
       });
 
       await controller.register({ ...validRegistration, email: '  Trainer@EXAMPLE.com ' }, req);
@@ -139,12 +140,43 @@ describe('AuthController', () => {
     });
   });
 
+  describe('responses never carry a secret, whatever the use case hands over', () => {
+    it('register exposes only the public fields of the profile', async () => {
+      const user = buildUser();
+      const leaky = { ...toUserProfile(user), passwordHash: 'must-not-appear' };
+      const controller = buildController({
+        register: { execute: jest.fn().mockResolvedValue(leaky) },
+      });
+
+      const dto = await controller.register(validRegistration, request());
+
+      expect(JSON.stringify(dto)).not.toContain('must-not-appear');
+      expect(dto).not.toHaveProperty('passwordHash');
+    });
+
+    it('login exposes only the public fields of the profile', async () => {
+      const user = buildUser();
+      const leaky = { ...toUserProfile(user), passwordHash: 'must-not-appear' };
+      const controller = buildController({
+        login: {
+          execute: jest
+            .fn()
+            .mockResolvedValue({ user: leaky, tokens: { accessToken: 'a', refreshToken: 'r' } }),
+        },
+      });
+
+      const dto = await controller.login({ email: 'a@b.com', password: 'x' }, request());
+
+      expect(JSON.stringify(dto)).not.toContain('must-not-appear');
+    });
+  });
+
   describe('login', () => {
     it('returns the user and tokens', async () => {
       const user = buildUser();
       const tokens = { accessToken: 'access', refreshToken: 'refresh' };
       const controller = buildController({
-        login: { execute: jest.fn().mockResolvedValue({ user, tokens }) },
+        login: { execute: jest.fn().mockResolvedValue({ user: toUserProfile(user), tokens }) },
       });
 
       const dto = await controller.login(
@@ -162,9 +194,10 @@ describe('AuthController', () => {
       const req = request();
       const controller = buildController({
         login: {
-          execute: jest
-            .fn()
-            .mockResolvedValue({ user, tokens: { accessToken: 'a', refreshToken: 'r' } }),
+          execute: jest.fn().mockResolvedValue({
+            user: toUserProfile(user),
+            tokens: { accessToken: 'a', refreshToken: 'r' },
+          }),
         },
       });
 

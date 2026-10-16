@@ -34,7 +34,14 @@ describe('GetCurrentUserUseCase', () => {
     const result = await build().execute({ userId: existingUser.id });
 
     expect(findById).toHaveBeenCalledWith(existingUser.id);
-    expect(result).toBe(existingUser);
+    expect(result).toMatchObject({ id: existingUser.id, email: 'user@example.com' });
+  });
+
+  it('never returns the password hash', async () => {
+    const result = await build().execute({ userId: existingUser.id });
+
+    expect(result).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(result)).not.toContain('hashed-password');
   });
 
   it('treats a deactivated account as not found', async () => {

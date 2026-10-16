@@ -10,6 +10,7 @@ import { Prisma } from '../../../../generated/prisma/client.js';
 import { readAuditSubject } from '../../../audit/interface/AuditRequestContext';
 import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { User } from '../../domain/entities/User';
+import { toUserProfile } from '../../application/dtos/UserProfile';
 import { Email } from '../../domain/value-objects/Email';
 import {
   ConcurrentModificationError,
@@ -57,7 +58,7 @@ describe('UsersController', () => {
     it('returns the current user profile', async () => {
       const user = buildUser();
       const controller = buildController({
-        getCurrentUser: { execute: jest.fn().mockResolvedValue(user) },
+        getCurrentUser: { execute: jest.fn().mockResolvedValue(toUserProfile(user)) },
       });
 
       const dto = await controller.getMe({ id: user.id });
@@ -75,10 +76,32 @@ describe('UsersController', () => {
     });
   });
 
+  describe('responses never carry a secret, whatever the use case hands over', () => {
+    it('getMe, updateProfile and changePassword expose only the public fields', async () => {
+      const user = buildUser();
+      const leaky = { ...toUserProfile(user), passwordHash: 'must-not-appear' };
+      const controller = buildController({
+        getCurrentUser: { execute: jest.fn().mockResolvedValue(leaky) },
+        updateProfile: { execute: jest.fn().mockResolvedValue(leaky) },
+        changePassword: { execute: jest.fn().mockResolvedValue(leaky) },
+      });
+
+      const responses = [
+        await controller.getMe({ id: user.id }),
+        await controller.updateProfile({ id: user.id }, { username: 'new_name' }),
+        await controller.changePassword({ id: user.id }, passwords, request()),
+      ];
+
+      for (const dto of responses) {
+        expect(JSON.stringify(dto)).not.toContain('must-not-appear');
+      }
+    });
+  });
+
   describe('updateProfile', () => {
     it('updates the username and returns the profile', async () => {
       const user = buildUser();
-      const execute = jest.fn().mockResolvedValue(user.withUsername('new_name'));
+      const execute = jest.fn().mockResolvedValue(toUserProfile(user.withUsername('new_name')));
       const controller = buildController({ updateProfile: { execute } });
 
       const dto = await controller.updateProfile({ id: user.id }, { username: 'new_name' });
@@ -110,7 +133,7 @@ describe('UsersController', () => {
     it('returns the updated user profile', async () => {
       const user = buildUser();
       const controller = buildController({
-        changePassword: { execute: jest.fn().mockResolvedValue(user) },
+        changePassword: { execute: jest.fn().mockResolvedValue(toUserProfile(user)) },
       });
 
       const dto = await controller.changePassword({ id: user.id }, passwords, request());
@@ -122,7 +145,7 @@ describe('UsersController', () => {
       const user = buildUser();
       const req = request();
       const controller = buildController({
-        changePassword: { execute: jest.fn().mockResolvedValue(user) },
+        changePassword: { execute: jest.fn().mockResolvedValue(toUserProfile(user)) },
       });
 
       await controller.changePassword({ id: user.id }, passwords, req);

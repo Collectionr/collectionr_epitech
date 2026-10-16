@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
+import { toUserProfile } from '../dtos/UserProfile';
+import type { UserProfile } from '../dtos/UserProfile';
 import { InvalidCredentialsError } from '../errors/AuthErrors';
 import { AUTH_TOKEN_SERVICE } from '../ports/IAuthTokenService';
 import type { AuthTokenPair, IAuthTokenService } from '../ports/IAuthTokenService';
@@ -15,7 +16,7 @@ export interface LoginUserInput {
 }
 
 export interface LoginUserResult {
-  readonly user: User;
+  readonly user: UserProfile;
   readonly tokens: AuthTokenPair;
 }
 
@@ -56,6 +57,6 @@ export class LoginUserUseCase {
 
     const tokens = await this.authTokenService.issueTokenPair(user.id);
 
-    return { user, tokens };
+    return { user: toUserProfile(user), tokens };
   }
 }
