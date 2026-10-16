@@ -2,14 +2,16 @@ import { User } from './User';
 import { DomainValidationError } from '../errors/DomainValidationError';
 import { Email } from '../value-objects/Email';
 
-const consentGivenAt = new Date('2026-01-01T00:00:00.000Z');
+const termsAcceptedAt = new Date('2026-01-01T00:00:00.000Z');
+const termsVersion = '2026-01';
 
 function buildProps() {
   return {
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt,
+    termsAcceptedAt,
+    termsVersion,
   };
 }
 
@@ -20,7 +22,8 @@ describe('User', () => {
 
       expect(user.id).toHaveLength(36);
       expect(user.createdAt).toEqual(user.updatedAt);
-      expect(user.consentGivenAt).toEqual(consentGivenAt);
+      expect(user.termsAcceptedAt).toEqual(termsAcceptedAt);
+      expect(user.termsVersion).toBe(termsVersion);
     });
 
     it('creates an active account', () => {
@@ -55,6 +58,10 @@ describe('User', () => {
       expect(User.register({ ...buildProps(), username: 'ash ketchum' }).username).toBe(
         'ash ketchum',
       );
+    });
+
+    it('refuses to register a user without the terms version they accepted', () => {
+      expect(() => User.register({ ...buildProps(), termsVersion: '  ' })).toThrow(/terms version/);
     });
 
     it('generates a different id for each registration', () => {

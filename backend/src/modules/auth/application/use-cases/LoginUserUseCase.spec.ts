@@ -13,7 +13,8 @@ function buildUser(): User {
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -107,7 +108,8 @@ describe('LoginUserUseCase', () => {
         email: Email.create('user@example.com'),
         passwordHash: 'hashed-password',
         username: 'trainer42',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
         id: 'fixed-id',
         isActive: false,
         createdAt: new Date(),

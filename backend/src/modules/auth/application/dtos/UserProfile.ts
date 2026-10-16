@@ -11,7 +11,8 @@ export interface UserProfile {
   readonly email: string;
   readonly username: string;
   readonly isActive: boolean;
-  readonly consentGivenAt: Date;
+  readonly termsAcceptedAt: Date;
+  readonly termsVersion: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -22,7 +23,8 @@ export function toUserProfile(user: User): UserProfile {
     email: user.email.value,
     username: user.username,
     isActive: user.isActive,
-    consentGivenAt: user.consentGivenAt,
+    termsAcceptedAt: user.termsAcceptedAt,
+    termsVersion: user.termsVersion,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

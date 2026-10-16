@@ -80,4 +80,15 @@ export class EnvironmentVariables {
   @Min(8)
   @Max(64)
   PASSWORD_MIN_LENGTH: number = 8;
+
+  /**
+   * Version of the terms of service currently in force (e.g. "2026-01"). A registration records the
+   * version the user accepted and is refused when it differs from this one. Change it whenever the
+   * published terms change.
+   */
+  @IsString()
+  @Matches(/^[A-Za-z0-9._-]{1,32}$/, {
+    message: 'TERMS_VERSION must be 1-32 characters among letters, digits, ".", "_" and "-"',
+  })
+  TERMS_VERSION: string = '1';
 }

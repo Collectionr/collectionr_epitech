@@ -55,3 +55,11 @@ export class ConsentRequiredError extends Error {
     this.name = 'ConsentRequiredError';
   }
 }
+
+/** The user accepted a version of the terms that is no longer the current one (or an unknown one). */
+export class TermsVersionMismatchError extends Error {
+  constructor() {
+    super('The terms of service have changed; review the current version before accepting');
+    this.name = 'TermsVersionMismatchError';
+  }
+}

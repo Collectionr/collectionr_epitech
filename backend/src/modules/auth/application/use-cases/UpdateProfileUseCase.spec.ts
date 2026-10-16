@@ -9,7 +9,8 @@ function buildUser(): User {
     email: Email.create('user@example.com'),
     passwordHash: 'hashed-password',
     username: 'trainer42',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -53,7 +54,8 @@ describe('UpdateProfileUseCase', () => {
         email: Email.create('user@example.com'),
         passwordHash: 'hashed-password',
         username: 'trainer42',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
         id: existingUser.id,
         isActive: false,
         createdAt: new Date(),
@@ -90,7 +92,8 @@ describe('UpdateProfileUseCase', () => {
         email: Email.create('other@example.com'),
         passwordHash: 'other-hash',
         username: 'NewName',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
       }),
     );
 

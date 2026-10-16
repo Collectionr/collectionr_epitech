@@ -13,8 +13,14 @@ export interface NewUserProps {
   readonly email: Email;
   readonly passwordHash: string;
   readonly username: string;
-  /** RGPD scaffold: the moment the user accepted the terms of service at registration. */
-  readonly consentGivenAt: Date;
+  /**
+   * When the user accepted the terms of service at registration. This records acceptance of the
+   * contract (S04 §4: authentication rests on contract performance), not an optional RGPD
+   * consent: those belong to the CONSENT table (Beta).
+   */
+  readonly termsAcceptedAt: Date;
+  /** The version of the terms that was shown and accepted: the proof of what the user agreed to. */
+  readonly termsVersion: string;
 }
 
 export interface UserProps extends NewUserProps {
@@ -31,7 +37,8 @@ export class User {
     public readonly email: Email,
     public readonly passwordHash: string,
     public readonly username: string,
-    public readonly consentGivenAt: Date,
+    public readonly termsAcceptedAt: Date,
+    public readonly termsVersion: string,
     public readonly isActive: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
@@ -62,6 +69,11 @@ export class User {
 
   static register(props: NewUserProps): User {
     User.assertValidUsername(props.username);
+    // Not a user mistake: the use case checks the version the user sent against the current one
+    // before getting here, so an empty one is a bug that must not be stored as "proof".
+    if (props.termsVersion.trim() === '') {
+      throw new Error('A user cannot be registered without the terms version they accepted');
+    }
     const now = new Date();
 
     return new User(
@@ -69,7 +81,8 @@ export class User {
       props.email,
       props.passwordHash,
       props.username.trim(),
-      props.consentGivenAt,
+      props.termsAcceptedAt,
+      props.termsVersion,
       true,
       now,
       now,
@@ -88,7 +101,8 @@ export class User {
       props.email,
       props.passwordHash,
       props.username.trim(),
-      props.consentGivenAt,
+      props.termsAcceptedAt,
+      props.termsVersion,
       props.isActive,
       props.createdAt,
       props.updatedAt,
@@ -105,7 +119,8 @@ export class User {
       this.email,
       this.passwordHash,
       this.username,
-      this.consentGivenAt,
+      this.termsAcceptedAt,
+      this.termsVersion,
       false,
       this.createdAt,
       new Date(),
@@ -118,7 +133,8 @@ export class User {
       this.email,
       passwordHash,
       this.username,
-      this.consentGivenAt,
+      this.termsAcceptedAt,
+      this.termsVersion,
       this.isActive,
       this.createdAt,
       new Date(),
@@ -133,7 +149,8 @@ export class User {
       this.email,
       this.passwordHash,
       username.trim(),
-      this.consentGivenAt,
+      this.termsAcceptedAt,
+      this.termsVersion,
       this.isActive,
       this.createdAt,
       new Date(),

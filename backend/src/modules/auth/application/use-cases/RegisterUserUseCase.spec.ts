@@ -4,6 +4,7 @@ import { Email } from '../../domain/value-objects/Email';
 import {
   ConsentRequiredError,
   EmailAlreadyUsedError,
+  TermsVersionMismatchError,
   UsernameAlreadyUsedError,
 } from '../errors/AuthErrors';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
@@ -14,7 +15,8 @@ function buildExistingUser(): User {
     email: Email.create('other@example.com'),
     passwordHash: 'existing-hash',
     username: 'taken',
-    consentGivenAt: new Date(),
+    termsAcceptedAt: new Date(),
+    termsVersion: '1',
   });
 }
 
@@ -23,11 +25,12 @@ function buildInput() {
     email: 'user@example.com',
     plainPassword: 'abcd1234',
     username: 'trainer42',
-    hasAcceptedTerms: true,
+    acceptedTermsVersion: CURRENT_TERMS_VERSION,
   };
 }
 
 const DEFAULT_PASSWORD_MIN_LENGTH = 8;
+const CURRENT_TERMS_VERSION = '2026-01';
 const HASHER_MAX_PASSWORD_BYTES = 72;
 
 describe('RegisterUserUseCase', () => {
@@ -42,10 +45,16 @@ describe('RegisterUserUseCase', () => {
   function build(
     passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH,
     maxPasswordBytes = HASHER_MAX_PASSWORD_BYTES,
+    currentTermsVersion = CURRENT_TERMS_VERSION,
   ): RegisterUserUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes, hash, verify, getDummyHash };
-    return new RegisterUserUseCase(userRepository, passwordHasher, passwordMinLength);
+    return new RegisterUserUseCase(
+      userRepository,
+      passwordHasher,
+      passwordMinLength,
+      currentTermsVersion,
+    );
   }
 
   beforeEach(() => {
@@ -75,11 +84,49 @@ describe('RegisterUserUseCase', () => {
     expect(JSON.stringify(profile)).not.toContain('hashed-password');
   });
 
-  it('rejects registration without explicit consent', async () => {
-    await expect(build().execute({ ...buildInput(), hasAcceptedTerms: false })).rejects.toThrow(
-      ConsentRequiredError,
-    );
+  it.each([null, '', '   '])(
+    'rejects registration without an explicit acceptance (%p)',
+    async (acceptedTermsVersion) => {
+      await expect(build().execute({ ...buildInput(), acceptedTermsVersion })).rejects.toThrow(
+        ConsentRequiredError,
+      );
+      expect(findByEmail).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects an outdated or unknown terms version, before any lookup', async () => {
+    await expect(
+      build().execute({ ...buildInput(), acceptedTermsVersion: '2025-06' }),
+    ).rejects.toThrow(TermsVersionMismatchError);
     expect(findByEmail).not.toHaveBeenCalled();
+    expect(hash).not.toHaveBeenCalled();
+  });
+
+  it('records which version of the terms was accepted, and when', async () => {
+    const profile = await build().execute(buildInput());
+
+    expect(profile.termsVersion).toBe(CURRENT_TERMS_VERSION);
+    expect(profile.termsAcceptedAt).toBeInstanceOf(Date);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ termsVersion: CURRENT_TERMS_VERSION }) as unknown,
+    );
+  });
+
+  it('accepts the current version sent with surrounding spaces, and stores it trimmed', async () => {
+    const profile = await build().execute({
+      ...buildInput(),
+      acceptedTermsVersion: ` ${CURRENT_TERMS_VERSION} `,
+    });
+
+    expect(profile.termsVersion).toBe(CURRENT_TERMS_VERSION);
+  });
+
+  it('fails closed (not a 4xx) when the configured current version is blank', async () => {
+    const attempt = build(8, 72, '  ').execute(buildInput());
+
+    await expect(attempt).rejects.toThrow(/Invalid terms policy/);
+    await expect(attempt).rejects.not.toThrow(ConsentRequiredError);
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('rejects an already registered email', async () => {
@@ -88,7 +135,8 @@ describe('RegisterUserUseCase', () => {
         email: Email.create('user@example.com'),
         passwordHash: 'existing-hash',
         username: 'other',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
       }),
     );
 
@@ -102,7 +150,8 @@ describe('RegisterUserUseCase', () => {
         email: Email.create('user@example.com'),
         passwordHash: 'existing-hash',
         username: 'other',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
       }),
     );
 
@@ -115,7 +164,8 @@ describe('RegisterUserUseCase', () => {
         email: Email.create('other@example.com'),
         passwordHash: 'existing-hash',
         username: 'Trainer42',
-        consentGivenAt: new Date(),
+        termsAcceptedAt: new Date(),
+        termsVersion: '1',
       }),
     );
 
