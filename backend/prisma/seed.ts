@@ -1,20 +1,24 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import { ROLE_NAMES } from '../src/shared/config/AppConstants';
 
-// No business models exist yet (see COLLR-412 scope). Seed data (demo users,
-// collections, catalogue) will be added incrementally as the corresponding
-// functional epics land, per COLLR-438. For now this only confirms the
-// connection is wired correctly.
+// Reference data only, idempotent: safe to run on every environment and more than once.
+// Demo data (users, collections, catalogue) will be added per functional epic (COLLR-438).
+// Permissions and role_permissions are not seeded: the permission list is not defined yet (COLLR-449).
+async function seedRoles(prismaClient: PrismaClient): Promise<void> {
+  for (const name of ROLE_NAMES) {
+    await prismaClient.role.upsert({ where: { name }, update: {}, create: { name } });
+  }
+  console.log(`Roles seeded: ${ROLE_NAMES.join(', ')}.`);
+}
+
 async function main(): Promise<void> {
   const adapter = new PrismaPg({ connectionString: process.env['DATABASE_URL'] });
   const prismaClient = new PrismaClient({ adapter });
 
   try {
-    await prismaClient.$queryRaw`SELECT 1`;
-    console.log(
-      'Seed connection OK — no seed data yet (COLLR-438: to be filled in per functional epic).',
-    );
+    await seedRoles(prismaClient);
   } finally {
     await prismaClient.$disconnect();
   }
