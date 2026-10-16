@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Collectionr",
+    "slug": "collectionr",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"]
+  }
+}
