@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-ocr-writer
+  namespace: development
+spec:
+  containers:
+    - name: writer
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      env:
+        - name: SHARED_VOLUME_PATH
+          value: /data/ocr
+      volumeMounts:
+        - name: shared-ocr
+          mountPath: /data/ocr
+  volumes:
+    - name: shared-ocr
+      persistentVolumeClaim:
+        claimName: shared-volume-ocr
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-ocr-reader
+  namespace: development
+spec:
+  containers:
+    - name: reader
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      env:
+        - name: SHARED_VOLUME_PATH
+          value: /data/ocr
+      volumeMounts:
+        - name: shared-ocr
+          mountPath: /data/ocr
+  volumes:
+    - name: shared-ocr
+      persistentVolumeClaim:
+        claimName: shared-volume-ocr
