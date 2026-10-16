@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
 import { Password } from '../../domain/value-objects/Password';
+import { toUserProfile } from '../dtos/UserProfile';
+import type { UserProfile } from '../dtos/UserProfile';
 import { ConsentRequiredError, EmailAlreadyUsedError } from '../errors/AuthErrors';
 import { PASSWORD_HASHER } from '../ports/IPasswordHasher';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
@@ -25,20 +27,24 @@ export class RegisterUserUseCase {
     @Inject(PASSWORD_MIN_LENGTH) private readonly passwordMinLength: number,
   ) {}
 
-  async execute(input: RegisterUserInput): Promise<User> {
+  async execute(input: RegisterUserInput): Promise<UserProfile> {
     if (!input.hasAcceptedTerms) {
       throw new ConsentRequiredError();
     }
 
     const email = Email.create(input.email);
-    const password = Password.create(input.plainPassword, this.passwordMinLength);
+    const password = Password.create(
+      input.plainPassword,
+      this.passwordMinLength,
+      this.passwordHasher.maxPasswordBytes,
+    );
     // Every cheap check runs before the DB lookup and the (CPU-heavy) hash,
     // so a request that will be rejected anyway costs almost nothing.
     User.assertValidUsername(input.username);
 
     const existing = await this.userRepository.findByEmail(email);
     if (existing !== null) {
-      throw new EmailAlreadyUsedError(email.value);
+      throw new EmailAlreadyUsedError();
     }
 
     const passwordHash = await this.passwordHasher.hash(password.value);
@@ -49,6 +55,6 @@ export class RegisterUserUseCase {
       consentGivenAt: new Date(),
     });
 
-    return this.userRepository.save(user);
+    return toUserProfile(await this.userRepository.save(user));
   }
 }

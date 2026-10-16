@@ -92,6 +92,21 @@ Modèle Prisma `DataRetentionPolicy` → table `data_retention_policies` (colonn
 - Pas de contrainte `CHECK (retentionDays >= 0)` : Prisma ne sait pas la déclarer dans le schéma. À ajouter en SQL dans une migration si un besoin de validation en base apparaît.
 - **Deux sources pour la rétention d'audit** : `AUDIT_LOG_RETENTION_DAYS` (variable d'env, calcule `audit_logs.expiresAt` à l'écriture, ADR-011) et la ligne `audit_log` de cette table. Elles doivent rester égales (90 j) jusqu'à ce que COLLR-544 décide laquelle fait foi.
 
+## ADR-013 — Module Auth : algorithme de hachage, politique de mot de passe, frontières domaine/infra (COLLR-414)
+
+Module `src/modules/auth/` (`domain/` + `application/`, sans infrastructure ni endpoint : COLLR-415 les branche).
+**Décisions** :
+- **bcrypt retenu** comme algorithme de hachage (WBS 3.3, COLLR-510, S04 §2.2). Le CDC et S03 disent « bcrypt ou Argon2 » : le choix est désormais tranché ici. Passer à Argon2 ne change que l'adaptateur de `IPasswordHasher`.
+- **Rien de propre à l'algorithme dans `domain/` ni `application/`.** Ce qui en dépend est fourni par le port `IPasswordHasher` : `maxPasswordBytes` (bcrypt ne lit que 72 octets ; `Password.create` reçoit la limite en paramètre, comme `minLength`) et `getDummyHash()` (hash factice au même coût que les vrais, pour que le login d'un compte inconnu prenne autant de temps qu'un compte connu). Une constante écrite dans un use case dérive en silence quand le coût ou l'algorithme change (mesuré : coût 10 = ~64 ms contre coût 12 = ~254 ms).
+- **Politique de mot de passe** : 8 caractères minimum (`PASSWORD_MIN_LENGTH`, 8 à 64), au moins une lettre et un chiffre Unicode (`\p{L}`, `\p{Nd}`), pas de caractère nul. **Décision produit à valider par le PO** : le CDC ne fixe aucune règle. Une valeur de politique absente ou invalide fait échouer la création (erreur 5xx), elle ne désactive jamais la règle.
+- **Les use cases ne renvoient jamais `passwordHash`** : ils renvoient `UserProfile` (`application/dtos/UserProfile.ts`). Un contrôleur ne peut pas divulguer ce qu'il ne reçoit pas.
+- **Comptes désactivés (`isActive`)** : refusés par `Login`, `UpdateProfile` et `ChangePassword` avec la même erreur qu'un compte inconnu. Le refus des tokens (refresh, access) est une obligation du contrat de `IAuthTokenService`, à implémenter en COLLR-415.
+- **Messages d'erreur fixes** : `EmailAlreadyUsedError`, `UserNotFoundError` ne reprennent ni l'email ni l'identifiant reçus. `DomainValidationError` est la seule erreur de domaine convertible en 4xx.
+- **Email canonique** (NFKC, minuscules, domaine en punycode, sans guillemets ni caractères invisibles) : une boîte mail, un seul compte.
+**Points ouverts (non tranchés, à valider avant la migration COLLR-415)** :
+- `consentGivenAt` enregistre l'acceptation des CGU, pas un consentement RGPD au sens de S04 §4 (la table `CONSENT` de `schema-sql.md` reste pour les consentements optionnels). Proposition de relecture : `termsAcceptedAt` + version des CGU acceptée.
+- Unicité du pseudo, insensible à la casse (non exigée par le CDC ; coût faible maintenant, élevé après les premières données).
+
 ## Couches et responsabilités
 
 | Couche | Rôle | Interdit |

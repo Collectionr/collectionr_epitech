@@ -15,6 +15,7 @@ function buildInput() {
 }
 
 const DEFAULT_PASSWORD_MIN_LENGTH = 8;
+const HASHER_MAX_PASSWORD_BYTES = 72;
 
 describe('RegisterUserUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
@@ -22,10 +23,14 @@ describe('RegisterUserUseCase', () => {
   const findByEmail = jest.fn();
   const hash = jest.fn();
   const verify = jest.fn();
+  const getDummyHash = jest.fn();
 
-  function build(passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH): RegisterUserUseCase {
+  function build(
+    passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH,
+    maxPasswordBytes = HASHER_MAX_PASSWORD_BYTES,
+  ): RegisterUserUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail };
-    const passwordHasher: IPasswordHasher = { hash, verify };
+    const passwordHasher: IPasswordHasher = { maxPasswordBytes, hash, verify, getDummyHash };
     return new RegisterUserUseCase(userRepository, passwordHasher, passwordMinLength);
   }
 
@@ -37,13 +42,22 @@ describe('RegisterUserUseCase', () => {
   });
 
   it('creates and saves a user when the email is free', async () => {
-    const user = await build().execute(buildInput());
+    const profile = await build().execute(buildInput());
 
-    expect(user.email.value).toBe('user@example.com');
-    expect(user.username).toBe('trainer42');
-    expect(user.passwordHash).toBe('hashed-password');
+    expect(profile.email).toBe('user@example.com');
+    expect(profile.username).toBe('trainer42');
+    expect(profile.isActive).toBe(true);
     expect(hash).toHaveBeenCalledWith('abcd1234');
-    expect(save).toHaveBeenCalledWith(user);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ passwordHash: 'hashed-password' }) as unknown,
+    );
+  });
+
+  it('never returns the password hash', async () => {
+    const profile = await build().execute(buildInput());
+
+    expect(profile).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(profile)).not.toContain('hashed-password');
   });
 
   it('rejects registration without explicit consent', async () => {
@@ -65,6 +79,19 @@ describe('RegisterUserUseCase', () => {
 
     await expect(build().execute(buildInput())).rejects.toThrow(EmailAlreadyUsedError);
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('does not echo the email in the error message', async () => {
+    findByEmail.mockResolvedValue(
+      User.register({
+        email: Email.create('user@example.com'),
+        passwordHash: 'existing-hash',
+        username: 'other',
+        consentGivenAt: new Date(),
+      }),
+    );
+
+    await expect(build().execute(buildInput())).rejects.not.toThrow(/user@example\.com/);
   });
 
   it('rejects an invalid username before the lookup and before paying for a hash', async () => {
@@ -96,12 +123,19 @@ describe('RegisterUserUseCase', () => {
     expect(findByEmail).not.toHaveBeenCalled();
   });
 
+  it('takes the maximum password size from the hasher, not from the domain', async () => {
+    await expect(
+      build(8, 10).execute({ ...buildInput(), plainPassword: 'abcd12345678' }),
+    ).rejects.toThrow(/at most 10 bytes/);
+    expect(hash).not.toHaveBeenCalled();
+  });
+
   it('propagates EmailAlreadyUsedError thrown by save() (concurrent registration race)', async () => {
     // findByEmail() found nothing (no known duplicate at check time), but a
     // second registration for the same email committed first: the DB unique
     // constraint (IUserRepository.save() contract) is what actually catches
     // this, not the earlier findByEmail() check.
-    save.mockRejectedValue(new EmailAlreadyUsedError('user@example.com'));
+    save.mockRejectedValue(new EmailAlreadyUsedError());
 
     await expect(build().execute(buildInput())).rejects.toThrow(EmailAlreadyUsedError);
   });

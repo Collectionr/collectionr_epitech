@@ -1,6 +1,8 @@
+// Messages are fixed on purpose: an error message ends up in an HTTP response and in logs, and
+// must never echo what the caller sent (an email, an id) nor confirm more than the status code does.
 export class EmailAlreadyUsedError extends Error {
-  constructor(email: string) {
-    super(`Email "${email}" is already registered`);
+  constructor() {
+    super('Email is already registered');
     this.name = 'EmailAlreadyUsedError';
   }
 }
@@ -20,8 +22,8 @@ export class InvalidRefreshTokenError extends Error {
 }
 
 export class UserNotFoundError extends Error {
-  constructor(userId: string) {
-    super(`User "${userId}" not found`);
+  constructor() {
+    super('User not found');
     this.name = 'UserNotFoundError';
   }
 }
@@ -30,6 +32,13 @@ export class IncorrectCurrentPasswordError extends Error {
   constructor() {
     super('Current password is incorrect');
     this.name = 'IncorrectCurrentPasswordError';
+  }
+}
+
+export class SamePasswordError extends Error {
+  constructor() {
+    super('The new password must differ from the current one');
+    this.name = 'SamePasswordError';
   }
 }
 

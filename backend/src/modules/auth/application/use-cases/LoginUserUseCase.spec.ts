@@ -6,6 +6,8 @@ import type { IAuthTokenService } from '../ports/IAuthTokenService';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
 import type { IUserRepository } from '../ports/IUserRepository';
 
+const DUMMY_HASH = 'dummy-hash-supplied-by-the-hasher';
+
 function buildUser(): User {
   return User.register({
     email: Email.create('user@example.com'),
@@ -21,6 +23,7 @@ describe('LoginUserUseCase', () => {
   const findByEmail = jest.fn();
   const hash = jest.fn();
   const verify = jest.fn();
+  const getDummyHash = jest.fn();
   const issueTokenPair = jest.fn();
   const rotateRefreshToken = jest.fn();
   const revokeRefreshToken = jest.fn();
@@ -28,7 +31,7 @@ describe('LoginUserUseCase', () => {
 
   function build(): LoginUserUseCase {
     const userRepository: IUserRepository = { save, findById, findByEmail };
-    const passwordHasher: IPasswordHasher = { hash, verify };
+    const passwordHasher: IPasswordHasher = { maxPasswordBytes: 72, hash, verify, getDummyHash };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
       rotateRefreshToken,
@@ -42,21 +45,32 @@ describe('LoginUserUseCase', () => {
     jest.resetAllMocks();
     findByEmail.mockResolvedValue(buildUser());
     verify.mockResolvedValue(true);
+    getDummyHash.mockReturnValue(DUMMY_HASH);
     issueTokenPair.mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
     });
   });
 
-  it('returns the user and a token pair on valid credentials', async () => {
+  it('returns the profile and a token pair on valid credentials', async () => {
     const result = await build().execute({
       email: 'user@example.com',
       plainPassword: 'abcd1234',
     });
 
-    expect(result.user.email.value).toBe('user@example.com');
+    expect(result.user.email).toBe('user@example.com');
     expect(result.tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
     expect(issueTokenPair).toHaveBeenCalledWith(result.user.id);
+  });
+
+  it('never returns the password hash', async () => {
+    const result = await build().execute({
+      email: 'user@example.com',
+      plainPassword: 'abcd1234',
+    });
+
+    expect(result.user).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(result)).not.toContain('hashed-password');
   });
 
   it('rejects an unknown email as invalid credentials', async () => {
@@ -68,7 +82,7 @@ describe('LoginUserUseCase', () => {
     expect(issueTokenPair).not.toHaveBeenCalled();
   });
 
-  it('still runs a hash comparison for an unknown email (timing side channel)', async () => {
+  it('compares against the hasher-supplied dummy hash for an unknown email (timing side channel)', async () => {
     findByEmail.mockResolvedValue(null);
 
     await expect(
@@ -76,25 +90,14 @@ describe('LoginUserUseCase', () => {
     ).rejects.toThrow(InvalidCredentialsError);
 
     expect(verify).toHaveBeenCalledTimes(1);
-    expect(verify).toHaveBeenCalledWith(
-      'abcd1234',
-      '$2b$12$7irbQ5LXMyoaQFmTLtzC1eySZGqAcpYWel1GwQEWJsTOh/ZWRtL7e',
-    );
+    expect(verify).toHaveBeenCalledWith('abcd1234', DUMMY_HASH);
   });
 
-  it('uses a syntactically valid bcrypt hash as the dummy (format bcryptjs/bcrypt will accept)', async () => {
-    findByEmail.mockResolvedValue(null);
+  it('asks the hasher for a dummy hash only when the account does not exist', async () => {
+    await build().execute({ email: 'user@example.com', plainPassword: 'abcd1234' });
 
-    await expect(
-      build().execute({ email: 'unknown@example.com', plainPassword: 'abcd1234' }),
-    ).rejects.toThrow(InvalidCredentialsError);
-
-    const [, dummyHash] = verify.mock.calls[0] as [string, string];
-    // $2<a|b|y>$<cost>$<22-char salt><31-char hash>, 60 chars total (RFC-less
-    // but universally implemented bcrypt format). Not proof a real bcrypt
-    // lib accepts it (never exercised against one in this test suite — every
-    // IPasswordHasher here is mocked), but rules out a malformed placeholder.
-    expect(dummyHash).toMatch(/^\$2[aby]\$\d{2}\$[A-Za-z0-9./]{53}$/);
+    expect(verify).toHaveBeenCalledWith('abcd1234', 'hashed-password');
+    expect(getDummyHash).not.toHaveBeenCalled();
   });
 
   it('rejects a deactivated account with the same generic error, even with the right password', async () => {

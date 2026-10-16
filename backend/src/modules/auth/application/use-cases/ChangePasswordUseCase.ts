@@ -1,7 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { User } from '../../domain/entities/User';
 import { Password } from '../../domain/value-objects/Password';
-import { IncorrectCurrentPasswordError, UserNotFoundError } from '../errors/AuthErrors';
+import { toUserProfile } from '../dtos/UserProfile';
+import type { UserProfile } from '../dtos/UserProfile';
+import {
+  IncorrectCurrentPasswordError,
+  SamePasswordError,
+  UserNotFoundError,
+} from '../errors/AuthErrors';
 import { AUTH_TOKEN_SERVICE } from '../ports/IAuthTokenService';
 import type { IAuthTokenService } from '../ports/IAuthTokenService';
 import { PASSWORD_HASHER } from '../ports/IPasswordHasher';
@@ -25,10 +30,11 @@ export class ChangePasswordUseCase {
     @Inject(PASSWORD_MIN_LENGTH) private readonly passwordMinLength: number,
   ) {}
 
-  async execute(input: ChangePasswordInput): Promise<User> {
+  async execute(input: ChangePasswordInput): Promise<UserProfile> {
     const user = await this.userRepository.findById(input.userId);
-    if (user === null) {
-      throw new UserNotFoundError(input.userId);
+    // A deactivated account is treated as unknown: nothing is verified, hashed or revoked for it.
+    if (user === null || !user.isActive) {
+      throw new UserNotFoundError();
     }
 
     const currentMatches = await this.passwordHasher.verify(
@@ -39,7 +45,16 @@ export class ChangePasswordUseCase {
       throw new IncorrectCurrentPasswordError();
     }
 
-    const newPassword = Password.create(input.newPassword, this.passwordMinLength);
+    const newPassword = Password.create(
+      input.newPassword,
+      this.passwordMinLength,
+      this.passwordHasher.maxPasswordBytes,
+    );
+    // Same password again would revoke every session for no change at all.
+    if (await this.passwordHasher.verify(newPassword.value, user.passwordHash)) {
+      throw new SamePasswordError();
+    }
+
     const newPasswordHash = await this.passwordHasher.hash(newPassword.value);
     const updated = user.withPasswordHash(newPasswordHash);
 
@@ -48,6 +63,6 @@ export class ChangePasswordUseCase {
     // changed password with the old sessions still alive.
     await this.authTokenService.revokeAllRefreshTokens(user.id);
 
-    return this.userRepository.save(updated);
+    return toUserProfile(await this.userRepository.save(updated));
   }
 }

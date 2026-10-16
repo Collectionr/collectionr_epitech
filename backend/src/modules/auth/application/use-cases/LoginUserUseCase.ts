@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
+import { toUserProfile } from '../dtos/UserProfile';
+import type { UserProfile } from '../dtos/UserProfile';
 import { InvalidCredentialsError } from '../errors/AuthErrors';
 import { AUTH_TOKEN_SERVICE } from '../ports/IAuthTokenService';
 import type { AuthTokenPair, IAuthTokenService } from '../ports/IAuthTokenService';
@@ -15,16 +16,9 @@ export interface LoginUserInput {
 }
 
 export interface LoginUserResult {
-  readonly user: User;
+  readonly user: UserProfile;
   readonly tokens: AuthTokenPair;
 }
-
-// Syntactically valid bcrypt hash of a throwaway value — never a real
-// credential. Its cost factor (12) MUST equal the one the real hasher uses
-// (BcryptPasswordHasher.BCRYPT_SALT_ROUNDS): bcrypt time doubles per cost
-// step, so a lower cost makes unknown accounts measurably faster (measured:
-// cost 10 = ~64 ms vs cost 12 = ~254 ms) and defeats the timing protection.
-const DUMMY_PASSWORD_HASH = '$2b$12$7irbQ5LXMyoaQFmTLtzC1eySZGqAcpYWel1GwQEWJsTOh/ZWRtL7e';
 
 @Injectable()
 export class LoginUserUseCase {
@@ -46,13 +40,13 @@ export class LoginUserUseCase {
 
     const user = await this.userRepository.findByEmail(email);
 
-    // Always run the hash comparison, even for an unknown account: a bcrypt
-    // verify takes measurable time, so short-circuiting on `user === null`
-    // would make login faster for unregistered emails than for registered
-    // ones — a timing side channel that lets an attacker enumerate accounts.
+    // Always run the hash comparison, even for an unknown account: a verify takes measurable time,
+    // so short-circuiting on `user === null` would make login faster for unregistered emails than
+    // for registered ones — a timing side channel that lets an attacker enumerate accounts. The
+    // hasher supplies the throwaway hash because only it knows the cost its real hashes have.
     const passwordMatches = await this.passwordHasher.verify(
       input.plainPassword,
-      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+      user?.passwordHash ?? this.passwordHasher.getDummyHash(),
     );
 
     // A deactivated account gets the same generic error as a wrong password,
@@ -63,6 +57,7 @@ export class LoginUserUseCase {
 
     const tokens = await this.authTokenService.issueTokenPair(user.id);
 
-    return { user, tokens };
+    // The hash stays in this method: what leaves the use case is a profile without it.
+    return { user: toUserProfile(user), tokens };
   }
 }
