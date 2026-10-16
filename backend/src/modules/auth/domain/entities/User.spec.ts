@@ -124,6 +124,41 @@ describe('User', () => {
     });
   });
 
+  describe('deactivate', () => {
+    it('returns a deactivated copy and leaves the original untouched', () => {
+      const user = User.register(buildProps());
+
+      const deactivated = user.deactivate();
+
+      expect(deactivated.isActive).toBe(false);
+      expect(user.isActive).toBe(true);
+      expect(deactivated.id).toBe(user.id);
+      expect(deactivated.passwordHash).toBe(user.passwordHash);
+      expect(deactivated.updatedAt.getTime()).toBeGreaterThanOrEqual(user.updatedAt.getTime());
+    });
+  });
+
+  describe('usernameKey', () => {
+    it.each([
+      ['Pokemon', 'pokemon'],
+      ['POKEMON', 'pokemon'],
+      ['  Pokemon  ', 'pokemon'],
+      ['ash   ketchum', 'ash ketchum'],
+      ['Ash	Ketchum', 'ash ketchum'],
+      ['Ｐokemon', 'pokemon'],
+    ])('maps "%s" to "%s"', (raw, key) => {
+      expect(User.usernameKey(raw)).toBe(key);
+    });
+
+    it('gives the same key to every spelling of one username', () => {
+      expect(User.usernameKey('Pokemon')).toBe(User.usernameKey('pokemon'));
+    });
+
+    it('keeps genuinely different usernames apart', () => {
+      expect(User.usernameKey('pokemon1')).not.toBe(User.usernameKey('pokemon2'));
+    });
+  });
+
   describe('withPasswordHash', () => {
     it('replaces the password hash and bumps updatedAt without touching other fields', () => {
       const user = User.register(buildProps());

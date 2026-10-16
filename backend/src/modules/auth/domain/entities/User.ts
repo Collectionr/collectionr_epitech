@@ -50,6 +50,16 @@ export class User {
     }
   }
 
+  /**
+   * What makes two usernames "the same": NFKC, lower case, runs of spaces collapsed. "Pokemon",
+   * "pokemon" and "POKEMON" are one username, and so are "ash  ketchum" and "ash ketchum". A
+   * repository enforces uniqueness on this key (IUserRepository.findByUsername/save), never on the
+   * raw text. Look-alike letters from other scripts are NOT folded: that needs a confusables table.
+   */
+  static usernameKey(username: string): string {
+    return username.normalize('NFKC').trim().toLowerCase().replace(/\s+/gu, ' ');
+  }
+
   static register(props: NewUserProps): User {
     User.assertValidUsername(props.username);
     const now = new Date();
@@ -82,6 +92,23 @@ export class User {
       props.isActive,
       props.createdAt,
       props.updatedAt,
+    );
+  }
+
+  /**
+   * An admin action (CDC §3.5): the account can no longer log in. Whoever deactivates must also
+   * revoke the account's sessions (see DeactivateUserUseCase): this only flips the flag.
+   */
+  deactivate(): User {
+    return new User(
+      this.id,
+      this.email,
+      this.passwordHash,
+      this.username,
+      this.consentGivenAt,
+      false,
+      this.createdAt,
+      new Date(),
     );
   }
 

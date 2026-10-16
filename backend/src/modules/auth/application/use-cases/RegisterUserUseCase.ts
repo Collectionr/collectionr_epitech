@@ -4,7 +4,11 @@ import { Email } from '../../domain/value-objects/Email';
 import { Password } from '../../domain/value-objects/Password';
 import { toUserProfile } from '../dtos/UserProfile';
 import type { UserProfile } from '../dtos/UserProfile';
-import { ConsentRequiredError, EmailAlreadyUsedError } from '../errors/AuthErrors';
+import {
+  ConsentRequiredError,
+  EmailAlreadyUsedError,
+  UsernameAlreadyUsedError,
+} from '../errors/AuthErrors';
 import { PASSWORD_HASHER } from '../ports/IPasswordHasher';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
 import { PASSWORD_MIN_LENGTH } from '../ports/PasswordPolicy';
@@ -42,9 +46,11 @@ export class RegisterUserUseCase {
     // so a request that will be rejected anyway costs almost nothing.
     User.assertValidUsername(input.username);
 
-    const existing = await this.userRepository.findByEmail(email);
-    if (existing !== null) {
+    if ((await this.userRepository.findByEmail(email)) !== null) {
       throw new EmailAlreadyUsedError();
+    }
+    if ((await this.userRepository.findByUsername(input.username)) !== null) {
+      throw new UsernameAlreadyUsedError();
     }
 
     const passwordHash = await this.passwordHasher.hash(password.value);

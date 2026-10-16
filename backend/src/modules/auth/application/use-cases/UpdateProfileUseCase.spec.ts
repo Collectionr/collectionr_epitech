@@ -1,7 +1,7 @@
 import { UpdateProfileUseCase } from './UpdateProfileUseCase';
 import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
-import { UserNotFoundError } from '../errors/AuthErrors';
+import { UserNotFoundError, UsernameAlreadyUsedError } from '../errors/AuthErrors';
 import type { IUserRepository } from '../ports/IUserRepository';
 
 function buildUser(): User {
@@ -17,10 +17,11 @@ describe('UpdateProfileUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
   let existingUser: User;
 
   function build(): UpdateProfileUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     return new UpdateProfileUseCase(userRepository);
   }
 
@@ -28,6 +29,7 @@ describe('UpdateProfileUseCase', () => {
     jest.resetAllMocks();
     existingUser = buildUser();
     findById.mockResolvedValue(existingUser);
+    findByUsername.mockResolvedValue(null);
     save.mockImplementation((user: User) => Promise.resolve(user));
   });
 
@@ -80,6 +82,39 @@ describe('UpdateProfileUseCase', () => {
     await expect(
       build().execute({ userId: 'secret-id-123', username: 'newname' }),
     ).rejects.not.toThrow(/secret-id-123/);
+  });
+
+  it('rejects a username already taken by someone else, case-insensitively', async () => {
+    findByUsername.mockResolvedValue(
+      User.register({
+        email: Email.create('other@example.com'),
+        passwordHash: 'other-hash',
+        username: 'NewName',
+        consentGivenAt: new Date(),
+      }),
+    );
+
+    await expect(build().execute({ userId: existingUser.id, username: 'newname' })).rejects.toThrow(
+      UsernameAlreadyUsedError,
+    );
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('lets a user change only the case of their own username', async () => {
+    findByUsername.mockResolvedValue(existingUser);
+
+    const profile = await build().execute({ userId: existingUser.id, username: 'TRAINER42' });
+
+    expect(profile.username).toBe('TRAINER42');
+    expect(save).toHaveBeenCalled();
+  });
+
+  it('propagates UsernameAlreadyUsedError thrown by save() (concurrent change race)', async () => {
+    save.mockRejectedValue(new UsernameAlreadyUsedError());
+
+    await expect(build().execute({ userId: existingUser.id, username: 'newname' })).rejects.toThrow(
+      UsernameAlreadyUsedError,
+    );
   });
 
   it('rejects an invalid username', async () => {

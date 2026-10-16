@@ -1,9 +1,22 @@
 import { RegisterUserUseCase } from './RegisterUserUseCase';
 import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
-import { ConsentRequiredError, EmailAlreadyUsedError } from '../errors/AuthErrors';
+import {
+  ConsentRequiredError,
+  EmailAlreadyUsedError,
+  UsernameAlreadyUsedError,
+} from '../errors/AuthErrors';
 import type { IPasswordHasher } from '../ports/IPasswordHasher';
 import type { IUserRepository } from '../ports/IUserRepository';
+
+function buildExistingUser(): User {
+  return User.register({
+    email: Email.create('other@example.com'),
+    passwordHash: 'existing-hash',
+    username: 'taken',
+    consentGivenAt: new Date(),
+  });
+}
 
 function buildInput() {
   return {
@@ -21,6 +34,7 @@ describe('RegisterUserUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
   const hash = jest.fn();
   const verify = jest.fn();
   const getDummyHash = jest.fn();
@@ -29,7 +43,7 @@ describe('RegisterUserUseCase', () => {
     passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH,
     maxPasswordBytes = HASHER_MAX_PASSWORD_BYTES,
   ): RegisterUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes, hash, verify, getDummyHash };
     return new RegisterUserUseCase(userRepository, passwordHasher, passwordMinLength);
   }
@@ -37,6 +51,7 @@ describe('RegisterUserUseCase', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     findByEmail.mockResolvedValue(null);
+    findByUsername.mockResolvedValue(null);
     hash.mockResolvedValue('hashed-password');
     save.mockImplementation((user: User) => Promise.resolve(user));
   });
@@ -92,6 +107,38 @@ describe('RegisterUserUseCase', () => {
     );
 
     await expect(build().execute(buildInput())).rejects.not.toThrow(/user@example\.com/);
+  });
+
+  it('rejects a username already taken, whatever its case, before paying for a hash', async () => {
+    findByUsername.mockResolvedValue(
+      User.register({
+        email: Email.create('other@example.com'),
+        passwordHash: 'existing-hash',
+        username: 'Trainer42',
+        consentGivenAt: new Date(),
+      }),
+    );
+
+    await expect(build().execute({ ...buildInput(), username: 'trainer42' })).rejects.toThrow(
+      UsernameAlreadyUsedError,
+    );
+    expect(findByUsername).toHaveBeenCalledWith('trainer42');
+    expect(hash).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('does not echo the username in the error message', async () => {
+    findByUsername.mockResolvedValue(buildExistingUser());
+
+    await expect(build().execute({ ...buildInput(), username: 'SecretName' })).rejects.not.toThrow(
+      /SecretName/,
+    );
+  });
+
+  it('propagates UsernameAlreadyUsedError thrown by save() (concurrent registration race)', async () => {
+    save.mockRejectedValue(new UsernameAlreadyUsedError());
+
+    await expect(build().execute(buildInput())).rejects.toThrow(UsernameAlreadyUsedError);
   });
 
   it('rejects an invalid username before the lookup and before paying for a hash', async () => {

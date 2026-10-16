@@ -29,6 +29,7 @@ describe('ChangePasswordUseCase', () => {
   const save = jest.fn<Promise<User>, [User]>();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
   const hash = jest.fn();
   const verify = jest.fn();
   const getDummyHash = jest.fn();
@@ -41,7 +42,7 @@ describe('ChangePasswordUseCase', () => {
     passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH,
     maxPasswordBytes = 72,
   ): ChangePasswordUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes, hash, verify, getDummyHash };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,

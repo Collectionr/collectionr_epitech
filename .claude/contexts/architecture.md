@@ -105,7 +105,8 @@ Module `src/modules/auth/` (`domain/` + `application/`, sans infrastructure ni e
 - **Email canonique** (NFKC, minuscules, domaine en punycode, sans guillemets ni caractères invisibles) : une boîte mail, un seul compte.
 **Points ouverts (non tranchés, à valider avant la migration COLLR-415)** :
 - `consentGivenAt` enregistre l'acceptation des CGU, pas un consentement RGPD au sens de S04 §4 (la table `CONSENT` de `schema-sql.md` reste pour les consentements optionnels). Proposition de relecture : `termsAcceptedAt` + version des CGU acceptée.
-- Unicité du pseudo, insensible à la casse (non exigée par le CDC ; coût faible maintenant, élevé après les premières données).
+**Pseudo unique, insensible à la casse (retour de relecture, traité en COLLR-414)** : `User.usernameKey` (NFKC, minuscules, espaces repliés) définit l'égalité de deux pseudos ; `IUserRepository.findByUsername`, vérification dans `RegisterUser` et `UpdateProfile` (changer seulement la casse de son propre pseudo reste permis), `UsernameAlreadyUsedError`, contrat de `save()` (rejet sous concurrence). Reste pour COLLR-415 : la colonne de clé canonique et son index unique, et la traduction de la violation de contrainte en `UsernameAlreadyUsedError`. Les lettres d'autres alphabets qui ressemblent à des lettres latines ne sont pas repliées (il faudrait une table de confusables).
+**Désactivation (retour de relecture, traité en COLLR-414)** : `DeactivateUserUseCase` désactive d'abord (plus aucune nouvelle session), puis révoque toutes les sessions du compte ; il est idempotent, donc rejouable si la révocation échoue. Qui peut l'appeler (admin) relève d'un garde de rôle côté interface.
 
 ## Couches et responsabilités
 

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { toUserProfile } from '../dtos/UserProfile';
 import type { UserProfile } from '../dtos/UserProfile';
-import { UserNotFoundError } from '../errors/AuthErrors';
+import { UserNotFoundError, UsernameAlreadyUsedError } from '../errors/AuthErrors';
 import { USER_REPOSITORY } from '../ports/IUserRepository';
 import type { IUserRepository } from '../ports/IUserRepository';
 
@@ -23,6 +23,13 @@ export class UpdateProfileUseCase {
     }
 
     const updated = user.withUsername(input.username);
+
+    // The username may be taken by someone else, never by the user themself: changing only the
+    // case of one's own username ("ash" -> "Ash") is a legitimate edit.
+    const owner = await this.userRepository.findByUsername(input.username);
+    if (owner !== null && owner.id !== user.id) {
+      throw new UsernameAlreadyUsedError();
+    }
 
     return toUserProfile(await this.userRepository.save(updated));
   }

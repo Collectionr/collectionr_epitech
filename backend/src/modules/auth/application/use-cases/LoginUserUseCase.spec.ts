@@ -21,6 +21,7 @@ describe('LoginUserUseCase', () => {
   const save = jest.fn();
   const findById = jest.fn();
   const findByEmail = jest.fn();
+  const findByUsername = jest.fn();
   const hash = jest.fn();
   const verify = jest.fn();
   const getDummyHash = jest.fn();
@@ -30,7 +31,7 @@ describe('LoginUserUseCase', () => {
   const revokeAllRefreshTokens = jest.fn();
 
   function build(): LoginUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail };
+    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes: 72, hash, verify, getDummyHash };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,

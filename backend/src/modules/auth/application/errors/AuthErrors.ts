@@ -7,6 +7,13 @@ export class EmailAlreadyUsedError extends Error {
   }
 }
 
+export class UsernameAlreadyUsedError extends Error {
+  constructor() {
+    super('Username is already taken');
+    this.name = 'UsernameAlreadyUsedError';
+  }
+}
+
 export class InvalidCredentialsError extends Error {
   constructor() {
     super('Invalid email or password');
