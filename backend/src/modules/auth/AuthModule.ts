@@ -4,6 +4,7 @@ import { AuthController } from './interface/controllers/AuthController';
 import { UsersController } from './interface/controllers/UsersController';
 import { JwtAuthGuard } from './interface/guards/JwtAuthGuard';
 import { RedisRateLimitGuard } from './interface/guards/RedisRateLimitGuard';
+import { RolesGuard } from './interface/guards/RolesGuard';
 import { RegisterUserUseCase } from './application/use-cases/RegisterUserUseCase';
 import { LoginUserUseCase } from './application/use-cases/LoginUserUseCase';
 import { RefreshTokenUseCase } from './application/use-cases/RefreshTokenUseCase';
@@ -15,6 +16,8 @@ import { DeactivateUserUseCase } from './application/use-cases/DeactivateUserUse
 import { PurgeExpiredSessionsUseCase } from './application/use-cases/PurgeExpiredSessionsUseCase';
 import { ACCESS_TOKEN_VERIFIER } from './application/ports/IAccessTokenVerifier';
 import { USER_REPOSITORY } from './application/ports/IUserRepository';
+import { USER_ROLE_RESOLVER } from './application/ports/IUserRoleResolver';
+import { PrismaUserRoleResolver } from './infrastructure/repositories/PrismaUserRoleResolver';
 import { PASSWORD_HASHER } from './application/ports/IPasswordHasher';
 import { AUTH_TOKEN_SERVICE } from './application/ports/IAuthTokenService';
 import { SESSION_PURGER } from './application/ports/ISessionPurger';
@@ -54,7 +57,9 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
     JwtTokenCodec,
     JwtAuthGuard,
     RedisRateLimitGuard,
+    RolesGuard,
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
+    { provide: USER_ROLE_RESOLVER, useClass: PrismaUserRoleResolver },
     { provide: PASSWORD_HASHER, useClass: BcryptPasswordHasher },
     { provide: AUTH_TOKEN_SERVICE, useClass: JwtAuthTokenService },
     // The same instance serves both ports: one class owns the sessions table.
@@ -94,6 +99,6 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
   // What another module needs to put `@UseGuards(JwtAuthGuard)` on its own routes: Nest builds a
   // guard in the module of the controller that uses it, so the guard's dependency must be exported
   // with it (exporting the guard alone leaves the importing module unable to resolve it).
-  exports: [JwtAuthGuard, ACCESS_TOKEN_VERIFIER],
+  exports: [JwtAuthGuard, RolesGuard, ACCESS_TOKEN_VERIFIER, USER_ROLE_RESOLVER],
 })
 export class AuthModule {}
