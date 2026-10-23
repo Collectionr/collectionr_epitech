@@ -122,3 +122,18 @@ kubectl delete -f devops/k3s/tests/test-shared-volume-ocr.yaml
 ```
 
 > ⚠️ Pour modifier le fichier de test, supprimer d'abord les Pods (`kubectl delete -f ...`) : un Pod existant ne peut pas changer de montage.
+
+## Backend (`backend`)
+
+Image construite en local (pas de registre pour l'instant), depuis la racine du repo :
+
+```bash
+docker build -t collectionr-backend:dev backend/
+docker save collectionr-backend:dev | sudo k3s ctr images import -
+kubectl apply -f devops/k3s/backend.yaml
+```
+
+- Prérequis : les Secrets `postgresql-credentials`, `redis-ocr-credentials` et `backend-credentials` (voir "Secrets").
+- Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
+- ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
+- Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
