@@ -16,6 +16,9 @@ import { ACCESS_TOKEN_VERIFIER } from '../../src/modules/auth/application/ports/
 import { AUTH_TOKEN_SERVICE } from '../../src/modules/auth/application/ports/IAuthTokenService';
 import { SESSION_PURGER } from '../../src/modules/auth/application/ports/ISessionPurger';
 import { USER_REPOSITORY } from '../../src/modules/auth/application/ports/IUserRepository';
+import { USER_ROLE_RESOLVER } from '../../src/modules/auth/application/ports/IUserRoleResolver';
+import type { IUserRoleResolver } from '../../src/modules/auth/application/ports/IUserRoleResolver';
+import type { RoleName } from '../../src/shared/config/AppConstants';
 import { configureApp } from '../../src/shared/bootstrap/ConfigureApp';
 import { PRISMA_CLIENT } from '../../src/shared/infrastructure/database/PrismaModule';
 import { REDIS_CLIENT } from '../../src/shared/infrastructure/redis/RedisModule';
@@ -80,10 +83,32 @@ export function buildFakeRedisClient(): Redis & { resetCounters(): void } {
   } as unknown as Redis & { resetCounters(): void };
 }
 
+/**
+ * The roles the test users hold. A user that exists but was never given a role is a USER (what
+ * registration links them to); an unknown user has no role at all.
+ */
+export class InMemoryUserRoleResolver implements IUserRoleResolver {
+  private readonly roles = new Map<string, RoleName>();
+
+  constructor(private readonly store: InMemoryAuthStore) {}
+
+  setRole(userId: string, role: RoleName): void {
+    this.roles.set(userId, role);
+  }
+
+  roleOf(userId: string): Promise<RoleName | null> {
+    if (!this.store.users.has(userId)) {
+      return Promise.resolve(null);
+    }
+    return Promise.resolve(this.roles.get(userId) ?? 'USER');
+  }
+}
+
 export interface AuthTestContext {
   readonly app: NestFastifyApplication;
   readonly store: InMemoryAuthStore;
   readonly repository: InMemoryUserRepository;
+  readonly roles: InMemoryUserRoleResolver;
   readonly tokens: InMemoryAuthTokenService;
   readonly redis: Redis & { resetCounters(): void };
   /** Every audit entry written, in order (the audit repository is replaced by this spy). */
@@ -100,6 +125,7 @@ export async function createAuthTestApp(
 ): Promise<AuthTestContext> {
   const store = new InMemoryAuthStore();
   const repository = new InMemoryUserRepository(store);
+  const roles = new InMemoryUserRoleResolver(store);
   const tokens = new InMemoryAuthTokenService(store, createTestCodec());
   const redis = buildFakeRedisClient();
   const audit = jest.fn<Promise<void>, [AuditEntry]>().mockResolvedValue(undefined);
@@ -113,6 +139,8 @@ export async function createAuthTestApp(
     .useValue(redis)
     .overrideProvider(USER_REPOSITORY)
     .useValue(repository)
+    .overrideProvider(USER_ROLE_RESOLVER)
+    .useValue(roles)
     .overrideProvider(AUTH_TOKEN_SERVICE)
     .useValue(tokens)
     .overrideProvider(ACCESS_TOKEN_VERIFIER)
@@ -128,5 +156,5 @@ export async function createAuthTestApp(
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
-  return { app, store, repository, tokens, redis, audit };
+  return { app, store, repository, roles, tokens, redis, audit };
 }
