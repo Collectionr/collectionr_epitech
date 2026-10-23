@@ -32,6 +32,7 @@ authTokenServiceContract('JwtAuthTokenService (real PostgreSQL)', () => ({
         usernameKey: `tok-${id.slice(0, 8)}`,
         termsAcceptedAt: new Date(),
         termsVersion: '1',
+        role: { connect: { name: 'USER' } },
       },
     });
     return id;

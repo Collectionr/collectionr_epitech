@@ -11,6 +11,7 @@ import {
 import type { IUserRepository } from '../../application/ports/IUserRepository';
 import { PRISMA_CLIENT } from '../../../../shared/infrastructure/database/PrismaModule';
 import { isUuid } from '../../../../shared/infrastructure/IsUuid';
+import type { RoleName } from '../../../../shared/config/AppConstants';
 
 /** Unique constraint violation (Prisma error code). */
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
@@ -18,6 +19,9 @@ const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 /** The unique indexes of the users table, as PostgreSQL names them (see the migrations). */
 const EMAIL_INDEX = 'users_email_key';
 const USERNAME_KEY_INDEX = 'users_usernameKey_key';
+
+/** Role of every account created by registration. Linked by name, never by UUID (ADR-013). */
+const REGISTRATION_ROLE: RoleName = 'USER';
 
 /** What the write path needs to know about the stored row, read under a row lock. */
 interface StoredSecurityState {
@@ -104,7 +108,8 @@ export class PrismaUserRepository implements IUserRepository {
           version: 0,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-        } satisfies Prisma.UserUncheckedCreateInput,
+          role: { connect: { name: REGISTRATION_ROLE } },
+        } satisfies Prisma.UserCreateInput,
       });
     }
 

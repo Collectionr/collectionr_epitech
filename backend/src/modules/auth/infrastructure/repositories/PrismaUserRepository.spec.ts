@@ -25,7 +25,6 @@ function recordOf(user: User, overrides: Record<string, unknown> = {}): Record<s
     email: user.email.value,
     passwordHash: user.passwordHash,
     username: user.username,
-    role: 'USER',
     isActive: user.isActive,
     version: user.version,
     termsAcceptedAt: user.termsAcceptedAt,
@@ -83,6 +82,19 @@ describe('PrismaUserRepository', () => {
       expect(h.update).not.toHaveBeenCalled();
       expect(saved.id).toBe(user.id);
       expect(saved.version).toBe(0);
+    });
+
+    it('links a new account to the USER role by name, never by id', async () => {
+      const user = buildUser();
+      const h = harness(null, recordOf(user));
+
+      await h.repository.save(user);
+
+      expect(h.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role: { connect: { name: 'USER' } } }) as unknown,
+        }),
+      );
     });
 
     it('refuses a copy that claims a past version of a row that no longer exists', async () => {

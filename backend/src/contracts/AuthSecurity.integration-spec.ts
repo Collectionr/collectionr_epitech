@@ -261,6 +261,7 @@ describe('loading accounts stored under older rules (point "à faire en premier"
         usernameKey: `legacy-${randomUUID().slice(0, 8)}`,
         termsAcceptedAt: new Date(),
         termsVersion: '1',
+        role: { connect: { name: 'USER' } },
       },
     });
 
@@ -401,5 +402,34 @@ describe('GDPR: deleting an account removes its email from the audit trail (poin
     expect(kept?.metadata).toEqual({ requestId: 'req-1' });
     const untouched = await prisma.auditLog.findUnique({ where: { id: otherEntry.id } });
     expect(untouched?.metadata).toEqual({ email: staying.email.value, requestId: 'req-2' });
+  });
+});
+
+describe('roles (ADR-013)', () => {
+  it('attaches a new account to the USER role, found by name', async () => {
+    const user = await createAccount();
+
+    const row = await prisma.user.findUnique({ where: { id: user.id }, include: { role: true } });
+
+    expect(row?.role.name).toBe('USER');
+  });
+
+  it('refuses to delete a role that still has accounts (ON DELETE RESTRICT)', async () => {
+    const temporary = await prisma.role.create({
+      data: { name: `tmp-${randomUUID().slice(0, 8)}` },
+    });
+    const user = await createAccount();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: { connect: { id: temporary.id } } },
+    });
+
+    await expect(prisma.role.delete({ where: { id: temporary.id } })).rejects.toThrow();
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: { connect: { name: 'USER' } } },
+    });
+    await prisma.role.delete({ where: { id: temporary.id } });
   });
 });

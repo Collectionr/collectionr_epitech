@@ -1,3 +1,6 @@
+// bcrypt at cost 12 is slow when the whole unit suite runs in parallel.
+jest.setTimeout(30_000);
+
 import { BcryptPasswordHasher } from './BcryptPasswordHasher';
 
 const costOf = (hash: string): number => Number(hash.split('$')[2]);
