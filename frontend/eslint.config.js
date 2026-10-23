@@ -34,5 +34,22 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  {
+    files: ['apps/mobile/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat['recommended-latest']],
+    languageOptions: {
+      globals: {
+        __DEV__: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['apps/mobile/*.config.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: globals.node,
+    },
+  },
   prettier,
 ]);

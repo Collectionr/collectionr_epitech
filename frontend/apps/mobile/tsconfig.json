@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "customConditions": ["react-native"],
+    "types": [],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@shared/*": ["../../packages/shared/src/*"]
+    },
+    "resolveJsonModule": true
+  },
+  "include": ["index.ts", "App.tsx", "app.test.ts", "jest.setup.ts", "nativewind-env.d.ts", "src"]
+}
