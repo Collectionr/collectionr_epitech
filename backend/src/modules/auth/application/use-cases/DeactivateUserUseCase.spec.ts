@@ -14,6 +14,7 @@ function buildUser(isActive = true): User {
     termsVersion: '1',
     id: 'fixed-id',
     isActive,
+    version: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
   });

@@ -13,10 +13,12 @@ datasource db {
 }
 
 /// Audit trail of sensitive actions (docs/database/schema-sql.md, docs/security/S05-logs-audit.md).
-/// Append-only. `userId` has no foreign key yet: the users table does not exist (COLLR-442 adds it).
+/// Append-only. `userId` FK added by COLLR-442 (ADR-011): ON DELETE SET NULL so a GDPR account
+/// deletion never destroys the trace of past actions.
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String?  @db.Uuid
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// Convention `domain.verb`, suffixed `.failed` when the action failed (e.g. auth.login.failed).
   action     String
   targetType String?
@@ -30,6 +32,70 @@ model AuditLog {
   @@index([action, timestamp])
   @@index([expiresAt])
   @@map("audit_logs")
+}
+
+/// Registered users (COLLR-415/COLLR-447). Mirrors src/modules/auth/domain/entities/User.ts;
+/// `role` is a minimal, forward-compatible scaffold for RBAC (docs/security/S03-api-security.md
+/// §5) — not the full ROLE/PERMISSION join tables from docs/database/schema-sql.md, which no
+/// current use case reads or writes (see COLLR-415 summary).
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String     @unique
+  passwordHash    String
+  username        String
+  /// The account's role, by foreign key (ADR-013): a role is named, never identified by a hard-coded UUID.
+  roleId          String     @db.Uuid
+  role            Role       @relation(fields: [roleId], references: [id])
+  /// A deactivated account (admin action, CDC §3.5) cannot log in.
+  isActive        Boolean    @default(true)
+  /// Optimistic lock (User.version): incremented by every update, which must match the version the
+  /// caller loaded, or a stale copy would overwrite a concurrent password change/deactivation.
+  version         Int        @default(0)
+  /// When the user accepted the terms of service (S04 §4: contract performance, not an optional consent).
+  termsAcceptedAt DateTime   @db.Timestamptz(6)
+  /// The version of the terms that was shown and accepted: the proof of what was agreed to.
+  termsVersion    String
+  /// Canonical username (User.usernameKey): unique, so "Pokemon" and "pokemon" cannot both exist.
+  usernameKey     String     @unique
+  createdAt       DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @db.Timestamptz(6)
+  sessions        Session[]
+  auditLogs       AuditLog[]
+
+  @@index([roleId])
+  @@map("users")
+}
+
+/// Refresh token sessions (docs/database/schema-sql.md SESSION, COLLR-633/COLLR-450).
+/// `id` doubles as the JWT refresh token's `jti` claim, so a lookup never needs to scan hashes, and as
+/// the `sid` claim of the access token issued with it (revoking the row kills that access token too).
+/// `refreshTokenHash` (sha256) is defense in depth only — revocation is keyed by `id`.
+/// One row per issued refresh token: a rotation retires the row (`rotatedAt`) and creates the next
+/// one in the same `familyId`, so a token presented twice can be recognised as stolen and the whole
+/// chain revoked.
+model Session {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Every token of one login chain shares it (set at login, inherited at each rotation).
+  familyId          String    @db.Uuid
+  refreshTokenHash  String
+  /// Not populated yet: IAuthTokenService.issueTokenPair(userId) has no request context
+  /// to read it from (application/ports/IAuthTokenService.ts is frozen, see COLLR-415 summary).
+  ipAddress         String?
+  isRevoked         Boolean   @default(false)
+  /// Set when the token was exchanged for a new one. Distinguishes "rotated" (replaying it = theft)
+  /// from "logged out / revoked" (replaying it is just a dead token).
+  rotatedAt         DateTime? @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt         DateTime  @db.Timestamptz(6)
+  /// Hard end of the whole family, inherited unchanged: rotation can never extend a login past it.
+  absoluteExpiresAt DateTime  @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 /// Retention period per entity type (GDPR Art. 5.1.e, docs/security/S04-rgpd-conformite.md §5).
@@ -48,12 +114,13 @@ model DataRetentionPolicy {
 
 /// RBAC role (docs/database/schema-sql.md, docs/security/S03-api-security.md §5).
 /// Reference data: rows are written by prisma/seed.ts (names in ROLE_NAMES, src/shared/config/AppConstants.ts).
-/// No `users` relation yet: COLLR-447 adds users.roleId as a NOT NULL foreign key to this table.
+/// Accounts reference this table through users.roleId (NOT NULL foreign key, ON DELETE RESTRICT).
 model Role {
   id          String           @id @default(uuid()) @db.Uuid
   /// Upper case identifier (USER, ADMIN). Unique so the seed can upsert on it.
   name        String           @unique
   permissions RolePermission[]
+  users       User[]
 
   @@map("roles")
 }

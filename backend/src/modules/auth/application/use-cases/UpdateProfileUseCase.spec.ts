@@ -58,6 +58,7 @@ describe('UpdateProfileUseCase', () => {
         termsVersion: '1',
         id: existingUser.id,
         isActive: false,
+        version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
