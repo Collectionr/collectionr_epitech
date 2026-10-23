@@ -284,15 +284,16 @@ describe('JwtAuthTokenService', () => {
   });
 
   describe('revokeRefreshToken', () => {
-    it('revokes the one session the token names, scoped to its user', async () => {
+    it('locks the user, then revokes the whole login chain of the token, scoped to its user', async () => {
       const refreshToken = await issuedRefreshToken();
       const claims = codec.verifyRefreshToken(refreshToken);
       const h = build();
 
       await h.service.revokeRefreshToken(refreshToken);
 
+      expect(h.lock).toHaveBeenCalledTimes(1);
       expect(h.updateMany).toHaveBeenCalledWith({
-        where: { id: claims.jti, userId: claims.sub, isRevoked: false },
+        where: { familyId: claims.fam, userId: claims.sub, isRevoked: false },
         data: { isRevoked: true },
       });
     });

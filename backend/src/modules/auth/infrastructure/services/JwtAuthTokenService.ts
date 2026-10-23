@@ -99,11 +99,18 @@ export class JwtAuthTokenService implements IAuthTokenService, ISessionPurger {
       return;
     }
 
-    // `id` and `userId` are validated UUIDs here: there is no way to build this `where` from an
-    // undefined claim, which Prisma would silently drop — widening the update to every session.
-    await this.prismaClient.session.updateMany({
-      where: { id: claims.jti, userId: claims.sub, isRevoked: false },
-      data: { isRevoked: true },
+    // The whole login chain, not just the row the token names: a client may present a token that was
+    // already rotated, and the live token of that chain must die with it (RFC 7009 §2.1: the access
+    // tokens of the same grant should be invalidated too). Other logins of the same user are untouched.
+    // `fam` and `sub` are validated here, so the `where` cannot widen: Prisma would silently drop an
+    // undefined claim.
+    await this.prismaClient.$transaction(async (tx) => {
+      // Same lock as revokeAllRefreshTokens: a rotation in flight cannot add a live row after this update.
+      await this.lockUser(tx, claims.sub);
+      await tx.session.updateMany({
+        where: { familyId: claims.fam, userId: claims.sub, isRevoked: false },
+        data: { isRevoked: true },
+      });
     });
   }
 

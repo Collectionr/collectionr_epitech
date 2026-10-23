@@ -220,14 +220,18 @@ export class InMemoryAuthTokenService
   }
 
   revokeRefreshToken(refreshToken: string): Promise<void> {
+    let claims: ReturnType<JwtTokenCodec['verifyRefreshToken']>;
     try {
-      const claims = this.codec.verifyRefreshToken(refreshToken);
-      const session = this.store.sessions.get(claims.jti);
-      if (session !== undefined && session.userId === claims.sub) {
-        session.isRevoked = true;
-      }
+      claims = this.codec.verifyRefreshToken(refreshToken);
     } catch {
       // Not a refresh token: nothing to revoke.
+      return Promise.resolve();
+    }
+    // The whole login chain, as JwtAuthTokenService does.
+    for (const session of this.store.sessions.values()) {
+      if (session.familyId === claims.fam && session.userId === claims.sub) {
+        session.isRevoked = true;
+      }
     }
     return Promise.resolve();
   }

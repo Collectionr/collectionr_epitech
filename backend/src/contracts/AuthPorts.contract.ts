@@ -328,6 +328,16 @@ export function authTokenServiceContract(name: string, make: () => TokenHarness)
       expect(await liveSessionsOf(attacker)).toBe(1); // not even the caller's own session
     });
 
+    it('revokeRefreshToken with a ROTATED token kills the live session of that login, not the other logins of the same user', async () => {
+      const { service, createUser, liveSessionsOf } = make();
+      const u = await createUser();
+      const laptop = await service.issueTokenPair(u);
+      await service.rotateRefreshToken(laptop.refreshToken); // laptop's live token is now the rotated one
+      await service.issueTokenPair(u); // phone
+      await service.revokeRefreshToken(laptop.refreshToken); // logout with the stale copy
+      expect(await liveSessionsOf(u)).toBe(1);
+    });
+
     it('revokeAllRefreshTokens(userId) kills every session of that user and none of the others', async () => {
       const { service, createUser, liveSessionsOf } = make();
       const u = await createUser();
