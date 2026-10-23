@@ -44,7 +44,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['apps/mobile/*.config.js'],
+    files: ['apps/mobile/*.config.js', 'apps/web/*.config.cjs'],
     extends: [js.configs.recommended],
     languageOptions: {
       sourceType: 'commonjs',
