@@ -17,6 +17,14 @@ function jsonResponse(status: number, body?: unknown): FetchResponseLike {
   };
 }
 
+function invalidJsonResponse(status: number): FetchResponseLike {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.reject(new SyntaxError('Unexpected token < in JSON')),
+  };
+}
+
 function createFakeFetch(response: FetchResponseLike) {
   const calls: RecordedCall[] = [];
   const fetch: FetchLike = function (this: unknown, url, init) {
@@ -111,6 +119,32 @@ describe('createApiClient', () => {
     const client = createApiClient({ baseUrl: '/api/v1', fetch });
 
     await expect(client.request('/cards/swsh3-136', { method: 'DELETE' })).resolves.toBeUndefined();
+  });
+
+  it("rejette avec une ApiError quand une réponse 2xx n'est pas du JSON", async () => {
+    const { fetch } = createFakeFetch(invalidJsonResponse(200));
+    const client = createApiClient({ baseUrl: '/api/v1', fetch });
+
+    const request = client.request('/cards');
+
+    await expect(request).rejects.toBeInstanceOf(ApiError);
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 200,
+      message: expect.stringContaining('JSON attendu'),
+    });
+  });
+
+  it("propage l'erreur réseau survenue pendant la lecture du corps", async () => {
+    const networkError = new TypeError('Network request failed');
+    const { fetch } = createFakeFetch({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(networkError),
+    });
+    const client = createApiClient({ baseUrl: '/api/v1', fetch });
+
+    await expect(client.request('/cards')).rejects.toBe(networkError);
   });
 
   it('rejette avec une ApiError portant le statut HTTP quand la réponse est en échec', async () => {

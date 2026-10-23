@@ -54,6 +54,7 @@ export interface ApiClient {
    * @param options - Méthode et corps de la requête
    * @returns Le corps JSON de la réponse, non validé, ou `undefined` pour une réponse 204
    * @throws {ApiError} Si le statut HTTP n'est pas dans la plage 200-299
+   * @throws {ApiError} Si le corps d'une réponse 2xx (hors 204) n'est pas du JSON valide
    */
   request(path: ApiPath, options?: ApiRequestOptions): Promise<unknown>;
 }
@@ -77,6 +78,29 @@ export class ApiError extends Error {
 const HTTP_NO_CONTENT = 204;
 const JSON_MEDIA_TYPE = 'application/json';
 const TRAILING_SLASHES = /\/+$/;
+
+/**
+ * Lit le corps JSON d'une réponse réussie. Toute autre erreur de lecture (ex. : coupure
+ * réseau pendant la réception du corps) est propagée telle quelle.
+ * @throws {ApiError} Si le corps n'est pas du JSON valide
+ */
+async function readJsonBody(
+  response: FetchResponseLike,
+  method: HttpMethod,
+  path: ApiPath,
+): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) {
+      throw error;
+    }
+    throw new ApiError(
+      response.status,
+      `Réponse ${method} ${path} illisible : JSON attendu (HTTP ${response.status})`,
+    );
+  }
+}
 
 /**
  * Crée un client HTTP vers l'API. L'URL de chaque requête est la concaténation
@@ -112,7 +136,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         return undefined;
       }
 
-      return response.json();
+      return readJsonBody(response, method, path);
     },
   };
 }
