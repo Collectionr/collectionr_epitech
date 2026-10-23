@@ -85,7 +85,7 @@ describe('AuthController (e2e)', () => {
       expect(response.body).not.toHaveProperty('password');
     });
 
-    it('audits auth.register with the new user as actor and target, and only the canonical email as metadata', async () => {
+    it('audits auth.register with the new user as actor and target, and no email', async () => {
       const response = await http()
         .post('/api/v1/auth/register')
         .send(registration({ email: 'Audited@EXAMPLE.com' }));
@@ -96,7 +96,7 @@ describe('AuthController (e2e)', () => {
       expect(entry.action).toBe('auth.register');
       expect(entry.userId).toBe(created.id);
       expect(entry.targetId).toBe(created.id);
-      expect(entry.metadata).toMatchObject({ email: 'audited@example.com' });
+      expect(JSON.stringify(entry)).not.toContain('audited@example.com');
       expect(JSON.stringify(entry)).not.toContain(PASSWORD);
     });
 
@@ -255,17 +255,17 @@ describe('AuthController (e2e)', () => {
       expect(typeof body.refreshToken).toBe('string');
     });
 
-    it('audits auth.login with the user as actor and target (not NULL), and the canonical email', async () => {
+    it('audits auth.login with the user as actor and target (not NULL), and no email', async () => {
       const session = await login('Login@Example.com');
 
       const [entry] = context.audit.mock.calls[0];
       expect(entry.action).toBe('auth.login');
       expect(entry.userId).toBe(session.user.id);
       expect(entry.targetId).toBe(session.user.id);
-      expect(entry.metadata).toMatchObject({ email: 'login@example.com' });
+      expect(JSON.stringify(entry)).not.toContain('login@example.com');
     });
 
-    it('audits a failed login with the attempted account and no actor', async () => {
+    it('audits a failed login with no actor and no email', async () => {
       await http()
         .post('/api/v1/auth/login')
         .send({ email: 'login@example.com', password: 'nope' });
@@ -273,7 +273,8 @@ describe('AuthController (e2e)', () => {
       const [entry] = context.audit.mock.calls[0];
       expect(entry.action).toBe('auth.login.failed');
       expect(entry.userId).toBeNull();
-      expect(entry.metadata).toMatchObject({ email: 'login@example.com', statusCode: 401 });
+      expect(entry.metadata).toMatchObject({ statusCode: 401 });
+      expect(JSON.stringify(entry)).not.toContain('login@example.com');
     });
 
     it('rejects a wrong password with 401', async () => {

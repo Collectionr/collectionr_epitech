@@ -29,20 +29,8 @@ import {
   REGISTER_RATE_LIMIT,
 } from '../AuthRateLimits';
 import { mapAuthError, mapRegistrationOrPasswordError } from '../MapAuthError';
-import { readAccountIdentifier } from '../RequestAccount';
 import { RateLimit } from '../decorators/RateLimit';
 import { RedisRateLimitGuard } from '../guards/RedisRateLimitGuard';
-
-/**
- * The audit entry should say which account was targeted — as the canonical, length-bounded email,
- * never the raw body value (an unbounded string the caller chose) — also when the attempt fails.
- */
-function recordAttemptedAccount(request: FastifyRequest, email: string): void {
-  const account = readAccountIdentifier({ email });
-  if (account !== null) {
-    setAuditSubject(request, { metadata: { email: account } });
-  }
-}
 
 // `@Req()` is the one native access here: login and register authenticate *during* the handler, so
 // the audit trail cannot learn who acted from a guard — the handler tells it (see AuditRequestContext).
@@ -66,7 +54,6 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Req() request: FastifyRequest,
   ): Promise<UserResponseDto> {
-    recordAttemptedAccount(request, dto.email);
     try {
       const user = await this.registerUserUseCase.execute({
         email: dto.email,
@@ -94,7 +81,6 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Req() request: FastifyRequest,
   ): Promise<AuthSessionResponseDto> {
-    recordAttemptedAccount(request, dto.email);
     try {
       const { user, tokens } = await this.loginUserUseCase.execute({
         email: dto.email,

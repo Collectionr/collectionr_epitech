@@ -70,7 +70,7 @@ describe('AuthController', () => {
       expect(dto).not.toHaveProperty('passwordHash');
     });
 
-    it('declares the new user as actor and target of the audit entry, with only the canonical email as metadata', async () => {
+    it('declares the new user as actor and target of the audit entry, with no personal data as metadata', async () => {
       const user = buildUser();
       const req = request();
       const controller = buildController({
@@ -79,14 +79,10 @@ describe('AuthController', () => {
 
       await controller.register({ ...validRegistration, email: '  Trainer@EXAMPLE.com ' }, req);
 
-      expect(readAuditSubject(req)).toEqual({
-        actorId: user.id,
-        targetId: user.id,
-        metadata: { email: 'trainer@example.com' },
-      });
+      expect(readAuditSubject(req)).toEqual({ actorId: user.id, targetId: user.id });
     });
 
-    it('still records the attempted email when registration fails (and no actor)', async () => {
+    it('records neither actor nor metadata when registration fails (no email in the audit trail)', async () => {
       const req = request();
       const controller = buildController({
         register: { execute: jest.fn().mockRejectedValue(new EmailAlreadyUsedError()) },
@@ -94,7 +90,7 @@ describe('AuthController', () => {
 
       await expect(controller.register(validRegistration, req)).rejects.toThrow(ConflictException);
 
-      expect(readAuditSubject(req)).toEqual({ metadata: { email: 'trainer@example.com' } });
+      expect(readAuditSubject(req)).toEqual({});
     });
 
     it('answers 409 without echoing the submitted email', async () => {
@@ -204,14 +200,10 @@ describe('AuthController', () => {
 
       await controller.login({ email: user.email.value, password: 'x' }, req);
 
-      expect(readAuditSubject(req)).toEqual({
-        actorId: user.id,
-        targetId: user.id,
-        metadata: { email: user.email.value },
-      });
+      expect(readAuditSubject(req)).toEqual({ actorId: user.id, targetId: user.id });
     });
 
-    it('records the attempted email, truncated, and no actor when the login fails', async () => {
+    it('records neither actor nor metadata when the login fails, whatever the submitted address', async () => {
       const req = request();
       const controller = buildController({
         login: { execute: jest.fn().mockRejectedValue(new InvalidCredentialsError()) },
@@ -221,9 +213,7 @@ describe('AuthController', () => {
         controller.login({ email: `${'a'.repeat(5000)}@example.com`, password: 'x' }, req),
       ).rejects.toThrow(UnauthorizedException);
 
-      const subject = readAuditSubject(req);
-      expect(subject.actorId).toBeUndefined();
-      expect(String(subject.metadata?.email).length).toBeLessThanOrEqual(254);
+      expect(readAuditSubject(req)).toEqual({});
     });
 
     it('maps InvalidCredentialsError to 401 Unauthorized', async () => {
