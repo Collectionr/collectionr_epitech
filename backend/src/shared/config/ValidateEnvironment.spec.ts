@@ -19,11 +19,34 @@ describe('validateEnvironment', () => {
     expect(environment.SWAGGER_ENABLED).toBe(false);
     expect(environment.CORS_ORIGINS).toBe('http://localhost:5173');
     expect(environment.AUDIT_LOG_RETENTION_DAYS).toBe(90);
+    expect(environment.PASSWORD_MIN_LENGTH).toBe(8);
+    expect(environment.TERMS_VERSION).toBe('1');
   });
 
   it('rejects an AUDIT_LOG_RETENTION_DAYS lower than 1', () => {
     expect(() => validateEnvironment({ ...validConfig, AUDIT_LOG_RETENTION_DAYS: '0' })).toThrow(
       /AUDIT_LOG_RETENTION_DAYS/,
+    );
+  });
+
+  it.each(['', ' ', 'v 2', 'a'.repeat(33), 'terms/2026'])(
+    'rejects the invalid TERMS_VERSION "%s"',
+    (value) => {
+      expect(() => validateEnvironment({ ...validConfig, TERMS_VERSION: value })).toThrow(
+        /TERMS_VERSION/,
+      );
+    },
+  );
+
+  it('accepts a dated terms version', () => {
+    expect(validateEnvironment({ ...validConfig, TERMS_VERSION: '2026-01' }).TERMS_VERSION).toBe(
+      '2026-01',
+    );
+  });
+
+  it.each(['7', '65'])('rejects a PASSWORD_MIN_LENGTH of %s outside the 8-64 range', (value) => {
+    expect(() => validateEnvironment({ ...validConfig, PASSWORD_MIN_LENGTH: value })).toThrow(
+      /PASSWORD_MIN_LENGTH/,
     );
   });
 
