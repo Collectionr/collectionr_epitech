@@ -59,19 +59,27 @@ export interface ApiClient {
   request(path: ApiPath, options?: ApiRequestOptions): Promise<unknown>;
 }
 
-/** Erreur levée par le client API quand le statut HTTP de la réponse indique un échec. */
+/**
+ * Erreur levée par le client API quand la réponse arrive mais ne peut pas être exploitée :
+ * son statut HTTP est hors de la plage 200-299, ou le corps d'une réponse 2xx n'est pas
+ * du JSON valide.
+ */
 export class ApiError extends Error {
   /** Statut HTTP de la réponse en échec */
   readonly status: number;
+  /** Corps JSON de la réponse en échec, non validé, `undefined` s'il est absent ou illisible */
+  readonly body: unknown;
 
   /**
    * @param status - Statut HTTP de la réponse
    * @param message - Description de l'échec
+   * @param body - Corps JSON de la réponse, non validé
    */
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -103,6 +111,22 @@ async function readJsonBody(
 }
 
 /**
+ * Lit le corps JSON d'une réponse en échec, sans l'interpréter. Pour une réponse en échec,
+ * l'information principale est le statut HTTP et le corps n'est qu'un complément : si sa
+ * lecture échoue (corps vide, non JSON, coupure réseau), l'`ApiError` est quand même levée
+ * avec le statut plutôt que de le perdre. C'est volontairement différent de `readJsonBody`,
+ * où le corps est le résultat attendu.
+ * @returns Le corps JSON non validé, ou `undefined` si sa lecture échoue, quelle que soit l'erreur
+ */
+async function readErrorBody(response: FetchResponseLike): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Crée un client HTTP vers l'API. L'URL de chaque requête est la concaténation
  * de `baseUrl` (sans "/" final) et du chemin demandé.
  * @param options - URL de base et implémentation de `fetch`
@@ -126,9 +150,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       });
 
       if (!response.ok) {
+        const errorBody = await readErrorBody(response);
         throw new ApiError(
           response.status,
           `Requête ${method} ${path} en échec (HTTP ${response.status})`,
+          errorBody,
         );
       }
 

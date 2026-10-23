@@ -157,6 +157,45 @@ describe('createApiClient', () => {
     await expect(request).rejects.toMatchObject({ name: 'ApiError', status: 404 });
   });
 
+  it("conserve le corps JSON de la réponse en échec dans l'ApiError", async () => {
+    const { fetch } = createFakeFetch(jsonResponse(409, { message: 'Email déjà utilisé' }));
+    const client = createApiClient({ baseUrl: '/api/v1', fetch });
+
+    const request = client.request('/users', { method: 'POST' });
+
+    await expect(request).rejects.toBeInstanceOf(ApiError);
+    await expect(request).rejects.toMatchObject({
+      status: 409,
+      body: { message: 'Email déjà utilisé' },
+    });
+  });
+
+  it("laisse le corps de l'ApiError à undefined quand le corps d'erreur n'est pas du JSON", async () => {
+    const { fetch } = createFakeFetch(invalidJsonResponse(500));
+    const client = createApiClient({ baseUrl: '/api/v1', fetch });
+
+    const request = client.request('/cards');
+
+    await expect(request).rejects.toBeInstanceOf(ApiError);
+    await expect(request).rejects.toMatchObject({ status: 500 });
+    await expect(request).rejects.toHaveProperty('body', undefined);
+  });
+
+  it("garde le statut de l'ApiError quand la lecture du corps d'erreur échoue", async () => {
+    const { fetch } = createFakeFetch({
+      ok: false,
+      status: 503,
+      json: () => Promise.reject(new TypeError('Network request failed')),
+    });
+    const client = createApiClient({ baseUrl: '/api/v1', fetch });
+
+    const request = client.request('/cards');
+
+    await expect(request).rejects.toBeInstanceOf(ApiError);
+    await expect(request).rejects.toMatchObject({ status: 503 });
+    await expect(request).rejects.toHaveProperty('body', undefined);
+  });
+
   it("propage l'erreur réseau du fetch injecté", async () => {
     const networkError = new TypeError('Failed to fetch');
     const fetch: FetchLike = () => Promise.reject(networkError);
