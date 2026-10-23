@@ -5,8 +5,10 @@ import type { FastifyRequest } from 'fastify';
 import type { RoleName } from '../../../../shared/config/AppConstants';
 import { USER_ROLE_RESOLVER } from '../../application/ports/IUserRoleResolver';
 import type { IUserRoleResolver } from '../../application/ports/IUserRoleResolver';
-import { REQUIRED_ROLES_METADATA_KEY } from '../decorators/RequireRole';
 import type { AuthenticatedUser } from './JwtAuthGuard';
+
+/** Where @RequireRole stores the roles a handler accepts. Lives here so the decorator can import the guard. */
+export const REQUIRED_ROLES_METADATA_KEY = 'auth:required-roles';
 
 interface RequestWithUser extends FastifyRequest {
   user?: AuthenticatedUser;

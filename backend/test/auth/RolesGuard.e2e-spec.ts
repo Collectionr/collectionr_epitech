@@ -15,8 +15,8 @@ import type { AuthTestContext } from './AuthTestDoubles';
 // guard is exercised on a probe, as the audit interceptor is exercised on audit-probe.
 @Controller('roles-probe')
 class RolesProbeController {
+  // Only the label: @RequireRole brings JwtAuthGuard and RolesGuard itself.
   @Get('admin')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @RequireRole('ADMIN')
   admin(): { ok: boolean } {
     return { ok: true };
@@ -61,7 +61,7 @@ describe('RolesGuard (e2e)', () => {
     return pair.accessToken;
   }
 
-  it('answers 401 without a token: JwtAuthGuard runs before the role check', async () => {
+  it('answers 401 without a token on a route that only declares @RequireRole (the decorator brings the guards)', async () => {
     await http().get('/api/v1/roles-probe/admin').expect(401);
   });
 
