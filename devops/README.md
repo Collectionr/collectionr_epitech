@@ -56,6 +56,9 @@ kubectl create secret generic redis-ocr-credentials --namespace development --fr
 
 # Redis TCG
 kubectl create secret generic redis-tcg-credentials --namespace development --from-literal=password="$(openssl rand -hex 24)"
+
+# Backend (JWT)
+kubectl create secret generic backend-credentials --namespace development --from-literal=JWT_SECRET="$(openssl rand -hex 32)"
 ```
 
 ### Vérifier qu'ils existent
