@@ -19,6 +19,9 @@ RUN npm ci --no-audit --no-fund
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+# URL de l'API figée au build (défaut : même domaine derrière l'Ingress)
+ARG VITE_API_BASE_URL=/api/v1
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build -w @collectionr/web
 
 FROM nginxinc/nginx-unprivileged:1.30-alpine

@@ -155,7 +155,11 @@ docker run --rm -p 8080:8080 collectionr-web:local
 curl http://localhost:8080/healthz   # ok
 ```
 
-`VITE_API_BASE_URL` est figée au build. L'image utilise la valeur par défaut `/api/v1` : c'est la même image pour tous les environnements, derrière l'Ingress.
+`VITE_API_BASE_URL` est figée au build. Par défaut, l'image utilise `/api/v1` : c'est la même image pour tous les environnements, derrière l'Ingress. Pour viser une autre API, surcharger la valeur au build :
+
+```bash
+docker build -f apps/web/Dockerfile --build-arg VITE_API_BASE_URL=https://api.exemple.test/v1 -t collectionr-web:local .
+```
 
 L'image n'embarque ni Expo ni React Native : avant `npm ci`, le Dockerfile ne copie que les manifestes de `apps/web` et `packages/shared`, et `apps/mobile` est exclu du contexte de build. Ne pas ajouter `apps/mobile` à ces `COPY`.
 
