@@ -123,24 +123,15 @@ erDiagram
         string number
         string nameEn
         string nameFr "nullable"
-        string categoryEn
-        string categoryFr "nullable"
-        string rarityEn "nullable"
-        string rarityFr "nullable"
+        string category
+        string rarity "nullable"
         string illustrator "nullable"
         int hp "nullable"
-        string[] typesEn
-        string[] typesFr
+        string[] types
         int[] dexIds
         string evolveFromEn "nullable"
         string evolveFromFr "nullable"
-        string stageEn "nullable"
-        string stageFr "nullable"
-        string suffix "nullable"
-        string trainerTypeEn "nullable"
-        string trainerTypeFr "nullable"
-        string energyTypeEn "nullable"
-        string energyTypeFr "nullable"
+        string stage "nullable"
         datetime tcgdexUpdatedAt "nullable"
         string imageUrlEn "nullable"
         string imageUrlFr "nullable"
@@ -291,9 +282,20 @@ erDiagram
 
 - **Identifiants** : `tcgdexId` est l'identifiant TCGdex tel quel, identique en français et en anglais ; il sert de clé de jointure entre les deux langues. `number` est le `localId` TCGdex, en texte (zéros initiaux : `006`). L'`id` UUID est généré par la base (`DEFAULT gen_random_uuid()`) : un INSERT en SQL brut n'a pas à le fournir.
 - **`variantId` de TCGdex n'est pas unique à lui seul** : il identifie un *type* d'impression (par exemple « holo, sans ombre, 1re édition ») et se retrouve sur beaucoup de cartes (les 16 premières cartes de `base1` portent les mêmes quatre). Une impression se repère donc par la carte **et** son `variantId`.
-- **Français / anglais** : une seule ligne par set et par carte, avec des colonnes `…En` et `…Fr` pour tout ce que TCGdex traduit (noms, catégorie, rareté, types, stade, type de Dresseur et d'Énergie, nom de l'évolution précédente, série, abréviation du set). L'anglais est la référence (obligatoire) ; le français est optionnel car TCGdex ne le couvre qu'à environ 95 %. Les raretés ne sont pas toutes traduites par TCGdex (`Common` / `Commune`, mais `Holo Rare` dans les deux langues) : on stocke ce qu'il renvoie. Les nombres, codes et identifiants (PV, numéros de Pokédex, `suffix`…) sont lus dans la réponse anglaise.
+- **Français / anglais** : les **noms** (carte, set, série), le nom de l'évolution précédente et les images ont une colonne `…En` et une colonne `…Fr` dans la même ligne. L'anglais est la référence (obligatoire) ; le français est optionnel car TCGdex ne le couvre qu'à environ 95 %. Les **vocabulaires fixes** (catégorie, rareté, types, stade) n'ont qu'**une colonne, en anglais** : c'est un code que le front traduit (voir le tableau plus bas). Les nombres, codes et identifiants (PV, numéros de Pokédex…) sont lus dans la réponse anglaise.
 - **Variantes** : les codes (`type`, `subtype`, `size`, `stamps`, `foil`) sont stockés en anglais seulement ; les libellés français de TCGdex sont en partie non traduits (`thank-you`, `pikachu`) et se rendent côté interface. Les types d'impression d'une carte (normale, reverse, holo, 1re édition) se déduisent de `variants`, rien n'est dupliqué sur `cards`.
 - **Images** : seules les URL de base du CDN TCGdex sont stockées, sans extension (on ajoute `/high.webp` à l'affichage). Aucune image n'est stockée localement.
 - **`updatedAt`** : maintenu par Prisma pour ses propres écritures seulement. Un UPSERT en SQL brut (psycopg) doit le renseigner (`updatedAt = now()`). `cards.tcgdexUpdatedAt` est une autre date : le `updated` de TCGdex, qui permet de ne retraiter que les cartes modifiées.
 - **Logo** : `licences_tcg.logoUrl` est une URL, vide dans le seed (TCGdex ne fournit pas de logo de licence) ; la source reste à choisir. Aucun fichier n'est stocké.
 - **Hors contrat** : prix, prédictions, légalité en tournoi (`legal`), `regulationMark` (inutiles à un collectionneur), drapeaux `has*` (déductibles de `variants`), et le détail de jeu des cartes (attaques, talents, faiblesses, résistances, coût de retraite, description, effet). Les champs `predictedPrice`, `priceLowerBound` et `priceUpperBound` de l'ancienne `CARD` sont retirés : ils appartiennent au worker de prédiction et n'ont pas encore de ticket backend. Les anciens champs `label` et `imageUrl` de `VARIANT` disparaissent aussi : TCGdex ne donne pas d'image par variante, et `type` / `subtype` / `stamps` / `foil` remplacent le libellé.
+
+### Vocabulaires stockés en anglais, traduits par le front
+
+`category`, `rarity`, `types` et `stage` de `cards` contiennent le texte anglais de TCGdex, qui joue le rôle de code. Le front (web et mobile) le traduit avec un fichier de langue, et affiche le texte anglais tel quel pour une valeur qu'il ne connaît pas encore. Valeurs observées dans les 3 sets de référence (TCGdex en ajoute avec chaque nouveau set, et ses raretés ne sont pas toutes normalisées) :
+
+| Champ | Valeurs stockées → libellé français de TCGdex |
+|-------|-----------------------------------------------|
+| `category` | `Pokemon` → Pokémon · `Trainer` → Dresseur · `Energy` → Énergie |
+| `types` | `Grass` → Plante · `Fire` → Feu · `Water` → Eau · `Lightning` → Électrique · `Psychic` → Psy · `Fighting` → Combat · `Darkness` → Obscurité · `Metal` → Métal · `Colorless` → Incolore · `Dragon` → Dragon |
+| `stage` | `Basic` → Base · `Stage1` → Niveau 1 · `Stage2` → Niveau 2 · `VMAX` → VMAX |
+| `rarity` | `Common` → Commune · `Uncommon` → Peu Commune · `Rare` → Rare · `Holo Rare`, `Holo Rare V`, `Holo Rare VMAX`, `Ultra Rare` → inchangés · `Secret Rare` → Magnifique rare · `Double rare` → Double rare · `Illustration rare` → Illustration rare · `Special illustration rare` → Illustration spéciale rare · `Hyper rare` → Hyper rare |

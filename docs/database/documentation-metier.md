@@ -46,8 +46,8 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 **`SET`** — Une extension ou édition d'une licence. Les champs `officialCardCount` (cartes imprimées, ex: 189) et `totalCardCount` (avec les cartes secrètes, ex: 201) permettent de suivre la complétude d'une collection (ex: "j'ai 45/201 cartes de ce set"). Le nom existe en anglais (`nameEn`) et en français (`nameFr`). Un set appartient à une série (`serieNameEn`/`serieNameFr`, ex: « Épée et Bouclier »), porte une abréviation officielle (`abbreviationOfficial`, ex: `DAA`, et `abbreviationFr` quand elle diffère : `TEM`), le code Pokémon TCG Online (`tcgOnlineCode`) et le nombre d'impressions par type (`normalCardCount`, `reverseCardCount`, `holoCardCount`, `firstEditionCardCount`).
 
 **`CARD`** — Une carte individuelle dans un set. Elle porte :
-- Des infos descriptives, en anglais et en français (`nameEn`/`nameFr`, `rarityEn`/`rarityFr`, `typesEn`/`typesFr`), ainsi que `number`, `hp` et `illustrator`
-- Des infos de jeu : `dexIds` (numéros du Pokédex national : relie toutes les cartes d'un même Pokémon), `evolveFromEn`/`evolveFromFr` (l'évolution précédente), `stageEn`/`stageFr` (Base, Niveau 1, VMAX…), `suffix` (V, ex…), `trainerTypeEn`/`trainerTypeFr` (Objet, Supporter, Stade, Outil) et `energyTypeEn`/`energyTypeFr` (de base ou spécial)
+- Des infos descriptives : `nameEn`/`nameFr` (le nom, dans les deux langues), `number`, `hp` et `illustrator`, plus `category`, `rarity`, `types` et `stage` (Base, Niveau 1, VMAX…) stockés en anglais et traduits par l'interface
+- Des infos de jeu : `dexIds` (numéros du Pokédex national : relie toutes les cartes d'un même Pokémon) et `evolveFromEn`/`evolveFromFr` (l'évolution précédente : la carte Dracaufeu indique Reptincel)
 - `tcgdexUpdatedAt` : la date de dernière modification de la fiche côté TCGdex, qui évite de retraiter les cartes inchangées
 - Les URL des images du CDN TCGdex (`imageUrlEn`, `imageUrlFr`) : aucune image n'est stockée localement
 

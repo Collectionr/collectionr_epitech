@@ -47,9 +47,6 @@ function tcgdexCard(overrides: Partial<TcgdexCard> = {}): TcgdexCard {
     dexIds: [6],
     evolveFrom: 'Charmeleon',
     stage: 'Stage2',
-    suffix: null,
-    trainerType: null,
-    energyType: null,
     updated: '2026-07-01T21:27:44+01:00',
     image: 'https://assets.tcgdex.net/en/test/test1/1',
     variantsDetailed: [
@@ -120,9 +117,6 @@ describe('parseTcgdexFixture', () => {
       dexIds: [],
       evolveFrom: null,
       stage: null,
-      suffix: null,
-      trainerType: null,
-      energyType: null,
       updated: null,
       image: null,
       variantsDetailed: [],
@@ -316,13 +310,7 @@ describe('mergeSetFixtures', () => {
 
   it('joins the English and French responses of a card on the TCGdex id', () => {
     const english = fixture({
-      cards: [
-        tcgdexCard({
-          suffix: 'V',
-          trainerType: 'Item',
-          energyType: 'Normal',
-        }),
-      ],
+      cards: [tcgdexCard({})],
     });
     const french = fixture({
       cards: [
@@ -332,8 +320,6 @@ describe('mergeSetFixtures', () => {
           types: ['Feu'],
           evolveFrom: 'Reptincel',
           stage: 'Niveau 2',
-          trainerType: 'Objet',
-          energyType: 'De base',
           image: 'https://assets.tcgdex.net/fr/test/test1/1',
         }),
       ],
@@ -347,24 +333,15 @@ describe('mergeSetFixtures', () => {
         number: '1',
         nameEn: 'Charizard',
         nameFr: 'Dracaufeu',
-        categoryEn: 'Pokemon',
-        categoryFr: 'Pokémon',
-        rarityEn: 'Rare',
-        rarityFr: 'Rare',
+        category: 'Pokemon',
+        rarity: 'Rare',
         illustrator: 'Mitsuhiro Arita',
         hp: 120,
-        typesEn: ['Fire'],
-        typesFr: ['Feu'],
+        types: ['Fire'],
         dexIds: [6],
         evolveFromEn: 'Charmeleon',
         evolveFromFr: 'Reptincel',
-        stageEn: 'Stage2',
-        stageFr: 'Niveau 2',
-        suffix: 'V',
-        trainerTypeEn: 'Item',
-        trainerTypeFr: 'Objet',
-        energyTypeEn: 'Normal',
-        energyTypeFr: 'De base',
+        stage: 'Stage2',
         tcgdexUpdatedAt: new Date('2026-07-01T20:27:44.000Z'),
         imageUrlEn: 'https://assets.tcgdex.net/en/test/test1/1',
         imageUrlFr: 'https://assets.tcgdex.net/fr/test/test1/1',
@@ -418,13 +395,7 @@ describe('mergeSetFixtures', () => {
     expect(cards[0]).toMatchObject({
       nameEn: 'Charizard',
       nameFr: null,
-      categoryFr: null,
-      rarityFr: null,
-      typesFr: [],
       evolveFromFr: null,
-      stageFr: null,
-      trainerTypeFr: null,
-      energyTypeFr: null,
       imageUrlFr: null,
     });
   });
@@ -573,11 +544,9 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
     }
   });
 
-  it('carries both languages on every card', () => {
+  it('carries the French name on every card', () => {
     for (const card of allCards) {
       expect(card.nameFr).not.toBeNull();
-      expect(card.categoryFr).not.toBeNull();
-      expect(card.rarityFr).not.toBeNull();
     }
   });
 
@@ -587,24 +556,15 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
       number: '20',
       nameEn: 'Charizard VMAX',
       nameFr: 'Dracaufeu VMAX',
-      categoryEn: 'Pokemon',
-      categoryFr: 'Pokémon',
-      rarityEn: 'Holo Rare VMAX',
-      rarityFr: 'Holo Rare VMAX',
+      category: 'Pokemon',
+      rarity: 'Holo Rare VMAX',
       illustrator: 'aky CG Works',
       hp: 330,
-      typesEn: ['Fire'],
-      typesFr: ['Feu'],
+      types: ['Fire'],
       dexIds: [6],
       evolveFromEn: 'Charizard V',
       evolveFromFr: 'Dracaufeu-V',
-      stageEn: 'VMAX',
-      stageFr: 'VMAX',
-      suffix: null,
-      trainerTypeEn: null,
-      trainerTypeFr: null,
-      energyTypeEn: null,
-      energyTypeFr: null,
+      stage: 'VMAX',
       tcgdexUpdatedAt: new Date('2026-07-01T21:27:44+01:00'),
       imageUrlEn: 'https://assets.tcgdex.net/en/swsh/swsh3/20',
       imageUrlFr: 'https://assets.tcgdex.net/fr/swsh/swsh3/20',
@@ -615,52 +575,42 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
     expect(find('sv03.5', 'sv03.5-006')).toMatchObject({
       number: '006',
       nameEn: 'Charizard ex',
-      suffix: 'ex',
     });
   });
 
-  it('translates rarities that TCGdex translates and keeps the others as they come', () => {
-    const base = findSet(catalogue, 'base1').cards;
-    expect(base.find(({ rarityEn }) => rarityEn === 'Common')?.rarityFr).toBe('Commune');
-    expect(base.find(({ rarityEn }) => rarityEn === 'Uncommon')?.rarityFr).toBe('Peu Commune');
+  it('keeps the rarity as the English wording of TCGdex: the front-end translates it', () => {
+    const rarities = new Set(findSet(catalogue, 'base1').cards.map(({ rarity }) => rarity));
+
+    expect(rarities).toEqual(new Set(['Common', 'Uncommon', 'Rare']));
+    expect(allCards.every(({ rarity }) => rarity !== 'Commune')).toBe(true);
   });
 
-  it('translates the evolution stage, the Trainer type and the Energy type', () => {
+  it('keeps the evolution stage as an English code and the previous evolution in both languages', () => {
     expect(find('base1', 'base1-4')).toMatchObject({
-      stageEn: 'Stage2',
-      stageFr: 'Niveau 2',
+      stage: 'Stage2',
       evolveFromEn: 'Charmeleon',
       evolveFromFr: 'Reptincel',
     });
-    expect(find('base1', 'base1-102')).toMatchObject({
-      categoryEn: 'Energy',
-      energyTypeEn: 'Normal',
-      energyTypeFr: 'De base',
-    });
-    const trainerTypes = allCards
-      .filter(({ trainerTypeEn }) => trainerTypeEn !== null)
-      .map(({ trainerTypeEn, trainerTypeFr }) => `${trainerTypeEn}/${trainerTypeFr}`);
-    expect(new Set(trainerTypes)).toEqual(
-      new Set(['Item/Objet', 'Supporter/Supporter', 'Stadium/Stade', 'Tool/Outil']),
+    expect(new Set(allCards.map(({ stage }) => stage))).toEqual(
+      new Set(['Basic', 'Stage1', 'Stage2', 'VMAX', null]),
     );
   });
 
   it('leaves hp and types empty on most Trainer and Energy cards, but keeps them when TCGdex has them', () => {
     expect(find('base1', 'base1-92')).toMatchObject({
-      categoryEn: 'Trainer',
+      category: 'Trainer',
       hp: null,
-      typesEn: [],
+      types: [],
     });
     expect(find('base1', 'base1-102')).toMatchObject({
-      categoryEn: 'Energy',
+      category: 'Energy',
       hp: null,
-      typesEn: [],
+      types: [],
     });
-    expect(find('base1', 'base1-70')).toMatchObject({ categoryEn: 'Trainer', hp: 10 });
+    expect(find('base1', 'base1-70')).toMatchObject({ category: 'Trainer', hp: 10 });
     expect(find('sv03.5', 'sv03.5-207')).toMatchObject({
-      categoryEn: 'Energy',
-      typesEn: ['Psychic'],
-      typesFr: ['Psy'],
+      category: 'Energy',
+      types: ['Psychic'],
     });
   });
 

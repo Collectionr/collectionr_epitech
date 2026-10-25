@@ -158,34 +158,23 @@ model Card {
   nameEn          String
   /// null when TCGdex has no French translation of the card.
   nameFr          String?
-  /// TCGdex category: Pokemon, Trainer or Energy in English, Pokémon, Dresseur or Énergie in French.
-  categoryEn      String
-  categoryFr      String?
-  rarityEn        String?
-  rarityFr        String?
+  /// TCGdex category, in English: Pokemon, Trainer or Energy. Stored as a code, the front-end translates it.
+  category        String
+  /// Rarity as TCGdex words it in English (Common, Holo Rare VMAX…). A code too: the front-end translates it, and falls back on this text for a rarity it does not know yet.
+  rarity          String?
   illustrator     String?
   /// Absent on most Trainer and Energy cards, present on a few (Fossils, Clefairy Doll).
   hp              Int?
-  /// Energy types. Empty for most Trainer and Energy cards, but TCGdex does type some (e.g. a Psychic Energy).
-  typesEn         String[]  @default([])
-  typesFr         String[]  @default([])
+  /// Energy types in English (Fire, Water…). Empty for most Trainer and Energy cards, but TCGdex does type some (e.g. a Psychic Energy).
+  types           String[]  @default([])
   /// National Pokédex numbers of the Pokémon (e.g. [6] for Charizard): links every card of the same Pokémon,
   /// across sets and languages. Several numbers on cards that show several Pokémon.
   dexIds          Int[]     @default([])
   /// Name of the Pokémon this one evolves from (e.g. Charizard V for Charizard VMAX).
   evolveFromEn    String?
   evolveFromFr    String?
-  /// Evolution stage: Basic, Stage1, Stage2, VMAX… (Base, Niveau 1, Niveau 2 in French).
-  stageEn         String?
-  stageFr         String?
-  /// Suffix of the card name: V, ex… Same in both languages.
-  suffix          String?
-  /// Trainer cards only: Item, Supporter, Stadium, Tool (Objet, Supporter, Stade, Outil in French).
-  trainerTypeEn   String?
-  trainerTypeFr   String?
-  /// Energy cards only: Normal or Special (De base or Spécial in French).
-  energyTypeEn    String?
-  energyTypeFr    String?
+  /// Evolution stage, in English: Basic, Stage1, Stage2, VMAX… The front-end translates it.
+  stage           String?
   /// Last modification of the card on the TCGdex side (TCGdex `updated`): lets the sync skip unchanged cards.
   tcgdexUpdatedAt DateTime? @db.Timestamptz(6)
   /// TCGdex asset base URLs, without extension (append /high.webp for instance): nothing is stored locally.

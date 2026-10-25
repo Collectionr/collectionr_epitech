@@ -48,9 +48,6 @@ export interface TcgdexCard {
   dexIds: number[];
   evolveFrom: string | null;
   stage: string | null;
-  suffix: string | null;
-  trainerType: string | null;
-  energyType: string | null;
   updated: string | null;
   image: string | null;
   variantsDetailed: TcgdexVariant[];
@@ -88,24 +85,15 @@ export interface CatalogueCardRow {
   number: string;
   nameEn: string;
   nameFr: string | null;
-  categoryEn: string;
-  categoryFr: string | null;
-  rarityEn: string | null;
-  rarityFr: string | null;
+  category: string;
+  rarity: string | null;
   illustrator: string | null;
   hp: number | null;
-  typesEn: string[];
-  typesFr: string[];
+  types: string[];
   dexIds: number[];
   evolveFromEn: string | null;
   evolveFromFr: string | null;
-  stageEn: string | null;
-  stageFr: string | null;
-  suffix: string | null;
-  trainerTypeEn: string | null;
-  trainerTypeFr: string | null;
-  energyTypeEn: string | null;
-  energyTypeFr: string | null;
+  stage: string | null;
   tcgdexUpdatedAt: Date | null;
   imageUrlEn: string | null;
   imageUrlFr: string | null;
@@ -297,9 +285,6 @@ function parseCard(raw: unknown, index: number): TcgdexCard {
     dexIds: optionalIntegerArray(card, 'dexId', context),
     evolveFrom: optionalString(card, 'evolveFrom', context),
     stage: optionalString(card, 'stage', context),
-    suffix: optionalString(card, 'suffix', context),
-    trainerType: optionalString(card, 'trainerType', context),
-    energyType: optionalString(card, 'energyType', context),
     updated: optionalString(card, 'updated', context),
     image: optionalString(card, 'image', context),
     variantsDetailed: (detailed ?? []).map((item: unknown, position: number) =>
@@ -342,8 +327,10 @@ function toTimestamp(value: string | null, context: string): Date | null {
 /**
  * Merges the English and French responses of one set into one row per set and per card.
  * TCGdex ids do not depend on the language, so they are the join key. French is optional
- * (TCGdex covers about 95 % of the cards in French), English is the reference: everything that is
- * not text (counts, flags, numbers, codes of the variants) is read from the English response.
+ * (TCGdex covers about 95 % of the cards in French), English is the reference. French is only
+ * kept for what is a name or a URL (names, previous evolution, series, abbreviation, images). The
+ * fixed vocabularies (category, rarity, types, stage), the numbers and the codes of the variants are
+ * read from the English response: the front-end translates them.
  */
 export function mergeSetFixtures(english: TcgdexFixture, french: TcgdexFixture): CatalogueSetData {
   if (english.set.id !== french.set.id) {
@@ -393,24 +380,15 @@ export function mergeSetFixtures(english: TcgdexFixture, french: TcgdexFixture):
       number: card.localId,
       nameEn: card.name,
       nameFr: frenchCard?.name ?? null,
-      categoryEn: card.category,
-      categoryFr: frenchCard?.category ?? null,
-      rarityEn: card.rarity,
-      rarityFr: frenchCard?.rarity ?? null,
+      category: card.category,
+      rarity: card.rarity,
       illustrator: card.illustrator,
       hp: card.hp,
-      typesEn: card.types,
-      typesFr: frenchCard?.types ?? [],
+      types: card.types,
       dexIds: card.dexIds,
       evolveFromEn: card.evolveFrom,
       evolveFromFr: frenchCard?.evolveFrom ?? null,
-      stageEn: card.stage,
-      stageFr: frenchCard?.stage ?? null,
-      suffix: card.suffix,
-      trainerTypeEn: card.trainerType,
-      trainerTypeFr: frenchCard?.trainerType ?? null,
-      energyTypeEn: card.energyType,
-      energyTypeFr: frenchCard?.energyType ?? null,
+      stage: card.stage,
       tcgdexUpdatedAt: toTimestamp(card.updated, `card ${card.id} updated`),
       imageUrlEn: card.image,
       imageUrlFr: frenchCard?.image ?? null,

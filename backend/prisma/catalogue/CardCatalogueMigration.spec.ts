@@ -117,24 +117,24 @@ describe('add_card_catalogue migration', () => {
       const cards = columns(sql, 'cards');
       expect(cards.get('nameEn')).toBe('TEXT NOT NULL');
       expect(cards.get('nameFr')).toBe('TEXT');
-      expect(cards.get('categoryEn')).toBe('TEXT NOT NULL');
-      expect(cards.get('categoryFr')).toBe('TEXT');
-      expect(cards.get('rarityEn')).toBe('TEXT');
-      expect(cards.get('rarityFr')).toBe('TEXT');
     });
 
-    it('defaults the type lists to empty so a raw INSERT may leave them out', () => {
+    it('stores the fixed vocabularies once, as an English code the front-end translates', () => {
       const cards = columns(sql, 'cards');
-      expect(cards.get('typesEn')).toBe('TEXT[] DEFAULT ARRAY[]::TEXT[]');
-      expect(cards.get('typesFr')).toBe('TEXT[] DEFAULT ARRAY[]::TEXT[]');
+      expect(cards.get('category')).toBe('TEXT NOT NULL');
+      expect(cards.get('rarity')).toBe('TEXT');
+      expect(cards.get('stage')).toBe('TEXT');
+      expect(sql).not.toMatch(/"(category|rarity|types|stage)(En|Fr)"/);
+    });
+
+    it('defaults the type list to empty so a raw INSERT may leave it out', () => {
+      expect(columns(sql, 'cards').get('types')).toBe('TEXT[] DEFAULT ARRAY[]::TEXT[]');
     });
 
     it('keeps French optional on every translated card column', () => {
       const cards = columns(sql, 'cards');
-      for (const column of ['evolveFrom', 'stage', 'trainerType', 'energyType']) {
-        expect(cards.get(`${column}En`)).toBe('TEXT');
-        expect(cards.get(`${column}Fr`)).toBe('TEXT');
-      }
+      expect(cards.get('evolveFromEn')).toBe('TEXT');
+      expect(cards.get('evolveFromFr')).toBe('TEXT');
       const sets = columns(sql, 'sets');
       expect(sets.get('serieNameEn')).toBe('TEXT');
       expect(sets.get('serieNameFr')).toBe('TEXT');
@@ -151,8 +151,11 @@ describe('add_card_catalogue migration', () => {
       const cards = columns(sql, 'cards');
       expect(cards.get('dexIds')).toBe('INTEGER[] DEFAULT ARRAY[]::INTEGER[]');
       expect(cards.get('illustrator')).toBe('TEXT');
-      expect(cards.get('suffix')).toBe('TEXT');
       expect(cards.get('tcgdexUpdatedAt')).toBe('TIMESTAMPTZ(6)');
+    });
+
+    it('does not store the suffix, the Trainer type and the Energy type: filters nobody needs', () => {
+      expect(sql).not.toMatch(/"(suffix|trainerType\w*|energyType\w*)"/);
     });
 
     it('keeps the logo of the licence', () => {
