@@ -59,6 +59,7 @@ La licence porte uniquement sur le **code source logiciel**. Les éléments suiv
 ## 5. Éléments de tiers
 
 - **Pokémon** et les noms, images et visuels de cartes associés sont des marques et des œuvres de leurs titulaires respectifs (Nintendo, Creatures Inc., GAME FREAK inc., The Pokémon Company). CollectionR TCG n'est ni affilié à ces sociétés, ni approuvé ou sponsorisé par elles.
+- **TCGdex** : les fixtures du catalogue (`backend/prisma/fixtures/tcgdex/`) sont des réponses de l'API TCGdex, issues de sa base de cartes publiée sous licence MIT (Copyright (c) 2021 TCGdex, <https://github.com/tcgdex/cards-database>). L'avis de licence est conservé dans `backend/prisma/fixtures/tcgdex/LICENSE`. La licence MIT ne couvre que la base structurée : les images et marques restent celles de leurs titulaires (voir ci-dessus), et les prix relayés par TCGdex n'en font pas partie.
 - Les **dépendances tierces** (bibliothèques, frameworks, modèles open source) restent soumises à leurs propres licences, qui prévalent pour ce qui les concerne. Voir les fichiers de dépendances (`package.json`, `requirements.txt`, etc.).
 
 ## 6. Consultation sur GitHub
