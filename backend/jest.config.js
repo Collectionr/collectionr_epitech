@@ -2,6 +2,8 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',
+  // prisma/ holds the seed and its fixtures mapping, tested next to the code like src/.
+  roots: ['<rootDir>', '<rootDir>/../prisma'],
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
