@@ -6,11 +6,6 @@ import { join } from 'node:path';
 
 export type FixtureLanguage = 'en' | 'fr';
 
-export interface TcgdexLegality {
-  standard: boolean | null;
-  expanded: boolean | null;
-}
-
 export interface TcgdexSet {
   id: string;
   name: string;
@@ -27,7 +22,6 @@ export interface TcgdexSet {
   reverseCardCount: number | null;
   holoCardCount: number | null;
   firstEditionCardCount: number | null;
-  legal: TcgdexLegality;
 }
 
 export interface TcgdexVariant {
@@ -57,13 +51,6 @@ export interface TcgdexCard {
   suffix: string | null;
   trainerType: string | null;
   energyType: string | null;
-  regulationMark: string | null;
-  legal: TcgdexLegality;
-  hasNormal: boolean;
-  hasReverse: boolean;
-  hasHolo: boolean;
-  hasFirstEdition: boolean;
-  hasWPromo: boolean;
   updated: string | null;
   image: string | null;
   variantsDetailed: TcgdexVariant[];
@@ -91,8 +78,6 @@ export interface CatalogueSetRow {
   reverseCardCount: number | null;
   holoCardCount: number | null;
   firstEditionCardCount: number | null;
-  legalStandard: boolean | null;
-  legalExpanded: boolean | null;
   logoUrlEn: string | null;
   logoUrlFr: string | null;
   symbolUrl: string | null;
@@ -121,14 +106,6 @@ export interface CatalogueCardRow {
   trainerTypeFr: string | null;
   energyTypeEn: string | null;
   energyTypeFr: string | null;
-  regulationMark: string | null;
-  legalStandard: boolean | null;
-  legalExpanded: boolean | null;
-  hasNormal: boolean;
-  hasReverse: boolean;
-  hasHolo: boolean;
-  hasFirstEdition: boolean;
-  hasWPromo: boolean;
   tcgdexUpdatedAt: Date | null;
   imageUrlEn: string | null;
   imageUrlFr: string | null;
@@ -214,17 +191,6 @@ function optionalInteger(record: JsonRecord, key: string, context: string): numb
   return requireInteger(record, key, context);
 }
 
-function optionalBoolean(record: JsonRecord, key: string, context: string): boolean | null {
-  const value = record[key];
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== 'boolean') {
-    throw new Error(`${context}.${key} must be a boolean when present`);
-  }
-  return value;
-}
-
 function optionalStringArray(record: JsonRecord, key: string, context: string): string[] {
   const value = record[key];
   if (value === undefined || value === null) {
@@ -248,14 +214,6 @@ function optionalIntegerArray(record: JsonRecord, key: string, context: string):
     throw new Error(`${context}.${key} must be an array of integers when present`);
   }
   return value;
-}
-
-function parseLegality(record: JsonRecord, context: string): TcgdexLegality {
-  const legal = optionalRecord(record, 'legal', context);
-  return {
-    standard: legal ? optionalBoolean(legal, 'standard', `${context}.legal`) : null,
-    expanded: legal ? optionalBoolean(legal, 'expanded', `${context}.legal`) : null,
-  };
 }
 
 function parseSerie(set: JsonRecord, context: string): TcgdexSet['serie'] {
@@ -294,7 +252,6 @@ function parseSet(raw: unknown): TcgdexSet {
     reverseCardCount: optionalInteger(cardCount, 'reverse', `${context}.cardCount`),
     holoCardCount: optionalInteger(cardCount, 'holo', `${context}.cardCount`),
     firstEditionCardCount: optionalInteger(cardCount, 'firstEd', `${context}.cardCount`),
-    legal: parseLegality(set, context),
   };
 }
 
@@ -324,9 +281,6 @@ function parseVariant(raw: unknown, context: string): TcgdexVariant {
 function parseCard(raw: unknown, index: number): TcgdexCard {
   const context = `cards[${index}]`;
   const card = requireRecord(raw, context);
-  const variants = optionalRecord(card, 'variants', context);
-  const flag = (key: string): boolean =>
-    (variants ? optionalBoolean(variants, key, `${context}.variants`) : null) ?? false;
   const detailed = card['variants_detailed'];
   if (detailed !== undefined && !Array.isArray(detailed)) {
     throw new Error(`${context}.variants_detailed must be an array when present`);
@@ -346,13 +300,6 @@ function parseCard(raw: unknown, index: number): TcgdexCard {
     suffix: optionalString(card, 'suffix', context),
     trainerType: optionalString(card, 'trainerType', context),
     energyType: optionalString(card, 'energyType', context),
-    regulationMark: optionalString(card, 'regulationMark', context),
-    legal: parseLegality(card, context),
-    hasNormal: flag('normal'),
-    hasReverse: flag('reverse'),
-    hasHolo: flag('holo'),
-    hasFirstEdition: flag('firstEdition'),
-    hasWPromo: flag('wPromo'),
     updated: optionalString(card, 'updated', context),
     image: optionalString(card, 'image', context),
     variantsDetailed: (detailed ?? []).map((item: unknown, position: number) =>
@@ -434,8 +381,6 @@ export function mergeSetFixtures(english: TcgdexFixture, french: TcgdexFixture):
     reverseCardCount: englishSet.reverseCardCount,
     holoCardCount: englishSet.holoCardCount,
     firstEditionCardCount: englishSet.firstEditionCardCount,
-    legalStandard: englishSet.legal.standard,
-    legalExpanded: englishSet.legal.expanded,
     logoUrlEn: englishSet.logo,
     logoUrlFr: french.set.logo,
     symbolUrl: englishSet.symbol ?? french.set.symbol,
@@ -466,14 +411,6 @@ export function mergeSetFixtures(english: TcgdexFixture, french: TcgdexFixture):
       trainerTypeFr: frenchCard?.trainerType ?? null,
       energyTypeEn: card.energyType,
       energyTypeFr: frenchCard?.energyType ?? null,
-      regulationMark: card.regulationMark,
-      legalStandard: card.legal.standard,
-      legalExpanded: card.legal.expanded,
-      hasNormal: card.hasNormal,
-      hasReverse: card.hasReverse,
-      hasHolo: card.hasHolo,
-      hasFirstEdition: card.hasFirstEdition,
-      hasWPromo: card.hasWPromo,
       tcgdexUpdatedAt: toTimestamp(card.updated, `card ${card.id} updated`),
       imageUrlEn: card.image,
       imageUrlFr: frenchCard?.image ?? null,

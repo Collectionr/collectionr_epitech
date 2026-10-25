@@ -1,8 +1,11 @@
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { loadReferenceCatalogue } from './CatalogueFixtures';
 
-/** The only game of the V1 catalogue. `slug` is the conflict target of the UPSERT. */
-export const POKEMON_GAME = { slug: 'pokemon', name: 'Pokémon' } as const;
+/**
+ * The only licence of the V1 catalogue. `slug` is the conflict target of the UPSERT.
+ * TCGdex has no logo for a licence: `logoUrl` stays empty until a source is chosen.
+ */
+export const POKEMON_LICENCE = { slug: 'pokemon', name: 'Pokémon' } as const;
 
 export interface CatalogueSeedSummary {
   sets: number;
@@ -10,16 +13,16 @@ export interface CatalogueSeedSummary {
   variants: number;
 }
 
-// Reference data only, idempotent: every row is an UPSERT on its natural key (games.slug,
+// Reference data only, idempotent: every row is an UPSERT on its natural key (licences_tcg.slug,
 // sets.tcgdexId, cards.tcgdexId, variants.(cardId, tcgdexVariantId)), the same keys the TCG
 // microservice uses (ADR-015).
 export async function seedCatalogue(prismaClient: PrismaClient): Promise<CatalogueSeedSummary> {
   const catalogue = loadReferenceCatalogue();
 
-  const game = await prismaClient.game.upsert({
-    where: { slug: POKEMON_GAME.slug },
-    update: { name: POKEMON_GAME.name },
-    create: { ...POKEMON_GAME },
+  const licence = await prismaClient.licenceTCG.upsert({
+    where: { slug: POKEMON_LICENCE.slug },
+    update: { name: POKEMON_LICENCE.name },
+    create: { ...POKEMON_LICENCE },
   });
 
   let cardCount = 0;
@@ -27,8 +30,8 @@ export async function seedCatalogue(prismaClient: PrismaClient): Promise<Catalog
   for (const { set, cards, variants } of catalogue) {
     const storedSet = await prismaClient.cardSet.upsert({
       where: { tcgdexId: set.tcgdexId },
-      update: { ...set, gameId: game.id },
-      create: { ...set, gameId: game.id },
+      update: { ...set, licenceTCGId: licence.id },
+      create: { ...set, licenceTCGId: licence.id },
     });
 
     const storedCards = await prismaClient.$transaction(

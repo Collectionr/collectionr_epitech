@@ -79,32 +79,34 @@ model RolePermission {
   @@map("role_permissions")
 }
 
-/// Trading card game (docs/database/schema-sql.md: GAME, formerly LICENCE_TCG). Reference data of the catalogue.
+/// Licence of trading cards (docs/database/schema-sql.md: LICENCE_TCG, e.g. Pokémon). Reference data of the catalogue.
 /// Part of the catalogue interface contract (ADR-015): the TCG microservice only UPSERTs into it,
 /// on `slug`, and never creates or alters the table.
 /// The catalogue tables generate their `id` in the database (not with Prisma's uuid(), which runs in the
 /// client), so a raw SQL INSERT ... ON CONFLICT does not have to supply one.
-model Game {
+model LicenceTCG {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  /// Stable identifier of the game (e.g. pokemon). Conflict target of the UPSERT.
+  /// Stable identifier of the licence (e.g. pokemon). Conflict target of the UPSERT.
   slug      String    @unique
   name      String
+  /// Logo of the licence. TCGdex has none: filled by hand or by the seed, as a URL (nothing is stored locally).
+  logoUrl   String?
   sets      CardSet[]
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   /// Prisma only maintains it for its own writes: a raw SQL UPSERT must set it explicitly.
   updatedAt DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  @@map("games")
+  @@map("licences_tcg")
 }
 
 /// Set (expansion) of a game, from TCGdex `GET /v2/{lang}/sets/{id}` (en + fr merged in one row).
 /// Named CardSet and not Set so the generated client does not shadow the JavaScript `Set`.
 /// Catalogue interface contract (ADR-015): UPSERT on `tcgdexId`.
 model CardSet {
-  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gameId                String    @db.Uuid
+  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  licenceTCGId          String     @db.Uuid
   /// TCGdex set id, identical in every language (e.g. base1, swsh3, sv03.5).
-  tcgdexId              String    @unique
+  tcgdexId              String     @unique
   nameEn                String
   /// null when TCGdex has no French translation of the set.
   nameFr                String?
@@ -112,7 +114,7 @@ model CardSet {
   serieTcgdexId         String?
   serieNameEn           String?
   serieNameFr           String?
-  releaseDate           DateTime? @db.Date
+  releaseDate           DateTime?  @db.Date
   /// Code printed on the cards of the set (e.g. DAA).
   abbreviationOfficial  String?
   /// French code, when it differs from the official one (e.g. TEM for DAA). Only the French response has it.
@@ -129,20 +131,17 @@ model CardSet {
   reverseCardCount      Int?
   holoCardCount         Int?
   firstEditionCardCount Int?
-  /// Tournament formats the set is legal in.
-  legalStandard         Boolean?
-  legalExpanded         Boolean?
   /// TCGdex asset base URLs, without extension: nothing is stored locally. Logos depend on the language.
   logoUrlEn             String?
   logoUrlFr             String?
   symbolUrl             String?
-  game                  Game      @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  licenceTCG            LicenceTCG @relation(fields: [licenceTCGId], references: [id], onDelete: Restrict)
   cards                 Card[]
-  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt             DateTime   @default(now()) @db.Timestamptz(6)
   /// Prisma only maintains it for its own writes: a raw SQL UPSERT must set it explicitly.
-  updatedAt             DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedAt             DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
 
-  @@index([gameId])
+  @@index([licenceTCGId])
   @@map("sets")
 }
 
@@ -187,17 +186,6 @@ model Card {
   /// Energy cards only: Normal or Special (De base or Spécial in French).
   energyTypeEn    String?
   energyTypeFr    String?
-  /// Letter printed at the bottom of recent cards (D, G…): it decides when a card leaves the Standard format.
-  regulationMark  String?
-  /// Tournament formats the card is legal in.
-  legalStandard   Boolean?
-  legalExpanded   Boolean?
-  /// Which kinds of printing exist (TCGdex `variants`). The detail of each printing is in `variants`.
-  hasNormal       Boolean   @default(false)
-  hasReverse      Boolean   @default(false)
-  hasHolo         Boolean   @default(false)
-  hasFirstEdition Boolean   @default(false)
-  hasWPromo       Boolean   @default(false)
   /// Last modification of the card on the TCGdex side (TCGdex `updated`): lets the sync skip unchanged cards.
   tcgdexUpdatedAt DateTime? @db.Timestamptz(6)
   /// TCGdex asset base URLs, without extension (append /high.webp for instance): nothing is stored locally.

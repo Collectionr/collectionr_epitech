@@ -30,7 +30,6 @@ function tcgdexSet(overrides: Partial<TcgdexSet> = {}): TcgdexSet {
     reverseCardCount: 1,
     holoCardCount: 0,
     firstEditionCardCount: 0,
-    legal: { standard: false, expanded: true },
     ...overrides,
   };
 }
@@ -51,13 +50,6 @@ function tcgdexCard(overrides: Partial<TcgdexCard> = {}): TcgdexCard {
     suffix: null,
     trainerType: null,
     energyType: null,
-    regulationMark: 'D',
-    legal: { standard: false, expanded: true },
-    hasNormal: false,
-    hasReverse: false,
-    hasHolo: true,
-    hasFirstEdition: false,
-    hasWPromo: false,
     updated: '2026-07-01T21:27:44+01:00',
     image: 'https://assets.tcgdex.net/en/test/test1/1',
     variantsDetailed: [
@@ -115,7 +107,6 @@ describe('parseTcgdexFixture', () => {
       reverseCardCount: null,
       holoCardCount: null,
       firstEditionCardCount: null,
-      legal: { standard: null, expanded: null },
     });
     expect(parsed.cards[0]).toEqual({
       id: 'a-1',
@@ -132,27 +123,19 @@ describe('parseTcgdexFixture', () => {
       suffix: null,
       trainerType: null,
       energyType: null,
-      regulationMark: null,
-      legal: { standard: null, expanded: null },
-      hasNormal: false,
-      hasReverse: false,
-      hasHolo: false,
-      hasFirstEdition: false,
-      hasWPromo: false,
       updated: null,
       image: null,
       variantsDetailed: [],
     });
   });
 
-  it('reads the series, the abbreviations, the card counts and the legality of a set', () => {
+  it('reads the series, the abbreviations, and the card counts of a set', () => {
     const parsed = parseTcgdexFixture({
       set: {
         ...validSet,
         serie: { id: 'swsh', name: 'Épée et Bouclier' },
         abbreviation: { official: 'DAA', localized: 'TEM' },
         tcgOnline: 'DAA',
-        legal: { standard: false, expanded: true },
         cardCount: { official: 189, total: 201, normal: 138, reverse: 157, holo: 69, firstEd: 0 },
       },
       cards: [],
@@ -167,7 +150,6 @@ describe('parseTcgdexFixture', () => {
       reverseCardCount: 157,
       holoCardCount: 69,
       firstEditionCardCount: 0,
-      legal: { standard: false, expanded: true },
     });
   });
 
@@ -177,7 +159,6 @@ describe('parseTcgdexFixture', () => {
       cards: [
         {
           ...validCard,
-          variants: { normal: true, holo: true, reverse: false, firstEdition: false, wPromo: true },
           variants_detailed: [
             {
               variantId: 'v1',
@@ -194,13 +175,6 @@ describe('parseTcgdexFixture', () => {
       ],
     });
 
-    expect(parsed.cards[0]).toMatchObject({
-      hasNormal: true,
-      hasHolo: true,
-      hasReverse: false,
-      hasFirstEdition: false,
-      hasWPromo: true,
-    });
     expect(parsed.cards[0].variantsDetailed).toEqual([
       {
         variantId: 'v1',
@@ -246,11 +220,6 @@ describe('parseTcgdexFixture', () => {
       'set.serie.name must be a non-empty string',
     ],
     [
-      'a set legality that is not a boolean',
-      { set: { ...validSet, legal: { standard: 'yes' } }, cards: [] },
-      'set.legal.standard must be a boolean when present',
-    ],
-    [
       'an optional string of the wrong type',
       { set: { ...validSet, logo: 5 }, cards: [] },
       'set.logo must be a string when present',
@@ -274,16 +243,6 @@ describe('parseTcgdexFixture', () => {
       'Pokédex numbers that are not integers',
       { set: validSet, cards: [{ ...validCard, dexId: ['6'] }] },
       'cards[0].dexId must be an array of integers when present',
-    ],
-    [
-      'variant flags that are not an object',
-      { set: validSet, cards: [{ ...validCard, variants: true }] },
-      'cards[0].variants must be an object',
-    ],
-    [
-      'variant flags that are not booleans',
-      { set: validSet, cards: [{ ...validCard, variants: { holo: 1 } }] },
-      'cards[0].variants.holo must be a boolean when present',
     ],
     [
       'detailed variants that are not an array',
@@ -349,8 +308,6 @@ describe('mergeSetFixtures', () => {
       reverseCardCount: 1,
       holoCardCount: 0,
       firstEditionCardCount: 0,
-      legalStandard: false,
-      legalExpanded: true,
       logoUrlEn: 'https://assets.tcgdex.net/en/test/test1/logo',
       logoUrlFr: null,
       symbolUrl: 'https://assets.tcgdex.net/univ/test/test1/symbol',
@@ -364,8 +321,6 @@ describe('mergeSetFixtures', () => {
           suffix: 'V',
           trainerType: 'Item',
           energyType: 'Normal',
-          hasHolo: true,
-          hasWPromo: true,
         }),
       ],
     });
@@ -410,14 +365,6 @@ describe('mergeSetFixtures', () => {
         trainerTypeFr: 'Objet',
         energyTypeEn: 'Normal',
         energyTypeFr: 'De base',
-        regulationMark: 'D',
-        legalStandard: false,
-        legalExpanded: true,
-        hasNormal: false,
-        hasReverse: false,
-        hasHolo: true,
-        hasFirstEdition: false,
-        hasWPromo: true,
         tcgdexUpdatedAt: new Date('2026-07-01T20:27:44.000Z'),
         imageUrlEn: 'https://assets.tcgdex.net/en/test/test1/1',
         imageUrlFr: 'https://assets.tcgdex.net/fr/test/test1/1',
@@ -593,8 +540,6 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
       reverseCardCount: 157,
       holoCardCount: 69,
       firstEditionCardCount: 0,
-      legalStandard: false,
-      legalExpanded: true,
       logoUrlEn: 'https://assets.tcgdex.net/en/swsh/swsh3/logo',
       logoUrlFr: 'https://assets.tcgdex.net/fr/swsh/swsh3/logo',
       symbolUrl: 'https://assets.tcgdex.net/univ/swsh/swsh3/symbol',
@@ -615,8 +560,6 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
       firstEditionCardCount: 103,
       logoUrlFr: null,
       symbolUrl: null,
-      legalStandard: false,
-      legalExpanded: false,
     });
   });
 
@@ -662,14 +605,6 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
       trainerTypeFr: null,
       energyTypeEn: null,
       energyTypeFr: null,
-      regulationMark: 'D',
-      legalStandard: false,
-      legalExpanded: true,
-      hasNormal: false,
-      hasReverse: false,
-      hasHolo: true,
-      hasFirstEdition: false,
-      hasWPromo: false,
       tcgdexUpdatedAt: new Date('2026-07-01T21:27:44+01:00'),
       imageUrlEn: 'https://assets.tcgdex.net/en/swsh/swsh3/20',
       imageUrlFr: 'https://assets.tcgdex.net/fr/swsh/swsh3/20',
@@ -696,7 +631,6 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
       stageFr: 'Niveau 2',
       evolveFromEn: 'Charmeleon',
       evolveFromFr: 'Reptincel',
-      regulationMark: null,
     });
     expect(find('base1', 'base1-102')).toMatchObject({
       categoryEn: 'Energy',
@@ -798,11 +732,6 @@ describe('reference catalogue (versioned TCGdex responses)', () => {
       expect(new Set(allVariants.map(({ type }) => type))).toEqual(
         new Set(['normal', 'reverse', 'holo', 'metal']),
       );
-    });
-
-    it('keeps the kinds of printing a card has, as flags', () => {
-      expect(find('swsh3', 'swsh3-20')).toMatchObject({ hasHolo: true, hasNormal: false });
-      expect(find('base1', 'base1-92')).toMatchObject({ hasNormal: true, hasFirstEdition: true });
     });
   });
 });

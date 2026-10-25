@@ -44,9 +44,9 @@ describe('add_card_catalogue migration', () => {
     expect(names).toContain('20260924132529_add_roles_permissions');
   });
 
-  it('creates the games, sets, cards and variants tables and nothing else', () => {
+  it('creates the licences_tcg, sets, cards and variants tables and nothing else', () => {
     expect([...sql.matchAll(/CREATE TABLE "(\w+)"/g)].map((match) => match[1])).toEqual([
-      'games',
+      'licences_tcg',
       'sets',
       'cards',
       'variants',
@@ -58,7 +58,7 @@ describe('add_card_catalogue migration', () => {
 
   describe('upsert keys', () => {
     it.each([
-      ['games_slug_key', 'games', 'slug'],
+      ['licences_tcg_slug_key', 'licences_tcg', 'slug'],
       ['sets_tcgdexId_key', 'sets', 'tcgdexId'],
       ['cards_tcgdexId_key', 'cards', 'tcgdexId'],
     ])('has the unique index %s on %s(%s)', (index, table, column) => {
@@ -74,22 +74,22 @@ describe('add_card_catalogue migration', () => {
     });
 
     it('generates the primary keys in the database, so a raw INSERT does not have to supply one', () => {
-      for (const table of ['games', 'sets', 'cards', 'variants']) {
+      for (const table of ['licences_tcg', 'sets', 'cards', 'variants']) {
         expect(columns(sql, table).get('id')).toBe('UUID NOT NULL DEFAULT gen_random_uuid()');
       }
     });
 
     it('makes the keys mandatory', () => {
-      expect(columns(sql, 'games').get('slug')).toBe('TEXT NOT NULL');
+      expect(columns(sql, 'licences_tcg').get('slug')).toBe('TEXT NOT NULL');
       expect(columns(sql, 'sets').get('tcgdexId')).toBe('TEXT NOT NULL');
       expect(columns(sql, 'cards').get('tcgdexId')).toBe('TEXT NOT NULL');
     });
   });
 
   describe('relations', () => {
-    it('links sets to games and cards to sets, and refuses to delete a parent that has children', () => {
+    it('links sets to licences and cards to sets, and refuses to delete a parent that has children', () => {
       expect(sql).toContain(
-        'ADD CONSTRAINT "sets_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "games"("id") ON DELETE RESTRICT',
+        'ADD CONSTRAINT "sets_licenceTCGId_fkey" FOREIGN KEY ("licenceTCGId") REFERENCES "licences_tcg"("id") ON DELETE RESTRICT',
       );
       expect(sql).toContain(
         'ADD CONSTRAINT "cards_setId_fkey" FOREIGN KEY ("setId") REFERENCES "sets"("id") ON DELETE RESTRICT',
@@ -103,7 +103,7 @@ describe('add_card_catalogue migration', () => {
     });
 
     it('indexes the foreign keys', () => {
-      expect(sql).toContain('CREATE INDEX "sets_gameId_idx" ON "sets"("gameId");');
+      expect(sql).toContain('CREATE INDEX "sets_licenceTCGId_idx" ON "sets"("licenceTCGId");');
       expect(sql).toContain('CREATE INDEX "cards_setId_idx" ON "cards"("setId");');
     });
   });
@@ -152,20 +152,22 @@ describe('add_card_catalogue migration', () => {
       expect(cards.get('dexIds')).toBe('INTEGER[] DEFAULT ARRAY[]::INTEGER[]');
       expect(cards.get('illustrator')).toBe('TEXT');
       expect(cards.get('suffix')).toBe('TEXT');
-      expect(cards.get('regulationMark')).toBe('TEXT');
-      expect(cards.get('legalStandard')).toBe('BOOLEAN');
-      expect(cards.get('legalExpanded')).toBe('BOOLEAN');
       expect(cards.get('tcgdexUpdatedAt')).toBe('TIMESTAMPTZ(6)');
     });
 
-    it('flags the kinds of printing of a card, false by default', () => {
-      const cards = columns(sql, 'cards');
-      for (const flag of ['hasNormal', 'hasReverse', 'hasHolo', 'hasFirstEdition', 'hasWPromo']) {
-        expect(cards.get(flag)).toBe('BOOLEAN NOT NULL DEFAULT false');
-      }
+    it('keeps the logo of the licence', () => {
+      expect(columns(sql, 'licences_tcg').get('logoUrl')).toBe('TEXT');
     });
 
-    it('keeps the series, the codes, the printing counts and the legality of a set', () => {
+    it('does not duplicate the kinds of printing on the card: they come from variants', () => {
+      expect(sql).not.toMatch(/"has(Normal|Reverse|Holo|FirstEdition|WPromo)"/);
+    });
+
+    it('does not store the tournament legality and the regulation mark, useless to a collector', () => {
+      expect(sql).not.toMatch(/"(legalStandard|legalExpanded|regulationMark)"/);
+    });
+
+    it('keeps the series, the codes and the printing counts of a set', () => {
       const sets = columns(sql, 'sets');
       expect(sets.get('serieTcgdexId')).toBe('TEXT');
       expect(sets.get('abbreviationOfficial')).toBe('TEXT');
@@ -173,8 +175,6 @@ describe('add_card_catalogue migration', () => {
       for (const count of ['normal', 'reverse', 'holo', 'firstEdition']) {
         expect(sets.get(`${count}CardCount`)).toBe('INTEGER');
       }
-      expect(sets.get('legalStandard')).toBe('BOOLEAN');
-      expect(sets.get('legalExpanded')).toBe('BOOLEAN');
     });
 
     it('describes a printing with codes and the product ids of the price sources', () => {
@@ -207,7 +207,7 @@ describe('add_card_catalogue migration', () => {
     });
 
     it('lets a raw UPSERT leave the timestamps out', () => {
-      for (const table of ['games', 'sets', 'cards', 'variants']) {
+      for (const table of ['licences_tcg', 'sets', 'cards', 'variants']) {
         const definition = columns(sql, table);
         expect(definition.get('createdAt')).toBe(
           'TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP',

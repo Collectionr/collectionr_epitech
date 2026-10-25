@@ -4,7 +4,7 @@
 
 ```mermaid
 erDiagram
-    GAME ||--o{ SET : contains
+    LICENCE_TCG ||--o{ SET : contains
     SET ||--o{ CARD : contains
     CARD ||--o{ VARIANT : has
     CARD ||--o{ CARDPRICE : "has price"
@@ -31,10 +31,11 @@ erDiagram
     CARD ||--o{ GRADINGRESULT : "graded"
     CARD ||--o{ SCRAPELOG : "scrape logs"
 
-    GAME {
+    LICENCE_TCG {
         uuid id PK
         string slug UK
         string name
+        string logoUrl "nullable"
         datetime createdAt
         datetime updatedAt
     }
@@ -91,7 +92,7 @@ erDiagram
 
     SET {
         uuid id PK
-        uuid gameId FK
+        uuid licenceTCGId FK
         string tcgdexId UK
         string nameEn
         string nameFr "nullable"
@@ -108,8 +109,6 @@ erDiagram
         int reverseCardCount "nullable"
         int holoCardCount "nullable"
         int firstEditionCardCount "nullable"
-        boolean legalStandard "nullable"
-        boolean legalExpanded "nullable"
         string logoUrlEn "nullable"
         string logoUrlFr "nullable"
         string symbolUrl "nullable"
@@ -142,14 +141,6 @@ erDiagram
         string trainerTypeFr "nullable"
         string energyTypeEn "nullable"
         string energyTypeFr "nullable"
-        string regulationMark "nullable"
-        boolean legalStandard "nullable"
-        boolean legalExpanded "nullable"
-        boolean hasNormal
-        boolean hasReverse
-        boolean hasHolo
-        boolean hasFirstEdition
-        boolean hasWPromo
         datetime tcgdexUpdatedAt "nullable"
         string imageUrlEn "nullable"
         string imageUrlFr "nullable"
@@ -200,7 +191,7 @@ erDiagram
     COLLECTION {
         uuid id PK
         uuid userId FK
-        uuid gameId FK
+        uuid licenceTCGId FK
         string name
         datetime createdAt
     }
@@ -289,19 +280,20 @@ erDiagram
 
 ## Catalogue des cartes : contrat d'interface (COLLR-684)
 
-`GAME`, `SET`, `CARD` et `VARIANT` sont possédées et migrées par le backend (Prisma, tables `games`, `sets`, `cards`, `variants` ; le modèle Prisma de `SET` s'appelle `CardSet` pour ne pas masquer le `Set` de JavaScript). Le microservice TCG ne crée ni ne modifie aucune de ces tables : il y écrit uniquement par UPSERT, sur les clés uniques ci-dessous. Détails et décisions : ADR-015 dans `.claude/contexts/architecture.md`.
+`LICENCE_TCG`, `SET`, `CARD` et `VARIANT` sont possédées et migrées par le backend (Prisma, tables `licences_tcg`, `sets`, `cards`, `variants` ; le modèle Prisma de `SET` s'appelle `CardSet` pour ne pas masquer le `Set` de JavaScript). Le microservice TCG ne crée ni ne modifie aucune de ces tables : il y écrit uniquement par UPSERT, sur les clés uniques ci-dessous. Détails et décisions : ADR-015 dans `.claude/contexts/architecture.md`.
 
 | Table | Clé de l'UPSERT | Exemple |
 |-------|-----------------|---------|
-| `games` | `slug` | `pokemon` |
+| `licences_tcg` | `slug` | `pokemon` |
 | `sets` | `tcgdexId` | `base1`, `swsh3`, `sv03.5` |
 | `cards` | `tcgdexId` | `swsh3-20`, `sv03.5-006` |
 | `variants` | `(cardId, tcgdexVariantId)` | `(<id de base1-4>, 4ffrmhcfiaejakhepqdkx7o)` |
 
 - **Identifiants** : `tcgdexId` est l'identifiant TCGdex tel quel, identique en français et en anglais ; il sert de clé de jointure entre les deux langues. `number` est le `localId` TCGdex, en texte (zéros initiaux : `006`). L'`id` UUID est généré par la base (`DEFAULT gen_random_uuid()`) : un INSERT en SQL brut n'a pas à le fournir.
 - **`variantId` de TCGdex n'est pas unique à lui seul** : il identifie un *type* d'impression (par exemple « holo, sans ombre, 1re édition ») et se retrouve sur beaucoup de cartes (les 16 premières cartes de `base1` portent les mêmes quatre). Une impression se repère donc par la carte **et** son `variantId`.
-- **Français / anglais** : une seule ligne par set et par carte, avec des colonnes `…En` et `…Fr` pour tout ce que TCGdex traduit (noms, catégorie, rareté, types, stade, type de Dresseur et d'Énergie, nom de l'évolution précédente, série, abréviation du set). L'anglais est la référence (obligatoire) ; le français est optionnel car TCGdex ne le couvre qu'à environ 95 %. Les raretés ne sont pas toutes traduites par TCGdex (`Common` / `Commune`, mais `Holo Rare` dans les deux langues) : on stocke ce qu'il renvoie. Les nombres, drapeaux, codes et identifiants (PV, numéros de Pokédex, légalité, `regulationMark`, `suffix`…) sont lus dans la réponse anglaise.
-- **Variantes** : les codes (`type`, `subtype`, `size`, `stamps`, `foil`) sont stockés en anglais seulement ; les libellés français de TCGdex sont en partie non traduits (`thank-you`, `pikachu`) et se rendent côté interface. `cards.hasNormal`, `hasReverse`, `hasHolo`, `hasFirstEdition`, `hasWPromo` résument les types d'impression d'une carte ; le détail est dans `variants`.
+- **Français / anglais** : une seule ligne par set et par carte, avec des colonnes `…En` et `…Fr` pour tout ce que TCGdex traduit (noms, catégorie, rareté, types, stade, type de Dresseur et d'Énergie, nom de l'évolution précédente, série, abréviation du set). L'anglais est la référence (obligatoire) ; le français est optionnel car TCGdex ne le couvre qu'à environ 95 %. Les raretés ne sont pas toutes traduites par TCGdex (`Common` / `Commune`, mais `Holo Rare` dans les deux langues) : on stocke ce qu'il renvoie. Les nombres, codes et identifiants (PV, numéros de Pokédex, `suffix`…) sont lus dans la réponse anglaise.
+- **Variantes** : les codes (`type`, `subtype`, `size`, `stamps`, `foil`) sont stockés en anglais seulement ; les libellés français de TCGdex sont en partie non traduits (`thank-you`, `pikachu`) et se rendent côté interface. Les types d'impression d'une carte (normale, reverse, holo, 1re édition) se déduisent de `variants`, rien n'est dupliqué sur `cards`.
 - **Images** : seules les URL de base du CDN TCGdex sont stockées, sans extension (on ajoute `/high.webp` à l'affichage). Aucune image n'est stockée localement.
 - **`updatedAt`** : maintenu par Prisma pour ses propres écritures seulement. Un UPSERT en SQL brut (psycopg) doit le renseigner (`updatedAt = now()`). `cards.tcgdexUpdatedAt` est une autre date : le `updated` de TCGdex, qui permet de ne retraiter que les cartes modifiées.
-- **Hors contrat** : prix, prédictions, et le détail de jeu des cartes (attaques, talents, faiblesses, résistances, coût de retraite, description, effet). Les champs `predictedPrice`, `priceLowerBound` et `priceUpperBound` de l'ancienne `CARD` sont retirés : ils appartiennent au worker de prédiction et n'ont pas encore de ticket backend. Les anciens champs `label` et `imageUrl` de `VARIANT` disparaissent aussi : TCGdex ne donne pas d'image par variante, et `type` / `subtype` / `stamps` / `foil` remplacent le libellé.
+- **Logo** : `licences_tcg.logoUrl` est une URL, vide dans le seed (TCGdex ne fournit pas de logo de licence) ; la source reste à choisir. Aucun fichier n'est stocké.
+- **Hors contrat** : prix, prédictions, légalité en tournoi (`legal`), `regulationMark` (inutiles à un collectionneur), drapeaux `has*` (déductibles de `variants`), et le détail de jeu des cartes (attaques, talents, faiblesses, résistances, coût de retraite, description, effet). Les champs `predictedPrice`, `priceLowerBound` et `priceUpperBound` de l'ancienne `CARD` sont retirés : ils appartiennent au worker de prédiction et n'ont pas encore de ticket backend. Les anciens champs `label` et `imageUrl` de `VARIANT` disparaissent aussi : TCGdex ne donne pas d'image par variante, et `type` / `subtype` / `stamps` / `foil` remplacent le libellé.

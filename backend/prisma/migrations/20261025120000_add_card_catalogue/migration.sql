@@ -1,18 +1,19 @@
 -- CreateTable
-CREATE TABLE "games" (
+CREATE TABLE "licences_tcg" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "logoUrl" TEXT,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "games_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "licences_tcg_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "sets" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "gameId" UUID NOT NULL,
+    "licenceTCGId" UUID NOT NULL,
     "tcgdexId" TEXT NOT NULL,
     "nameEn" TEXT NOT NULL,
     "nameFr" TEXT,
@@ -29,8 +30,6 @@ CREATE TABLE "sets" (
     "reverseCardCount" INTEGER,
     "holoCardCount" INTEGER,
     "firstEditionCardCount" INTEGER,
-    "legalStandard" BOOLEAN,
-    "legalExpanded" BOOLEAN,
     "logoUrlEn" TEXT,
     "logoUrlFr" TEXT,
     "symbolUrl" TEXT,
@@ -66,14 +65,6 @@ CREATE TABLE "cards" (
     "trainerTypeFr" TEXT,
     "energyTypeEn" TEXT,
     "energyTypeFr" TEXT,
-    "regulationMark" TEXT,
-    "legalStandard" BOOLEAN,
-    "legalExpanded" BOOLEAN,
-    "hasNormal" BOOLEAN NOT NULL DEFAULT false,
-    "hasReverse" BOOLEAN NOT NULL DEFAULT false,
-    "hasHolo" BOOLEAN NOT NULL DEFAULT false,
-    "hasFirstEdition" BOOLEAN NOT NULL DEFAULT false,
-    "hasWPromo" BOOLEAN NOT NULL DEFAULT false,
     "tcgdexUpdatedAt" TIMESTAMPTZ(6),
     "imageUrlEn" TEXT,
     "imageUrlFr" TEXT,
@@ -103,13 +94,13 @@ CREATE TABLE "variants" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "games_slug_key" ON "games"("slug");
+CREATE UNIQUE INDEX "licences_tcg_slug_key" ON "licences_tcg"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "sets_tcgdexId_key" ON "sets"("tcgdexId");
 
 -- CreateIndex
-CREATE INDEX "sets_gameId_idx" ON "sets"("gameId");
+CREATE INDEX "sets_licenceTCGId_idx" ON "sets"("licenceTCGId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "cards_tcgdexId_key" ON "cards"("tcgdexId");
@@ -121,7 +112,7 @@ CREATE INDEX "cards_setId_idx" ON "cards"("setId");
 CREATE UNIQUE INDEX "variants_cardId_tcgdexVariantId_key" ON "variants"("cardId", "tcgdexVariantId");
 
 -- AddForeignKey
-ALTER TABLE "sets" ADD CONSTRAINT "sets_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "games"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sets" ADD CONSTRAINT "sets_licenceTCGId_fkey" FOREIGN KEY ("licenceTCGId") REFERENCES "licences_tcg"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "cards" ADD CONSTRAINT "cards_setId_fkey" FOREIGN KEY ("setId") REFERENCES "sets"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -37,20 +37,18 @@ L'application permet à des collectionneurs de cartes à collectionner (TCG) de 
 Le catalogue est la colonne vertébrale de l'application. Il est organisé hiérarchiquement :
 
 ```
-Jeu (Game)  →  Set (extension)  →  Carte  →  Variante
+Licence TCG  →  Set (extension)  →  Carte  →  Variante
 ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 ```
 
-**`GAME`** — Représente un jeu de cartes (Pokémon, Magic: The Gathering, Yu-Gi-Oh!...). Identifié par son `slug` (`pokemon`).
+**`LICENCE_TCG`** — Représente un jeu de cartes (Pokémon, Magic: The Gathering, Yu-Gi-Oh!...). Identifié par son `slug` (`pokemon`) ; `logoUrl` est l'URL de son logo.
 
-**`SET`** — Une extension ou édition d'un jeu. Les champs `officialCardCount` (cartes imprimées, ex: 189) et `totalCardCount` (avec les cartes secrètes, ex: 201) permettent de suivre la complétude d'une collection (ex: "j'ai 45/201 cartes de ce set"). Le nom existe en anglais (`nameEn`) et en français (`nameFr`). Un set appartient à une série (`serieNameEn`/`serieNameFr`, ex: « Épée et Bouclier »), porte une abréviation officielle (`abbreviationOfficial`, ex: `DAA`, et `abbreviationFr` quand elle diffère : `TEM`), le code Pokémon TCG Online (`tcgOnlineCode`), le nombre d'impressions par type (`normalCardCount`, `reverseCardCount`, `holoCardCount`, `firstEditionCardCount`) et sa légalité en tournoi (`legalStandard`, `legalExpanded`).
+**`SET`** — Une extension ou édition d'une licence. Les champs `officialCardCount` (cartes imprimées, ex: 189) et `totalCardCount` (avec les cartes secrètes, ex: 201) permettent de suivre la complétude d'une collection (ex: "j'ai 45/201 cartes de ce set"). Le nom existe en anglais (`nameEn`) et en français (`nameFr`). Un set appartient à une série (`serieNameEn`/`serieNameFr`, ex: « Épée et Bouclier »), porte une abréviation officielle (`abbreviationOfficial`, ex: `DAA`, et `abbreviationFr` quand elle diffère : `TEM`), le code Pokémon TCG Online (`tcgOnlineCode`) et le nombre d'impressions par type (`normalCardCount`, `reverseCardCount`, `holoCardCount`, `firstEditionCardCount`).
 
 **`CARD`** — Une carte individuelle dans un set. Elle porte :
 - Des infos descriptives, en anglais et en français (`nameEn`/`nameFr`, `rarityEn`/`rarityFr`, `typesEn`/`typesFr`), ainsi que `number`, `hp` et `illustrator`
 - Des infos de jeu : `dexIds` (numéros du Pokédex national : relie toutes les cartes d'un même Pokémon), `evolveFromEn`/`evolveFromFr` (l'évolution précédente), `stageEn`/`stageFr` (Base, Niveau 1, VMAX…), `suffix` (V, ex…), `trainerTypeEn`/`trainerTypeFr` (Objet, Supporter, Stade, Outil) et `energyTypeEn`/`energyTypeFr` (de base ou spécial)
-- Des infos de légalité : `legalStandard` et `legalExpanded` (formats de tournoi), `regulationMark` (la lettre imprimée en bas des cartes récentes, qui décide de leur sortie du format Standard)
 - `tcgdexUpdatedAt` : la date de dernière modification de la fiche côté TCGdex, qui évite de retraiter les cartes inchangées
-- Les types d'impression qui existent (`hasNormal`, `hasReverse`, `hasHolo`, `hasFirstEdition`, `hasWPromo`)
 - Les URL des images du CDN TCGdex (`imageUrlEn`, `imageUrlFr`) : aucune image n'est stockée localement
 
 L'estimation de prix d'une carte n'est pas portée par `CARD` : elle sera modélisée avec les tables de prix.
@@ -75,7 +73,7 @@ L'estimation de prix d'une carte n'est pas portée par `CARD` : elle sera modél
 
 ### Collections
 
-**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Une collection est rattachée à un jeu (`GAME`). Le set d'appartenance des cartes est déductible via `COLLECTIONITEM → CARD → SET`, il n'est donc pas stocké directement sur la collection.
+**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Une collection est rattachée à une licence (`LICENCE_TCG`). Le set d'appartenance des cartes est déductible via `COLLECTIONITEM → CARD → SET`, il n'est donc pas stocké directement sur la collection.
 
 **`COLLECTIONITEM`** — Représente **une carte physique** dans une collection. Elle porte :
 - Une carte (`cardId`) — obligatoire

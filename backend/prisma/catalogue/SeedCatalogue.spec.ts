@@ -1,6 +1,6 @@
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { loadReferenceCatalogue } from './CatalogueFixtures';
-import { POKEMON_GAME, seedCatalogue } from './SeedCatalogue';
+import { POKEMON_LICENCE, seedCatalogue } from './SeedCatalogue';
 
 interface UpsertArgs {
   where: Record<string, unknown>;
@@ -9,7 +9,9 @@ interface UpsertArgs {
 }
 
 function createFakePrisma() {
-  const game = jest.fn((args: UpsertArgs) => Promise.resolve({ id: 'game-id', ...args.create }));
+  const licence = jest.fn((args: UpsertArgs) =>
+    Promise.resolve({ id: 'licence-id', ...args.create }),
+  );
   const cardSet = jest.fn((args: UpsertArgs) =>
     Promise.resolve({ id: `set-id-${String(args.where['tcgdexId'])}`, ...args.create }),
   );
@@ -20,14 +22,14 @@ function createFakePrisma() {
   const transaction = jest.fn((operations: Promise<unknown>[]) => Promise.all(operations));
 
   const prismaClient = {
-    game: { upsert: game },
+    licenceTCG: { upsert: licence },
     cardSet: { upsert: cardSet },
     card: { upsert: card },
     variant: { upsert: variant },
     $transaction: transaction,
   } as unknown as PrismaClient;
 
-  return { prismaClient, game, cardSet, card, variant, transaction };
+  return { prismaClient, licence, cardSet, card, variant, transaction };
 }
 
 describe('seedCatalogue', () => {
@@ -45,20 +47,20 @@ describe('seedCatalogue', () => {
     });
   });
 
-  it('upserts the game on its slug', async () => {
-    const { prismaClient, game } = createFakePrisma();
+  it('upserts the licence on its slug', async () => {
+    const { prismaClient, licence } = createFakePrisma();
 
     await seedCatalogue(prismaClient);
 
-    expect(game).toHaveBeenCalledTimes(1);
-    expect(game).toHaveBeenCalledWith({
-      where: { slug: POKEMON_GAME.slug },
-      update: { name: POKEMON_GAME.name },
-      create: { slug: POKEMON_GAME.slug, name: POKEMON_GAME.name },
+    expect(licence).toHaveBeenCalledTimes(1);
+    expect(licence).toHaveBeenCalledWith({
+      where: { slug: POKEMON_LICENCE.slug },
+      update: { name: POKEMON_LICENCE.name },
+      create: { slug: POKEMON_LICENCE.slug, name: POKEMON_LICENCE.name },
     });
   });
 
-  it('upserts each set on its TCGdex id, attached to the game', async () => {
+  it('upserts each set on its TCGdex id, attached to the licence', async () => {
     const { prismaClient, cardSet } = createFakePrisma();
 
     await seedCatalogue(prismaClient);
@@ -69,8 +71,8 @@ describe('seedCatalogue', () => {
       { tcgdexId: 'sv03.5' },
     ]);
     for (const [args] of cardSet.mock.calls) {
-      expect(args.create['gameId']).toBe('game-id');
-      expect(args.update['gameId']).toBe('game-id');
+      expect(args.create['licenceTCGId']).toBe('licence-id');
+      expect(args.update['licenceTCGId']).toBe('licence-id');
     }
   });
 
@@ -121,7 +123,7 @@ describe('seedCatalogue', () => {
     await seedCatalogue(first.prismaClient);
     await seedCatalogue(second.prismaClient);
 
-    expect(second.game.mock.calls).toEqual(first.game.mock.calls);
+    expect(second.licence.mock.calls).toEqual(first.licence.mock.calls);
     expect(second.cardSet.mock.calls).toEqual(first.cardSet.mock.calls);
     expect(second.card.mock.calls).toEqual(first.card.mock.calls);
     expect(second.variant.mock.calls).toEqual(first.variant.mock.calls);
