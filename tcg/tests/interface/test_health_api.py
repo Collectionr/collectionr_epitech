@@ -4,14 +4,14 @@ from fastapi.testclient import TestClient
 from psycopg_pool import PoolTimeout
 
 from tcg_service.config import Settings
-from tcg_service.database import Database
-from tcg_service.main import create_app
+from tcg_service.infrastructure.persistence.database import Database
+from tcg_service.interface.api.app import create_app
 from tests.conftest import FakeDatabase
 
 
 def test_health_returns_200_when_database_is_up(settings: Settings) -> None:
     database = FakeDatabase()
-    with TestClient(create_app(settings, database)) as client:  # type: ignore[arg-type]
+    with TestClient(create_app(settings, database)) as client:
         response = client.get("/health")
 
     assert response.status_code == 200
@@ -36,7 +36,7 @@ def test_health_returns_200_when_database_is_up(settings: Settings) -> None:
 def test_health_returns_503_when_database_is_down(
     settings: Settings, error: Exception
 ) -> None:
-    with TestClient(create_app(settings, FakeDatabase(error))) as client:  # type: ignore[arg-type]
+    with TestClient(create_app(settings, FakeDatabase(error))) as client:
         response = client.get("/health")
 
     assert response.status_code == 503
@@ -49,7 +49,7 @@ def test_health_never_leaks_credentials(settings: Settings) -> None:
     error = psycopg.OperationalError(
         'connection to server at "db.invalid" failed: password "s3cr3t-pwd" rejected'
     )
-    with TestClient(create_app(settings, FakeDatabase(error))) as client:  # type: ignore[arg-type]
+    with TestClient(create_app(settings, FakeDatabase(error))) as client:
         response = client.get("/health")
 
     for secret in ("s3cr3t-pwd", "tcg_user", "db.invalid", "rejected"):
@@ -58,14 +58,14 @@ def test_health_never_leaks_credentials(settings: Settings) -> None:
 
 def test_lifespan_opens_and_closes_database(settings: Settings) -> None:
     database = FakeDatabase()
-    with TestClient(create_app(settings, database)):  # type: ignore[arg-type]
+    with TestClient(create_app(settings, database)):
         assert database.opened
         assert not database.closed
     assert database.closed
 
 
 def test_health_returns_503_with_unreachable_postgres() -> None:
-    # Pool réel vers un port fermé : valide la gestion d'erreur sans base réelle.
+    # Real pool pointing at a closed port: checks error handling without a database.
     unreachable = Settings(
         _env_file=None,
         database_url="postgresql://u:p@127.0.0.1:1/db",
@@ -83,6 +83,6 @@ def test_docs_are_disabled_in_staging() -> None:
     staging = Settings(
         _env_file=None, app_env="staging", database_url="postgresql://u:p@h/db"
     )
-    with TestClient(create_app(staging, FakeDatabase())) as client:  # type: ignore[arg-type]
+    with TestClient(create_app(staging, FakeDatabase())) as client:
         assert client.get("/docs").status_code == 404
         assert client.get("/health").json()["environment"] == "staging"

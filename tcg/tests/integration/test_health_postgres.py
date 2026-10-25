@@ -1,6 +1,6 @@
-"""Tests d'intégration : nécessitent une vraie base PostgreSQL.
+"""Integration tests: they need a real PostgreSQL database.
 
-Lancés uniquement si TCG_TEST_DATABASE_URL est défini, sinon ignorés.
+Run only when TCG_TEST_DATABASE_URL is set, skipped otherwise.
 """
 
 import os
@@ -9,14 +9,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tcg_service.config import Settings
-from tcg_service.database import Database
-from tcg_service.main import create_app
+from tcg_service.infrastructure.persistence.database import Database
+from tcg_service.interface.api.app import create_app
 
 DATABASE_URL = os.environ.get("TCG_TEST_DATABASE_URL")
 
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(not DATABASE_URL, reason="TCG_TEST_DATABASE_URL non défini"),
+    pytest.mark.skipif(not DATABASE_URL, reason="TCG_TEST_DATABASE_URL is not set"),
 ]
 
 

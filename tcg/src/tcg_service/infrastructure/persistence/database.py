@@ -1,10 +1,22 @@
+from typing import Protocol
+
 from psycopg_pool import ConnectionPool
 
 from tcg_service.config import Settings
 
 
+class DatabaseProtocol(Protocol):
+    """Structural type of `Database`, so tests can inject a fake without a real pool."""
+
+    def open(self) -> None: ...
+
+    def close(self) -> None: ...
+
+    def ping(self) -> None: ...
+
+
 class Database:
-    """Pool de connexions psycopg 3 vers la base PostgreSQL partagée."""
+    """psycopg 3 connection pool to the shared PostgreSQL database."""
 
     def __init__(self, settings: Settings) -> None:
         self._acquire_timeout = settings.health_check_timeout
@@ -23,15 +35,15 @@ class Database:
         )
 
     def open(self) -> None:
-        # wait=False : le service démarre même si PostgreSQL est indisponible.
+        # wait=False: the service starts even when PostgreSQL is unavailable.
         self._pool.open(wait=False)
 
     def close(self) -> None:
         self._pool.close()
 
     def ping(self) -> None:
-        """Exécute `SELECT 1` ; lève une exception si la base est injoignable."""
+        """Run `SELECT 1`; raises when the database is unreachable."""
         with self._pool.connection(timeout=self._acquire_timeout) as connection:
             row = connection.execute("SELECT 1").fetchone()
         if row != (1,):
-            raise RuntimeError("Réponse inattendue de PostgreSQL")
+            raise RuntimeError("Unexpected response from PostgreSQL")

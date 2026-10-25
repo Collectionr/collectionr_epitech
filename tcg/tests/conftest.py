@@ -4,7 +4,7 @@ from tcg_service.config import Settings
 
 
 class FakeDatabase:
-    """Doublure de `Database` : aucune connexion réelle."""
+    """Test double for `Database`: no real connection."""
 
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error

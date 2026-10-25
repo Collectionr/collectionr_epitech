@@ -5,6 +5,11 @@ Il expose uniquement `GET /health` : aucune route métier, aucune synchronisatio
 worker pour l'instant. Il est indépendant du backend NestJS (`backend/`) et se connecte à la
 **même base PostgreSQL partagée** (source de vérité), via `psycopg` 3.
 
+**Règle d'écriture en base** : le schéma (tables, colonnes, clés uniques, migrations) est le
+**contrat d'interface** généré par le backend (Prisma). Le microservice TCG ne crée, ne migre et ne
+modifie aucune table : il transforme les données des API externes et les écrit uniquement dans les
+tables de ce contrat (UPSERT idempotents). Pour l'instant il ne fait qu'un `SELECT 1`.
+
 ## Prérequis
 
 - Python ≥ 3.11
@@ -12,19 +17,30 @@ worker pour l'instant. Il est indépendant du backend NestJS (`backend/`) et se 
 
 ## Structure
 
+Clean Architecture en 4 couches, alignée sur le backend (cf.
+[`docs/microservices/architecture-microservices.md`](../docs/microservices/architecture-microservices.md)).
+
 ```text
 tcg/
-├── pyproject.toml            # dépendances + configuration Ruff / Black / Pytest
-├── .env.example              # variables d'environnement documentées
+├── pyproject.toml                # dépendances + configuration Ruff (lint et format) / Pytest / couverture
+├── .env.example                  # variables d'environnement documentées
 ├── src/tcg_service/
-│   ├── main.py               # point d'entrée FastAPI (create_app / app_factory)
-│   ├── config.py             # configuration validée (Pydantic Settings)
-│   ├── database.py           # pool de connexions psycopg 3
-│   ├── routers/              # routes HTTP (health)
-│   ├── services/             # logique applicative (HealthService)
-│   └── models/               # schémas Pydantic (HealthResponse)
-└── tests/                    # tests unitaires (mocks) + tests/integration (PostgreSQL réel)
+│   ├── main.py                   # point d'entrée uvicorn (app_factory)
+│   ├── config.py                 # configuration validée (Pydantic Settings)
+│   ├── domain/                   # entités et ports — aucun import de framework (bloqué par Ruff)
+│   │   ├── entities/             # HealthStatus, DependencyHealth
+│   │   └── ports/                # HealthIndicatorPort
+│   ├── application/              # cas d'usage (CheckHealthUseCase)
+│   ├── infrastructure/
+│   │   └── persistence/          # pool psycopg 3 (Database), PostgresHealthIndicator
+│   └── interface/
+│       └── api/                  # FastAPI : app (create_app), routes /health, schémas Pydantic
+└── tests/                        # miroir de src/ + tests/integration (PostgreSQL réel)
 ```
+
+`domain/` n'importe aucun framework (FastAPI, Pydantic, psycopg, redis) : la règle `TID251` de Ruff
+le vérifie. Les use cases dépendent de ports (`domain/ports/`), implémentés dans `infrastructure/` et
+câblés dans `interface/api/app.py`.
 
 ## Installation
 
@@ -70,7 +86,9 @@ Il est destiné à un usage interne (appelé par le backend), ne pas l'exposer a
 curl -i http://127.0.0.1:8000/health
 ```
 
-Le service exécute un `SELECT 1` sur PostgreSQL (timeout `HEALTH_CHECK_TIMEOUT`).
+Comme sur le backend, `/health` est un endpoint unique, hors de tout préfixe, qui vérifie
+réellement les dépendances (PostgreSQL ici) : `200` si tout est disponible, `503` sinon. Le service
+exécute un `SELECT 1` sur PostgreSQL (timeout `HEALTH_CHECK_TIMEOUT`).
 
 PostgreSQL disponible — `200` :
 
@@ -90,14 +108,14 @@ type d'exception est journalisé.
 
 ## Qualité
 
+Ruff est l'unique outil de qualité : lint et formatage.
+
 ```bash
 ruff check .                 # lint
-black --check .              # vérification du formatage (black . pour corriger)
+ruff format --check .        # vérification du formatage (ruff format . pour corriger)
 pytest                       # tests unitaires (aucune base requise)
-pytest --cov                 # avec couverture (seuil 70 %)
+pytest --cov                 # avec couverture (seuil 50 %, cf. Document QA)
 ```
-
-Ruff ne fait que du lint (pas de `ruff format`) : Black est le seul formateur.
 
 ## Vérifier la connexion PostgreSQL
 
