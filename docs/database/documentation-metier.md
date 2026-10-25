@@ -37,19 +37,25 @@ L'application permet à des collectionneurs de cartes à collectionner (TCG) de 
 Le catalogue est la colonne vertébrale de l'application. Il est organisé hiérarchiquement :
 
 ```
-Licence TCG  →  Set (extension)  →  Carte  →  Variante
+Jeu (Game)  →  Set (extension)  →  Carte  →  Variante
 ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 ```
 
-**`LICENCE_TCG`** — Représente un jeu de cartes (Pokémon, Magic: The Gathering, Yu-Gi-Oh!...).
+**`GAME`** — Représente un jeu de cartes (Pokémon, Magic: The Gathering, Yu-Gi-Oh!...). Identifié par son `slug` (`pokemon`).
 
-**`SET`** — Une extension ou édition d'une licence. Le champ `totalCards` permet de suivre la complétude d'une collection (ex: "j'ai 45/200 cartes de ce set").
+**`SET`** — Une extension ou édition d'un jeu. Les champs `officialCardCount` (cartes imprimées, ex: 189) et `totalCardCount` (avec les cartes secrètes, ex: 201) permettent de suivre la complétude d'une collection (ex: "j'ai 45/201 cartes de ce set"). Le nom existe en anglais (`nameEn`) et en français (`nameFr`). Un set appartient à une série (`serieNameEn`/`serieNameFr`, ex: « Épée et Bouclier »), porte une abréviation officielle (`abbreviationOfficial`, ex: `DAA`, et `abbreviationFr` quand elle diffère : `TEM`), le code Pokémon TCG Online (`tcgOnlineCode`), le nombre d'impressions par type (`normalCardCount`, `reverseCardCount`, `holoCardCount`, `firstEditionCardCount`) et sa légalité en tournoi (`legalStandard`, `legalExpanded`).
 
 **`CARD`** — Une carte individuelle dans un set. Elle porte :
-- Des infos descriptives (`name`, `number`, `rarity`, `types`, `hp`)
-- Une **estimation de prix** (`predictedPrice`, `priceLowerBound`, `priceUpperBound`) représentant la valeur estimée de la carte basée sur les données historiques de prix
+- Des infos descriptives, en anglais et en français (`nameEn`/`nameFr`, `rarityEn`/`rarityFr`, `typesEn`/`typesFr`), ainsi que `number`, `hp` et `illustrator`
+- Des infos de jeu : `dexIds` (numéros du Pokédex national : relie toutes les cartes d'un même Pokémon), `evolveFromEn`/`evolveFromFr` (l'évolution précédente), `stageEn`/`stageFr` (Base, Niveau 1, VMAX…), `suffix` (V, ex…), `trainerTypeEn`/`trainerTypeFr` (Objet, Supporter, Stade, Outil) et `energyTypeEn`/`energyTypeFr` (de base ou spécial)
+- Des infos de légalité : `legalStandard` et `legalExpanded` (formats de tournoi), `regulationMark` (la lettre imprimée en bas des cartes récentes, qui décide de leur sortie du format Standard)
+- `tcgdexUpdatedAt` : la date de dernière modification de la fiche côté TCGdex, qui évite de retraiter les cartes inchangées
+- Les types d'impression qui existent (`hasNormal`, `hasReverse`, `hasHolo`, `hasFirstEdition`, `hasWPromo`)
+- Les URL des images du CDN TCGdex (`imageUrlEn`, `imageUrlFr`) : aucune image n'est stockée localement
 
-**`VARIANT`** — Une même carte peut exister en plusieurs variantes physiques : normale, holographique, reverse holo, first edition, etc. Chaque variante a sa propre image et son propre historique de prix. Toutes les cartes n'ont pas forcément de variante.
+L'estimation de prix d'une carte n'est pas portée par `CARD` : elle sera modélisée avec les tables de prix.
+
+**`VARIANT`** — Une même carte peut exister en plusieurs variantes physiques : normale, holographique, reverse holo, first edition, etc. Chaque variante est décrite par des codes (`type`, `subtype` comme `shadowless`, `stamps` comme `1st-edition`, `foil`, `size`) et par les identifiants du produit chez Cardmarket, TCGPlayer et CardTrader, qui serviront à rattacher les prix. Elle a son propre historique de prix. Une impression se repère par la carte **et** le `variantId` TCGdex : cet identifiant est partagé par de nombreuses cartes. TCGdex ne fournit pas d'image par variante : l'image est celle de la carte.
 
 ---
 
@@ -69,7 +75,7 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 
 ### Collections
 
-**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Une collection est rattachée à une licence TCG. Le set d'appartenance des cartes est déductible via `COLLECTIONITEM → CARD → SET`, il n'est donc pas stocké directement sur la collection.
+**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Une collection est rattachée à un jeu (`GAME`). Le set d'appartenance des cartes est déductible via `COLLECTIONITEM → CARD → SET`, il n'est donc pas stocké directement sur la collection.
 
 **`COLLECTIONITEM`** — Représente **une carte physique** dans une collection. Elle porte :
 - Une carte (`cardId`) — obligatoire
