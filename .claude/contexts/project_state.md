@@ -2,7 +2,7 @@
 
 > Mettre à jour ce fichier quand un ticket est terminé, une décision prise, ou un piège découvert.
 
-_Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
+_Dernière mise à jour : 2026-10-25 (COLLR-573 — tokens et vérifications web/Android)_
 
 ## Fait
 
@@ -21,6 +21,12 @@ _Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
 - **COLLR-683** — Dockerfile du backend (sous-tâche de COLLR-528, déploiement K3s). Branche `COLLR-683/feat/dockerfile-backend` (depuis `dev`). `backend/Dockerfile` multi-étapes (deps → build → prod-deps → runtime `node:24.18.0-bookworm-slim`, utilisateur `node`, `CMD node dist/main.js`, port 3000) + `backend/.dockerignore`. Piège : `tsconfig.json` doit être présent avant `npm ci`, sinon Prisma génère le client en ESM et `dist` ne se charge plus. Image construite, `/health` répond (503 `degraded` sans Redis, 200 attendu avec Postgres + Redis). Lint, format, 130 tests OK.
 
 ## En cours / à venir
+
+- **COLLR-573 — Tokens Écrin (23/10/2026, branche `COLLR-573/feat/tokens-design`)** : repris par Lionel sur proposition de François. Valeurs dans `frontend/packages/shared/src/tokens`, mapping commun dans `frontend/styles/tailwindPreset.ts`, Tailwind 3.4.19 web + NativeWind mobile, sept graisses auto-hébergées/embarquées. `docs/frontend/docs/design-system.md` remplace la charte provisoire. Travail local à relire, pas encore mergé ; Storybook (594) et les atomes restent à réaliser. Décision 572 communiquée par François : UI dans `apps/web/src/components/atoms/`, `packages/shared` sans JSX ; formalisation Jira laissée au lead.
+  - Vérifications automatisées : typage, lint, format, build web et export Android avec les sept TTF réussis. Après correctifs : 19 tests Vitest + 8 tests Jest réussis. Node 24.19 utilisé pour les contrôles ; le Node par défaut du terminal lors de ces contrôles (24.15) était inférieur à la version demandée par le projet.
+  - Correctifs après audit : graisses centralisées dans `fontWeights`, aucun interligne ajouté pour Button (non spécifié), classe native `focus-indicator` issue de `borders.focus` à appliquer aux futurs contrôles. NativeWind 4 ne résout pas les variables CSS de durée comme le navigateur : le preset mobile produit des surcharges `prefers-reduced-motion` à zéro. `MotionAccessibility` synchronise aussi Reanimated globalement avec les changements système. Tests de compilation des styles et de synchronisation : 19 tests Vitest + 8 tests Jest réussis.
+  - État au 25/10/2026 : code commité dans `9741474` (`feat(frontend): ajoute les tokens du design system`). Lionel a lancé la version web sur PC et la version mobile sur téléphone Android avec Expo Go compatible SDK 57. Les écrans minimaux affichent le fond Écrin et le texte Collectionr ; le conflit avec Expo Go SDK 58 est résolu. L'avertissement de développement de `ReducedMotionConfig` a été identifié et n'empêche pas le démarrage.
+  - Validation visuelle complète en attente : Storybook (COLLR-594) n'est pas encore installé et aucun écran de démonstration exhaustif des tokens n'existe. Le démarrage web/Android ne valide donc pas tous les styles, états, breakpoints, focus et comportements de réduction des animations. iOS non testé. Storybook web ne couvrira pas à lui seul le rendu natif, qui devra aussi être vérifié sur mobile.
 
 - **Merge COLLR-664 ↔ COLLR-665** : les deux branches ajoutent un modèle en fin de `schema.prisma` et un ADR après ADR-011 dans `architecture.md` (ainsi qu'une entrée « Fait » ici) → conflits attendus au second merge. Garder les deux (ADR-012 avant ADR-013), puis `prisma validate` + `prisma migrate status` : les deux migrations (`20260923…_add_data_retention_policies`, `20260924…_add_roles_permissions`) sont indépendantes, l'ordre des timestamps suffit.
 - **TODO (COLLR-665) — Liste des permissions RBAC à définir avec l'équipe avant COLLR-449.** Tables `permissions`/`role_permissions` créées mais vides : aucune liste n'existe dans `docs/` (seuls exemples : `collection:write`, `card:delete`). À décider : liste des `ressource:action` et matrice rôle → permissions. Pour l'instant seuls `USER` et `ADMIN` existent ; `MODERATOR` (retiré du seed le 2026-10-12) et ses droits sont à cadrer dans [COLLR-679](https://collectionr.atlassian.net/browse/COLLR-679), avant le back-office V1. Ne pas en inventer côté backend.

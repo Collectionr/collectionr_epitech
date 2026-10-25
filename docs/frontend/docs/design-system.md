@@ -1,320 +1,105 @@
-> **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-03-22
-> **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
+# Design system — Collectionr, thème Écrin
 
-# Design System -- CollectionR
+Référence : Gold Master v1.1, planche 08.1, et critères de COLLR-573 incluant les décisions PO du 16/10/2026. Mise à jour : 25/10/2026.
 
-Ce document est la reference unique pour la charte graphique. Toute couleur, espacement ou typographie doit venir d'ici. Aucune valeur magique (hex en dur, taille en pixels arbitraire) ne doit apparaitre dans le code sans etre definie dans ce design system.
+Cette version remplace l'ancienne charte provisoire (Inter, palette claire, avatars ronds, shimmer). La variante Papier n'est pas implémentée ici.
 
----
+## Source unique et consommation
 
-## 1. Palette de couleurs
+Les valeurs vivent dans `frontend/packages/shared/src/tokens/`, sous forme d'objets TypeScript `as const`, sans JSX ni dépendance à React, Tailwind ou React Native. Import applicatif :
 
-Chaque couleur a un token Tailwind correspondant. Utiliser toujours le token, jamais la valeur hex directement.
-
-| Nom | Token Tailwind | Hex | Utilisation | (à confirmer une fois la maquette finis)
-|---|---|---|---|
-| Primary | `primary` | `#3B82F6` | Actions principales, liens, boutons CTA |
-| Primary Dark | `primary-dark` | `#2563EB` | Hover et active sur les elements primaires |
-| Secondary | `secondary` | `#8B5CF6` | Elements secondaires, badges de rarete |
-| Success | `success` | `#22C55E` | Confirmation, ajout reussi, prix en hausse |
-| Warning | `warning` | `#F59E0B` | Avertissements, etat moyen d'une carte |
-| Error | `error` | `#EF4444` | Erreurs, suppression, prix en baisse |
-| Background | `bg-app` | `#F8FAFC` | Arriere-plan principal de l'application |
-| Surface | `surface` | `#FFFFFF` | Arriere-plan des cartes, modals, panels |
-| Surface Alt | `surface-alt` | `#F1F5F9` | Arriere-plan alternatif (lignes paires, sections) |
-| Text | `text-primary` | `#0F172A` | Texte principal, titres, corps de texte |
-| Text Muted | `text-muted` | `#64748B` | Texte secondaire, labels, descriptions |
-| Text Inverted | `text-inverted` | `#FFFFFF` | Texte sur fond sombre ou colore |
-| Border | `border-default` | `#E2E8F0` | Bordures par defaut, separateurs |
-
-### Mode sombre (prevu pour la phase 2)
-
-Les tokens seront inverses via les variables CSS Tailwind. Le code n'a pas besoin de changer si les tokens sont utilises correctement.
-
----
-
-## 2. Typographie
-
-Le choix de la police est guide par la lisibilite sur ecran et la compatibilite cross-platform.
-
-### Police principale
-
-```
-Font family : Inter
-Fallback    : -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+```ts
+import { colors, typography, spacing, radius, motion, opacity, breakpoints } from '@shared/tokens';
 ```
 
-### Echelle de tailles
-
-| Token | Taille | Line Height | Utilisation |
-|---|---|---|---|
-| `text-xs` | 12px | 16px | Mentions legales, metadata secondaire |
-| `text-sm` | 14px | 20px | Labels, descriptions, texte secondaire |
-| `text-base` | 16px | 24px | Corps de texte principal |
-| `text-lg` | 18px | 28px | Sous-titres, noms de cartes dans les listes |
-| `text-xl` | 20px | 28px | Titres de sections |
-| `text-2xl` | 24px | 32px | Titres de pages |
-| `text-3xl` | 30px | 36px | Titres principaux, valeur totale de collection |
+Les tailles/espacements sont des nombres en pixels, les durées en millisecondes, les opacités entre 0 et 1, les interlignes des ratios et les crénages des nombres en em. Les unités CSS sont ajoutées par l'adaptateur. Les graisses sont définies dans `fontWeights` puis réutilisées par les variantes, les noms des fontes natives et le mapping Tailwind.
 
-### Regles d'usage
+`frontend/styles/tailwindPreset.ts` construit le mapping commun. Les configurations Tailwind du web et de NativeWind chargent ce fichier TypeScript via Jiti. Tailwind 3.4.19 est utilisé sur les deux plateformes. Le preset remplace les palettes, espacements, arrondis et typographies par défaut : pas de couleurs ou tailles concurrentes introduites par `extend`.
 
-| Element | Taille | Poids | Token Tailwind |
-|---|---|---|---|
-| Titre de page | `text-2xl` | Bold | `text-2xl font-bold` |
-| Titre de section | `text-xl` | Semibold | `text-xl font-semibold` |
-| Nom de carte | `text-lg` | Semibold | `text-lg font-semibold` |
-| Corps de texte | `text-base` | Normal | `text-base font-normal` |
-| Label de formulaire | `text-sm` | Medium | `text-sm font-medium` |
-| Prix | `text-lg` | Bold | `text-lg font-bold` |
-| Description, metadata | `text-sm` | Normal | `text-sm text-muted` |
+Exemples de classes : `bg-ecrin`, `bg-ecrin-elevated`, `text-archive`, `border-lisere`, `p-space-16`, `gap-space-8`, `rounded-card`, `rounded-none`, `aspect-card`, `opacity-disabled`, `duration-instant`, `ease-lock`.
 
----
+Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Les futurs composants passent par l'atome Text, sauf Button qui utilise directement `text-button-label`. Les écrans de démarrage utilisent provisoirement ces classes en attendant Text (COLLR-575).
 
-## 3. Espacements
+## Couleurs
 
-L'unite de base est 4px. Tous les espacements sont des multiples de cette unite pour garantir un rythme visuel coherent.
+| Token | Valeur | Usage |
+| --- | --- | --- |
+| ecrin | #0C0E12 | Fond dominant, environ 70 % |
+| ecrin-elevated | #12151B | Panneaux, surfaces et champs |
+| archive | #E6E4DC | Texte principal, structure, environ 25 % |
+| signal | #2E4BFF | Identité, réticules, CTA, grades IA, 5 % maximum |
+| acier | #6E727A | Décoration uniquement, jamais du texte |
+| acier-texte | #8A8F98 | Texte secondaire et bordures de contrôles |
+| alerte | #E5484D | Erreurs et actions destructrices irréversibles |
+| blanc | #FFFFFF | Print / slab |
+| lisere | rgba(230,228,220,0.15) | Bordure fine des cartes |
 
-| Token Tailwind | Valeur | Utilisation courante |
-|---|---|---|
-| `p-1` / `gap-1` | 4px | Espacement minimal entre icone et texte |
-| `p-2` / `gap-2` | 8px | Padding interne des badges, espacement entre elements proches |
-| `p-3` / `gap-3` | 12px | Espacement entre elements de formulaire |
-| `p-4` / `gap-4` | 16px | Padding interne des cartes, espacement standard |
-| `p-5` / `gap-5` | 20px | Padding des sections |
-| `p-6` / `gap-6` | 24px | Marge entre blocs de contenu |
-| `p-8` / `gap-8` | 32px | Marge entre sections majeures |
-| `p-12` / `gap-12` | 48px | Espacement vertical entre grandes sections de page |
+Signal ne porte aucun texte inférieur à 18 px sur Écrin et ne sert jamais aux cotes. Les contrôles utilisent acier-texte pour leur bordure, pas le liséré faible d'une carte. Pas d'ombre sur fond sombre.
 
-### Convention par composant
+Les couleurs de liséré interactif sont dérivées d'Archive et des opacités communes : `lisere-hover` (40 %) et `lisere-active` (90 %).
 
-| Composant | Padding interne | Gap entre enfants |
-|---|---|---|
-| Bouton | `px-4 py-2` | `gap-2` (icone + texte) |
-| Carte (card) | `p-4` | `gap-3` |
-| Section de page | `p-6` | `gap-4` |
-| Modal | `p-6` | `gap-4` |
-| Liste d'items | -- | `gap-3` |
+## Typographie et polices locales
 
----
+| Variante | Taille | Interligne | Crénage | Famille / graisse |
+| --- | --- | --- | --- | --- |
+| display | 96 px, 48 sous 1280 px | 1 | -0,03 em | Schibsted 900 |
+| h1 | 56 px, 36 sous 1280 px | 1,07 | -0,02 em | Schibsted 700 |
+| h2 | 32 px | 1,19 | -0,01 em | Schibsted 700 |
+| body | 16 px | 26 px | 0 | Schibsted 400 |
+| caption | 12 px | 16 px | +0,02 em | Schibsted 500 |
+| data | 14 px | 20 px | +0,01 em | Plex Mono 500 |
+| button-label | 14 px | Non spécifié : aucun token ni style d'interligne ajouté | +0,14 em | Plex Mono 600, uppercase |
 
-## 4. Border radius
+Aucun italique. Schibsted charge uniquement 400, 500, 700, 800, 900 ; Plex Mono uniquement 500, 600. Le web importe les fichiers latins `@fontsource` dans `main.tsx` : ils sont servis avec l'application, avec `font-display: swap`.
 
-La coherence des arrondis contribue a l'identite visuelle. Utiliser toujours les tokens, jamais de valeurs arbitraires.
+Le mobile charge les sept TTF embarqués via `expo-font` et `src/config/fonts.ts`. Malgré leur nom, les paquets `@expo-google-fonts` utilisés ici ne font aucun appel à Google Fonts : les imports ciblent les fichiers locaux par graisse. Le rendu attend le chargement ; une erreur de chargement est remontée, sans repli silencieux permanent.
 
-| Element | Token Tailwind | Valeur |
-|---|---|---|
-| Boutons | `rounded-lg` | 8px |
-| Cartes (card) | `rounded-xl` | 12px |
-| Inputs | `rounded-lg` | 8px |
-| Badges | `rounded-full` | 9999px |
-| Modals | `rounded-2xl` | 16px |
-| Images de cartes | `rounded-lg` | 8px |
-| Avatars | `rounded-full` | 9999px |
+React Native utilise une famille distincte par fichier/graisse. Le preset choisit cette famille pour chaque variante au lieu de demander une graisse synthétique. Pour une surcharge de graisse native, utiliser la famille correspondante exportée par `fonts.sans.native`, pas seulement `font-bold`.
 
----
+Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web applique `font-variant-numeric: tabular-nums`. Sur mobile, IBM Plex Mono fournit naturellement des chiffres de largeur identique ; NativeWind 4 ne prend pas en charge `font-variant-numeric`.
 
-## 5. Ombres
+## Dimensions et opacités
 
-Les ombres creent la hierarchie visuelle en simulant la profondeur. Chaque niveau correspond a un usage precis.
+- Espacements : `space-4`, `space-8`, `space-12`, `space-16`, `space-24`, `space-32`, `space-48`, `space-64`.
+- Arrondis : `radius.card` = 6 px, `radius.none` = 0. Avatar et Badge sont carrés ; pas de `rounded-full`.
+- Ratio : `aspectRatio.card` = 63/88.
+- Bordure fine : `borders.thin` = 1 px.
+- Disabled : `opacity.disabled` = 0,4.
+- Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
-| Element | Token Tailwind | Utilisation |
-|---|---|---|
-| Cartes au repos | `shadow-sm` | Elevation legere, element au niveau de la surface |
-| Cartes au hover | `shadow-md` | Retour visuel au survol |
-| Dropdowns, popovers | `shadow-lg` | Element flottant au-dessus du contenu |
-| Modals | `shadow-xl` | Element en superposition avec un backdrop |
-| Cartes glissees (drag) | `shadow-2xl` | Element en cours de deplacement |
+## Mouvement et focus
 
----
+| Durée | Valeur | Usage |
+| --- | --- | --- |
+| instant | 120 ms | Hover, liséré, focus |
+| snap | 180 ms | Verrouillage, toggle, coche |
+| signature | 320 ms | Entrée de réticule, logo |
+| sequence | 400 ms | Balayage multi-cibles |
 
-## 6. Icones
+Easing unique : `cubic-bezier(0.2,0,0,1)`. Aucun ressort, rebond, scale de pression, spinner ou shimmer générique. Les animations génériques de Tailwind sont retirées.
 
-Les icones sont utilisees pour renforcer la comprehension sans remplacer le texte. Elles sont toujours accompagnees d'un label accessible.
+Sur le web, les durées utilisent des variables CSS mises à zéro dans `prefers-reduced-motion: reduce`. Une animation CSS spécifique doit également utiliser `var(--duration-...)`. Sur mobile, le preset produit les surcharges de durée à zéro pour les classes de transition et de durée, via la même media query reconnue par NativeWind (AccessibilityInfo).
 
-### Bibliotheque
+`MotionAccessibility`, monté une fois dans `App.tsx`, synchronise également la préférence système avec la configuration globale de Reanimated, pour les animations programmées directement. Il suit les changements pendant l'utilisation, ignore une lecture initiale devenue obsolète et désactive les animations si cette lecture échoue. Les animations de l'application utilisent NativeWind ou Reanimated, avec les tokens de durée ; ne pas contourner cette configuration avec une surcharge locale `ReduceMotion.Never` ou un autre moteur d'animation.
 
-```
-Lucide Icons (lucide-react / lucide-react-native)
-```
-
-Lucide est choisie pour sa coherence visuelle, sa legerte et sa compatibilite React Native.
-
-### Tailles standard
-
-| Taille | Valeur | Utilisation |
-|---|---|---|
-| Small | 16px | Icones inline dans le texte, badges |
-| Medium | 20px | Icones de boutons, icones de navigation |
-| Large | 24px | Icones de tab bar, icones d'actions principales |
+Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depuis `borders.focus`. Ne pas supprimer cet indicateur dans un composant. Sur mobile, les contrôles focusables portent la classe commune `focus-indicator` : le preset applique les mêmes tokens à l'état `:focus`, via les propriétés natives `outlineWidth`, `outlineOffset`, `outlineColor`, `outlineStyle`. Les propriétés outline sont disponibles dans la nouvelle architecture React Native utilisée ici. Aucun contrôle n'existe encore ; cette classe devra être ajoutée à chaque futur contrôle natif. Les valeurs et le comportement sont centralisés, pas réécrits dans chaque composant.
 
-### Convention d'utilisation
+## Décisions PO du 16/10/2026
 
-```typescript
-import { Search, Plus, Trash2 } from 'lucide-react';
+- Un atome peut importer uniquement Text comme autre atome.
+- Button n'importe aucun atome et utilise son token typographique réservé.
+- Avatar et Badge sont carrés.
+- Badge : fond Archive, chiffre Écrin ; une notification ordinaire n'utilise ni Signal ni Alerte.
+- Checkbox cochée : fond Archive et coche Écrin.
+- Alerte est autorisé pour les actions destructrices. Button danger reste transparent, bordure/texte Alerte.
+- Cotes : hausse en Archive avec ↗ ; baisse en acier-texte avec ↘. Ni rouge/vert, ni Signal.
 
-// Toujours specifier la taille et l'accessibilite
-<Search size={20} aria-label="Rechercher" />
-```
+## Vérification et extension
 
----
+Au 25/10/2026, les contrôles automatisés ont réussi et Lionel a lancé les versions web sur PC et mobile sur Android avec Expo Go SDK 57. Les écrans actuels affichent uniquement Collectionr avec les styles de base : ce démarrage ne constitue pas une validation visuelle exhaustive des tokens. Cette validation reste en attente de Storybook (COLLR-594), non installé, ou d'un écran de démonstration dédié, non créé. Les variantes typographiques, espacements, états, breakpoints, focus et animations restent à examiner visuellement ; le rendu natif devra être vérifié séparément du web. iOS n'a pas été testé.
 
-## 7. Prix et valeurs monetaires
+Depuis `frontend/` : `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`, `npm run build`. Export Android : `npm run export -w @collectionr/mobile -- --platform android`.
 
-Les prix sont un element central de l'application. Leur mise en forme doit etre immediatement reconnaissable et coherente.
+Les tests dans `styles/tailwindPreset.test.ts` compilent les configurations réelles web/mobile et vérifient le raccordement, le responsive, le focus (y compris sa conversion en propriétés natives) et les transitions natives, notamment reduced motion. `MotionAccessibility.test.tsx` vérifie la synchronisation avec Reanimated au démarrage et après un changement système, les erreurs et une réponse initiale tardive. Ils ne recopient pas une table de valeurs statiques. La compilation et les tests ne remplacent pas une validation visuelle sur appareil avec clavier externe.
 
-### Format d'affichage
-
-```
-Format : X,XX EUR
-Separateur decimal : virgule
-Separateur milliers : espace
-Symbole : EUR apres le montant
-```
-
-### Couleurs selon la tendance
-
-| Tendance | Couleur | Token | Exemple |
-|---|---|---|---|
-| Hausse | Vert | `text-success` | `+2,50 EUR` |
-| Baisse | Rouge | `text-error` | `-1,30 EUR` |
-| Stable | Gris | `text-muted` | `0,00 EUR` |
-
-### Exemple de composant PriceTag
-
-```typescript
-interface PriceTagProps {
-  value: number;
-  trend?: 'up' | 'down' | 'stable';
-  currency?: string;
-}
-
-function PriceTag({ value, trend = 'stable', currency = 'EUR' }: PriceTagProps) {
-  const trendClasses = {
-    up: 'text-success',
-    down: 'text-error',
-    stable: 'text-muted',
-  };
-
-  const prefix = trend === 'up' ? '+' : trend === 'down' ? '-' : '';
-
-  return (
-    <Text className={`text-lg font-bold ${trendClasses[trend]}`}>
-      {prefix}{formatPrice(Math.abs(value), currency)}
-    </Text>
-  );
-}
-```
-
----
-
-## 8. Etats des composants
-
-Chaque composant interactif doit gerer tous les etats suivants. Un composant sans etat loading ou disabled est incomplet.
-
-| Etat | Description | Style |
-|---|---|---|
-| Default | Etat normal, au repos | Couleurs de base du composant |
-| Hover | Survol souris (web uniquement) | Legere modification de couleur ou ombre (`hover:bg-primary-dark`) |
-| Focus | Navigation clavier ou tap | Ring visible (`focus:ring-2 focus:ring-primary`) |
-| Active | Pendant le clic ou le tap | Scale reduit (`active:scale-[0.97]`) |
-| Disabled | Interaction impossible | Opacite reduite (`opacity-50 cursor-not-allowed`) |
-| Loading (skeleton) | Donnees en cours de chargement | Bloc gris anime (`bg-surface-alt animate-pulse`) |
-| Loading (spinner) | Action en cours (envoi, suppression) | Icone de chargement tournant a la place du contenu |
-| Error | Erreur de validation ou de chargement | Bordure rouge, message d'erreur (`border-error text-error`) |
-
-### Skeleton / Shimmer
-
-Tout composant qui affiche des donnees asynchrones doit avoir un skeleton correspondant. Le skeleton reproduit la forme du composant final avec des blocs gris animes.
-
-```typescript
-// Skeleton d'un CardPreview
-function CardPreviewSkeleton() {
-  return (
-    <View className="rounded-xl p-4 bg-surface">
-      <View className="w-full h-48 rounded-lg bg-surface-alt animate-pulse" />
-      <View className="h-5 w-3/4 mt-3 rounded bg-surface-alt animate-pulse" />
-      <View className="h-4 w-1/2 mt-2 rounded bg-surface-alt animate-pulse" />
-    </View>
-  );
-}
-```
-
----
-
-## 9. Comment etendre le design system
-
-Si tu dois ajouter un nouveau token (couleur, taille, espacement), suis ces etapes. Le but est d'eviter l'accumulation de valeurs ad hoc qui finissent par creer de l'incoherence.
-
-1. **Verifie si un token existant convient** -- Avant d'ajouter une nouvelle couleur ou taille, verifie que le design system actuel ne couvre pas deja le besoin.
-
-2. **Propose le token dans une PR dediee** -- Ne glisse pas un nouveau token dans une PR de feature. Cree une PR specifique qui modifie le design system et ce document.
-
-3. **Ajoute le token dans trois endroits** :
-   - `styles/tailwind.config.ts` -- Pour le rendre disponible en tant que classe Tailwind
-   - `styles/theme.ts` -- Pour le rendre disponible programmatiquement
-   - Ce document (`design-system.md`) -- Pour le documenter
-
-4. **Respecte les conventions** :
-   - Noms en anglais, en kebab-case (`surface-alt`, pas `SurfaceAlt`)
-   - Toujours un cas d'usage clair (pas de token "au cas ou")
-   - Coherence avec l'echelle existante (pas de `p-7` si `p-6` et `p-8` existent)
-
----
-
-## 10. Animations et feedback visuel
-
-Cette section couvre les regles essentielles d'animation. Les animations existent pour donner du feedback a l'utilisateur, pas pour decorer. Toute animation doit avoir un but (feedback, orientation, plaisir d'usage). Une animation purement decorative sans fonction est interdite.
-
-### Skeleton loaders -- regle obligatoire
-
-Tout composant qui charge des donnees doit avoir un skeleton loader. Ne jamais laisser un composant vide ou avec un spinner generique. Le skeleton reproduit la forme du contenu final avec des blocs gris animes.
-
-Exemple avec Tailwind animate-pulse :
-
-```tsx
-// CardPreviewSkeleton.tsx
-export function CardPreviewSkeleton() {
-  return (
-    <div className="rounded-lg bg-surface p-3 animate-pulse">
-      <div className="h-40 w-full rounded bg-muted mb-3" />
-      <div className="h-4 w-3/4 rounded bg-muted mb-2" />
-      <div className="h-4 w-1/2 rounded bg-muted" />
-    </div>
-  );
-}
-```
-
-### Durees standard
-
-La coherence des durees evite l'effet "chaque element a sa propre vitesse" qui fatigue visuellement.
-
-| Nom | Duree | Usage |
-|---|---|---|
-| fast | 150ms | Hover, focus, micro-interactions |
-| normal | 250ms | Transitions de composants, modals |
-| slow | 400ms | Apparition de pages, resultats de scan |
-
-### Accessibilite -- prefers-reduced-motion
-
-Toujours respecter la preference systeme de l'utilisateur. Ne jamais forcer une animation si l'utilisateur a desactive les animations.
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
-
-En React Native, utiliser `AccessibilityInfo.isReduceMotionEnabled()` pour detecter la preference et desactiver les animations en consequence.
-
----
-
-## Voir aussi
-
-- [composants.md](./composants.md) -- Comment les tokens sont appliques dans les composants
-- [conventions-code.md](./conventions-code.md) -- Regles TypeScript et nommage
-- [data-et-etat.md](./data-et-etat.md) -- Gestion d'etat et data fetching
-- [architecture.md](./architecture.md) -- Ou placer les fichiers de configuration du theme
+Pour ajouter un token : définir sa valeur et son usage dans le fichier partagé approprié, adapter le mapping si nécessaire et actualiser ce document. Aucun token arbitraire ajouté dans un composant. Storybook et les atomes restent des tickets séparés (594, 569, 570).
