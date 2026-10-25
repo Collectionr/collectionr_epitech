@@ -28,6 +28,27 @@ npm run test       # tests unitaires + intégration
 npm run test:cov   # tests avec couverture
 ```
 
+## Base de données (Prisma)
+
+Toutes les commandes se lancent depuis `backend/`, contre la base pointée par `DATABASE_URL` (`.env`).
+
+| Commande | Rôle | Quand |
+| --- | --- | --- |
+| `npx prisma migrate status` | Affiche l'état des migrations, sans rien modifier | Avant toute migration, après un changement de branche |
+| `npm run prisma:migrate` | `prisma migrate dev` : crée une migration à partir de `schema.prisma` et l'applique | En dev, après une modification du schéma |
+| `npm run prisma:migrate:deploy` | Applique les migrations existantes, n'en crée jamais | Staging, prod, CI |
+| `npm run prisma:generate` | Régénère le client Prisma (`src/generated/prisma`) | Après chaque modification du schéma (Prisma 7 ne le fait plus après `migrate dev`) |
+| `npm run prisma:seed` | Insère les données de référence (rôles `USER`/`ADMIN`) sans créer de doublon | Après une base neuve ou un reset (Prisma 7 ne le lance plus automatiquement) |
+| `npx prisma studio --port 5555` | Interface web pour parcourir et modifier les tables (http://localhost:5555) | Dev uniquement, jamais sur staging ou prod |
+| `npx prisma validate` / `npx prisma format` | Vérifie / formate `schema.prisma` | Avant de commiter un changement de schéma |
+| `npx prisma migrate reset` | ⚠️ **Efface toute la base** puis rejoue les migrations | Dev uniquement |
+
+Pièges :
+
+- En changeant de branche, l'historique des migrations peut ne plus correspondre à ta base locale. Lance `npx prisma migrate status` d'abord. Si `npm run prisma:migrate` propose un reset, lis bien le message avant de répondre « y » : le reset efface toutes les données.
+- Si `npx` reste bloqué sous Git Bash, utilise `./node_modules/.bin/prisma …`.
+
+
 ## Architecture — organisation modulaire par domaine
 
 Le code métier est organisé sous `src/modules/<domaine>/`, chaque module respectant les quatre couches de la Clean Architecture. Le détail des principes est documenté dans `docs/backend/clean-architecture.md`.
