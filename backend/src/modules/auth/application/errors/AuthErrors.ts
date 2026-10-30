@@ -14,6 +14,17 @@ export class UsernameAlreadyUsedError extends Error {
   }
 }
 
+/**
+ * The stored record moved on since it was loaded (optimistic lock on User.version): saving the stale
+ * copy would silently undo that change. The caller reloads and retries.
+ */
+export class ConcurrentModificationError extends Error {
+  constructor() {
+    super('The resource was modified concurrently');
+    this.name = 'ConcurrentModificationError';
+  }
+}
+
 export class InvalidCredentialsError extends Error {
   constructor() {
     super('Invalid email or password');

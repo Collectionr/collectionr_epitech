@@ -14,6 +14,14 @@ export interface IUserRepository {
    * clear error) — they do NOT prevent two concurrent requests from both passing them. Only a
    * unique constraint in the store (email, and the username key), with this method translating its
    * violation into the matching error, actually guarantees no duplicate.
+   *
+   * Optimistic lock: `user.version` is the version the copy was loaded at (0 for a new account). If
+   * the stored version moved on, MUST reject with ConcurrentModificationError instead of overwriting:
+   * a stale copy would otherwise silently undo a concurrent password change or deactivation.
+   *
+   * Security-relevant changes are atomic with their consequence: when the saved password hash differs
+   * from the stored one, or the account goes from active to inactive, every refresh token of the user
+   * is revoked in the same transaction.
    */
   save(user: User): Promise<User>;
   findById(id: string): Promise<User | null>;

@@ -1,5 +1,6 @@
 import type { AuditMetadata, AuditMetadataValue } from '../../domain/entities/AuditEntry';
 import type { AuditOptions } from '../decorators/Audit';
+import { readAuditSubject } from '../AuditRequestContext';
 
 /** The parts of the HTTP request the audit needs, without depending on the HTTP adapter. */
 export interface AuditableRequest {
@@ -8,6 +9,8 @@ export interface AuditableRequest {
   readonly body?: unknown;
   /** Populated by the authentication layer (COLLR-442); absent until then. */
   readonly user?: unknown;
+  /** Set by a handler through setAuditSubject (AuditRequestContext.ts). */
+  readonly auditSubject?: unknown;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,14 +36,18 @@ function asUuid(value: unknown): string | null {
 }
 
 export function readActorId(request: AuditableRequest): string | null {
-  return isRecord(request.user) ? asUuid(request.user.id) : null;
+  // The authenticated user wins; the declared actor covers requests that authenticate *during* the
+  // handler (login, register).
+  const authenticated = isRecord(request.user) ? asUuid(request.user.id) : null;
+  return authenticated ?? asUuid(readAuditSubject(request).actorId);
 }
 
 export function readTargetId(request: AuditableRequest, options: AuditOptions): string | null {
+  const declared = asUuid(readAuditSubject(request).targetId);
   if (options.targetIdParam === undefined || !isRecord(request.params)) {
-    return null;
+    return declared;
   }
-  return asUuid(request.params[options.targetIdParam]);
+  return asUuid(request.params[options.targetIdParam]) ?? declared;
 }
 
 function toMetadataValue(value: unknown): AuditMetadataValue | undefined {
@@ -82,6 +89,15 @@ export function buildMetadata(
   extra: Readonly<Record<string, AuditMetadataValue>> = {},
 ): AuditMetadata | null {
   const metadata: Record<string, AuditMetadataValue> = { ...extra };
+
+  // Values a handler derived itself. They go through the same conversion as the body fields, so a
+  // value shaped like a token or a hash is redacted here too.
+  for (const [key, value] of Object.entries(readAuditSubject(request).metadata ?? {})) {
+    const converted = toMetadataValue(value);
+    if (converted !== undefined) {
+      metadata[key] = converted;
+    }
+  }
 
   if (typeof request.id === 'string') {
     metadata.requestId = request.id;

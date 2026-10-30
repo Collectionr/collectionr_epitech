@@ -26,7 +26,22 @@ npm run start:prod  # build de production
 npm run lint       # ESLint
 npm run test       # tests unitaires + intégration
 npm run test:cov   # tests avec couverture
+npm run test:e2e   # e2e, sans infrastructure (doublures en mémoire)
+npm run test:integration  # contre un VRAI PostgreSQL + Redis (voir ci-dessous)
 ```
+
+### Tests d'intégration (`npm run test:integration`)
+
+Les specs unitaires mockent Prisma, Redis et bcrypt : elles ne voient ni une requête qui matche trop de lignes, ni une course entre deux transactions, ni un script Lua. `src/contracts/*.integration-spec.ts` les exercent pour de vrai (contrat des ports Auth, scénarios d'attaque sur les sessions, limiteur Redis).
+
+Opt-in : hors de `npm test` et du hook `pre-push`, qui doivent rester exécutables sans infra. Prérequis : le PostgreSQL et le Redis fournis par DevOps, plus **une base dédiée** (jamais celle de dev — la config refuse une URL qui la désigne) :
+
+```bash
+psql -U collectionr -c "CREATE DATABASE collectionr_test"   # une fois
+npm run test:integration                                     # migre collectionr_test puis lance les specs
+```
+
+Variables optionnelles : `INTEGRATION_DATABASE_URL` (défaut `postgresql://collectionr:collectionr@localhost:5432/collectionr_test`) et `INTEGRATION_REDIS_URL` (défaut `redis://localhost:6379/15`).
 
 ## Architecture — organisation modulaire par domaine
 

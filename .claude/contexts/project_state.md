@@ -20,6 +20,8 @@ _Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
 
 - **COLLR-683** — Dockerfile du backend (sous-tâche de COLLR-528, déploiement K3s). Branche `COLLR-683/feat/dockerfile-backend` (depuis `dev`). `backend/Dockerfile` multi-étapes (deps → build → prod-deps → runtime `node:24.18.0-bookworm-slim`, utilisateur `node`, `CMD node dist/main.js`, port 3000) + `backend/.dockerignore`. Piège : `tsconfig.json` doit être présent avant `npm ci`, sinon Prisma génère le client en ESM et `dist` ne se charge plus. Image construite, `/health` répond (503 `degraded` sans Redis, 200 attendu avec Postgres + Redis). Lint, format, 130 tests OK.
 
+- **COLLR-415 — rôles sur `users` (ADR-013)** : enum `UserRole` remplacé par `users.roleId` (FK `NOT NULL` → `roles`, `ON DELETE RESTRICT`), migration `20261021120000_users_role_fk`. Rôles `USER`/`ADMIN` insérés par la migration (valide en base vierge et sur base avec comptes existants, backfill vérifié pour `USER` et `ADMIN`). Inscription : rôle `USER` relié par nom. Reste à faire : `RolesGuard`/`@Roles` (COLLR-449).
+
 ## En cours / à venir
 
 - **Merge COLLR-664 ↔ COLLR-665** : les deux branches ajoutent un modèle en fin de `schema.prisma` et un ADR après ADR-011 dans `architecture.md` (ainsi qu'une entrée « Fait » ici) → conflits attendus au second merge. Garder les deux (ADR-012 avant ADR-013), puis `prisma validate` + `prisma migrate status` : les deux migrations (`20260923…_add_data_retention_policies`, `20260924…_add_roles_permissions`) sont indépendantes, l'ordre des timestamps suffit.

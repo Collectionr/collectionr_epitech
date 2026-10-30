@@ -20,6 +20,7 @@ module.exports = {
     'src/main.ts',
     'src/app.module.ts',
     'src/shared/bootstrap/',
+    'src/contracts/',
     'src/generated/',
     'Module.ts$',
   ],

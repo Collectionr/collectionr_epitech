@@ -32,8 +32,10 @@ export interface IAuthTokenService {
   rotateRefreshToken(refreshToken: string): Promise<AuthTokenPair>;
 
   /**
-   * Idempotent and never throws: revoking an already-revoked, unknown, malformed or
-   * wrong-kind token is a no-op. Revokes the one session the token names, nothing else.
+   * Idempotent and never throws: revoking an unknown, malformed, expired or wrong-kind token is a
+   * no-op. Revokes the login chain the token belongs to (every live session of its family), whether
+   * or not the token is still the current one, and kills its access tokens with it. Other logins of
+   * the same user are untouched.
    */
   revokeRefreshToken(refreshToken: string): Promise<void>;
 
