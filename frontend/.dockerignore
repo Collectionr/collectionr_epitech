@@ -1,0 +1,15 @@
+# Contexte de build Docker de frontend/ (voir apps/web/Dockerfile)
+.git
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.env*
+!**/.env.example
+**/*.test.ts
+**/*.test.tsx
+
+# Sources mobiles hors du contexte : l'image n'en a pas besoin. Ce qui garde Expo et
+# React Native hors de l'image, ce sont les COPY ciblés du Dockerfile (seuls les
+# manifestes de web et shared avant npm ci) : ne pas ajouter apps/mobile à ces COPY.
+apps/mobile
