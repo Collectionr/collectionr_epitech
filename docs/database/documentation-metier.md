@@ -69,13 +69,20 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 
 ### Collections
 
-**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Une collection est rattachée à une licence TCG. Le set d'appartenance des cartes est déductible via `COLLECTIONITEM → CARD → SET`, il n'est donc pas stocké directement sur la collection.
+**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Un utilisateur peut en posséder 10 au maximum, toutes licences confondues. Une collection est rattachée à une licence TCG. Le set d'appartenance des cartes est déductible via `CARDENTRY → CARD → SET`, il n'est donc pas stocké directement sur la collection. Le nom d'une collection fait 1 à 60 caractères ; la licence est fixée à la création, seul le nom peut changer ensuite. Une collection peut contenir jusqu'à 10 000 entrées (CDC §3.1.3) : elles sont lues page par page (50 par défaut, 100 au maximum).
 
-**`COLLECTIONITEM`** — Représente **une carte physique** dans une collection. Elle porte :
+**`CARDENTRY`** (table `card_entries`) — Une ligne de la collection : **des exemplaires d'une même carte** (ou variante), dans un état et une langue donnés. Elle porte :
 - Une carte (`cardId`) — obligatoire
-- Une variante (`variantId`) — optionnelle, car toutes les cartes n'ont pas de variante
-- Un état physique (`condition`) : NM (Near Mint), LP (Lightly Played), MP (Moderately Played), HP (Heavily Played), DMG (Damaged)
-- Un lien optionnel vers un résultat de grading (`gradingResultId`)
+- Une variante (`variantId`) — optionnelle, car toutes les cartes n'ont pas de variante ; quand elle est renseignée, elle appartient à la carte
+- Une quantité (`quantity`) : entier de 1 à 9999
+- Un état physique déclaré (`condition`) : NM (Near Mint), LP (Lightly Played), MP (Moderately Played), HP (Heavily Played), DMG (Damaged). Codes neutres : la traduction se fait côté front par clés
+- Une langue (`language`) : `fr` ou `en`, la langue de la carte physique (le catalogue porte déjà les deux noms, `nameFr` et `nameEn`). Elle détermine le prix associé (CDC §3.1.4)
+- Une note de gradage optionnelle (`gradingNote`) : de 0 à 10
+- Des notes libres optionnelles (`notes`) : 500 caractères au maximum
+- La date d'ajout (`addedAt`)
+- Un lien optionnel vers un résultat de grading (`gradingResultId`) — pas encore exposé par le domaine
+
+La carte et la variante d'une entrée ne changent jamais : pour corriger une erreur de carte, on supprime l'entrée et on en ajoute une autre.
 
 **`COLLECTIONVALUEHISTORY`** — Snapshot de la valeur totale d'une collection à un instant T. Un snapshot est créé chaque matin en même temps que la mise à jour des prix du marché. Permet d'afficher une courbe d'évolution de la valeur du portefeuille de l'utilisateur.
 
@@ -101,7 +108,7 @@ C'est la fonctionnalité différenciante de l'application : permettre à un util
 
 **`SCANHISTORY`** — Enregistre chaque scan effectué. Un scan peut détecter plusieurs cartes à la fois (`detectedCount`, `detectedCards` via une structure de données permettant de stocker des informations flexibles). Le champ `status` permet de suivre le traitement du scan (en cours, terminé, erreur).
 
-**`GRADINGRESULT`** — Résultat détaillé de l'évaluation d'une carte, produit à partir d'un scan. Comme pour `COLLECTIONITEM`, `cardId` est obligatoire et `variantId` optionnelle. Le score final est décomposé en 4 critères physiques :
+**`GRADINGRESULT`** — Résultat détaillé de l'évaluation d'une carte, produit à partir d'un scan. Comme pour `CARDENTRY`, `cardId` est obligatoire et `variantId` optionnelle. Le score final est décomposé en 4 critères physiques :
 
 | Critère | Description |
 |---------|-------------|
@@ -133,7 +140,7 @@ Le champ `metadata` stocke le contexte de l'action (ex: les valeurs avant/après
 
 ## Règle transversale — cardId / variantId
 
-Une règle s'applique de manière uniforme sur toutes les tables qui référencent des cartes (`PRICEHISTORY`, `COLLECTIONITEM`, `GRADINGRESULT`, `WISHLIST`) :
+Une règle s'applique de manière uniforme sur toutes les tables qui référencent des cartes (`PRICEHISTORY`, `CARDENTRY`, `GRADINGRESULT`, `WISHLIST`) :
 
 | Champ | Obligatoire | Description |
 |-------|-------------|-------------|

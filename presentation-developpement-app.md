@@ -101,7 +101,7 @@ Aucune valeur magique : tout passe par un **token**. Couleurs sémantiques, poli
 ### Modèle de données (PostgreSQL, ids UUID)
 - **Catalogue** : `LICENCE_TCG → SET → CARD → VARIANT` (+ estimation de prix sur `CARD`).
 - **Utilisateurs & accès** : `USER`, `ROLE`, `PERMISSION`, `SESSION`, `CONSENT`.
-- **Collections** : `COLLECTION`, `COLLECTIONITEM`, `COLLECTIONVALUEHISTORY`.
+- **Collections** : `COLLECTION`, `CARDENTRY`, `COLLECTIONVALUEHISTORY`.
 - **Prix** : `DATASOURCE`, `CARDPRICE`, `PRICEHISTORY`, `SCRAPELOG`.
 - **Scan & grading** : `SCANHISTORY`, `GRADINGRESULT` (centrage, coins, bords, surface).
 - Règle transversale : `cardId` toujours obligatoire, `variantId` optionnel.
