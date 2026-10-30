@@ -1,5 +1,16 @@
 import { Body, Controller, Get, Header, Patch, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiTooManyRequestsResponse,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
 import { SWAGGER_BEARER_AUTH_NAME } from '../../../../shared/bootstrap/SetupSwagger';
 import { setAuditSubject } from '../../../audit/interface/AuditRequestContext';
@@ -32,6 +43,9 @@ export class UsersController {
   @Get('me')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Current authenticated user profile' })
+  @ApiOkResponse({ description: 'Profile of the authenticated user', type: UserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing, invalid or expired access token' })
+  @ApiNotFoundResponse({ description: 'The account no longer exists' })
   async getMe(@CurrentUser() currentUser: AuthenticatedUser): Promise<UserResponseDto> {
     try {
       const user = await this.getCurrentUserUseCase.execute({ userId: currentUser.id });
@@ -44,6 +58,13 @@ export class UsersController {
 
   @Patch('me')
   @ApiOperation({ summary: 'Update the current user profile' })
+  @ApiOkResponse({ description: 'Profile updated', type: UserResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid payload or username' })
+  @ApiUnauthorizedResponse({ description: 'Missing, invalid or expired access token' })
+  @ApiNotFoundResponse({ description: 'The account no longer exists' })
+  @ApiConflictResponse({
+    description: 'Username already used, or the account was modified concurrently',
+  })
   async updateProfile(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: UpdateProfileDto,
@@ -67,6 +88,20 @@ export class UsersController {
   @RateLimit(PASSWORD_CHANGE_RATE_LIMIT)
   @Audit({ action: 'auth.password_change', targetType: 'user' })
   @ApiOperation({ summary: 'Change the current user password' })
+  @ApiOkResponse({
+    description: 'Password changed, every session of the user is revoked',
+    type: UserResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid payload, weak new password, or new password equal to the current one',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing, invalid or expired access token, or incorrect current password',
+  })
+  @ApiNotFoundResponse({ description: 'The account no longer exists' })
+  @ApiConflictResponse({ description: 'The account was modified concurrently, retry' })
+  @ApiTooManyRequestsResponse({ description: 'Too many attempts, see Retry-After' })
+  @ApiServiceUnavailableResponse({ description: 'Rate limiting unavailable' })
   async changePassword(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: ChangePasswordDto,

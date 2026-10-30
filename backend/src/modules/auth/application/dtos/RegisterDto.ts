@@ -47,10 +47,11 @@ export class RegisterDto {
 
   @ApiProperty({
     example: '1',
-    required: false,
+    required: true,
     description:
       'Version of the terms of service the user was shown and accepted. Required: an absent or ' +
-      'blank value is refused (409 if it is not the current version). Never defaulted by the client.',
+      'blank value is refused with 400, a version that is not the current one with 409. Never ' +
+      'defaulted by the client.',
   })
   @IsOptional()
   @IsString()
