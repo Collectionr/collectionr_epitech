@@ -28,7 +28,13 @@ La plateforme s'appuie sur un **backend NestJS (adaptateur Fastify)** qui expose
 > le backend s'y connecte en **lecture/écriture** (données applicatives) et lit les **tables de prix** pour répondre aux clients. Les workers sont écrits en
 > **Python** (cohérent avec le Pipeline de Données Python) ; ils n'exposent **aucune API REST**. Seul
 > l'**orchestrateur** (Microservice TCG) expose un unique endpoint **REST interne** (**FastAPI**) pour
-> recevoir le déclenchement du backend — jamais exposé aux clients.
+> recevoir le déclenchement du backend — jamais exposé aux clients (hors la sonde technique
+> `GET /health`, commune à tous les services).
+>
+> **Contrat d'interface :** le **schéma** (tables, colonnes, clés uniques, migrations) est généré et
+> possédé par le **backend** (Prisma). Le Microservice TCG ne crée, ne migre et ne modifie **aucune
+> table** : il se limite à **transformer** les données des API externes et à les **écrire (UPSERT
+> idempotent) dans les tables de ce contrat**.
 
 ---
 
@@ -106,7 +112,8 @@ Reçoit la planification du backend via un **appel REST HTTP** (endpoint **FastA
   **TCGFast Trader** (niveau 4 — prix USD + gradés + historique, 14,99 $/mois). Aucun scraping.
 - **Worker TCG Prediction** — estime les prix (IA) à partir de l'historique (`price_history`).
 
-Les trois écrivent dans **PostgreSQL**. Détails : [`marketplace/marketplace-scraper.md`](marketplace/marketplace-scraper.md),
+Les trois écrivent dans **PostgreSQL**, uniquement dans les tables du **contrat d'interface** généré
+par le backend (aucune création ni modification de schéma côté TCG). Détails : [`marketplace/marketplace-scraper.md`](marketplace/marketplace-scraper.md),
 [`marketplace/decision-technique.md`](marketplace/decision-technique.md),
 [`marketplace/bibliotheque-scraping.md`](marketplace/bibliotheque-scraping.md).
 
@@ -126,47 +133,62 @@ Pré-gradation (état/centrage) : le backend envoie l'image au **Microservice Gr
 
 ## Structure de dossiers — Microservice TCG (Python)
 
-Convention proposée, alignée sur la Clean Architecture du backend
-([clean-architecture.md](../backend/clean-architecture.md)) : un seul package Python partagé par
-l'orchestrateur et les 3 workers, avec des points d'entrée séparés dans `interface/`.
+Convention retenue (COLLR-672) et appliquée par le socle technique (COLLR-493), alignée sur la Clean
+Architecture du backend ([clean-architecture.md](../backend/clean-architecture.md)) : un seul package
+Python partagé par l'orchestrateur et les 3 workers, avec des points d'entrée séparés dans
+`interface/`. Le service vit dans `tcg/` à la racine du mono-repo (un dossier par unité déployable,
+comme `backend/` et `frontend/`). Les éléments déjà en place portent le socle `/health` ; les autres
+sont la cible des tickets suivants.
 
 ```
-services/tcg/
-├── requirements.txt           # fastapi, redis, httpx, pydantic, psycopg[binary], tenacity, aiolimiter
-├── requirements-dev.txt       # pytest, pytest-cov, respx
+tcg/
+├── pyproject.toml            # dépendances (fastapi, redis, httpx, pydantic, psycopg[binary], tenacity,
+│                             #   aiolimiter ; dev : pytest, pytest-cov, respx) + config Ruff (lint ET
+│                             #   format), Pytest, couverture
+├── requirements.txt          # versions épinglées (exécution), générées depuis pyproject.toml avec uv
+├── requirements-dev.txt      # versions épinglées (exécution + outils de dev)
+├── .env.example              # variables d'environnement documentées (.env jamais commité)
 ├── .venv/                    # environnement virtuel local, jamais commité (.gitignore)
 ├── src/
 │   └── tcg_service/
+│       ├── config.py         # configuration validée (Pydantic Settings)
+│       ├── main.py           # point d'entrée uvicorn (app_factory)
 │       ├── domain/
-│       │   ├── entities/     # CardPrice, PriceHistory, CollectLog — dataclasses pures
-│       │   └── ports/        # PriceProviderPort, PriceRepositoryPort, QueuePort
+│       │   ├── entities/     # HealthStatus ; CardPrice, PriceHistory, CollectLog — dataclasses pures
+│       │   └── ports/        # HealthIndicatorPort ; PriceProviderPort, PriceRepositoryPort, QueuePort
 │       ├── application/
+│       │   ├── check_health.py
 │       │   ├── sync_cards.py
 │       │   ├── collect_fallback_prices.py
 │       │   └── predict_price.py
 │       ├── infrastructure/
 │       │   ├── providers/    # TCGdexProvider, PokeTraceProvider, EbayBrowseProvider, TCGFastProvider
-│       │   ├── persistence/  # PsycopgPriceRepository
+│       │   ├── persistence/  # Database (pool psycopg 3), PostgresHealthIndicator ; PsycopgPriceRepository
 │       │   ├── queue/        # RedisStreamsQueue (XADD / XREADGROUP / XACK)
 │       │   └── prediction/   # chargement / inférence du modèle IA
 │       └── interface/
-│           ├── api/          # FastAPI — seul point d'entrée HTTP (POST /sync)
+│           ├── api/          # FastAPI — seul point d'entrée HTTP : GET /health, puis POST /sync
 │           └── workers/      # worker_api.py, worker_scraping.py, worker_prediction.py
-└── tests/
+└── tests/                    # miroir de src/ + tests/integration (PostgreSQL réel)
 ```
 
-**Setup local (venv)** :
+**Setup local (venv, Python 3.13)** :
 
 ```bash
-python -m venv .venv
+py -3.13 -m venv .venv        # Linux/macOS : python3.13 -m venv .venv
 .venv\Scripts\activate        # Windows — Git Bash : source .venv/Scripts/activate
-pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements-dev.txt
+pip install -e . --no-deps
 ```
 
 `domain/` n'importe **aucun framework** (ni FastAPI, ni psycopg, ni redis, ni pydantic) — même
-discipline que le backend TypeScript. **FastAPI n'apparaît que dans `interface/api/`** (l'orchestrateur,
-`POST /sync`) ; les 3 workers dans `interface/workers/` n'en dépendent jamais, ils ne font que
-consommer Redis TCG et écrire en PostgreSQL.
+discipline que le backend TypeScript, ici vérifiée par la règle `TID251` de Ruff. **FastAPI n'apparaît
+que dans `interface/api/`** (l'orchestrateur, `POST /sync`) ; les 3 workers dans `interface/workers/`
+n'en dépendent jamais, ils ne font que consommer Redis TCG et écrire en PostgreSQL.
+
+**Qualité** : **Ruff** est l'unique outil (lint avec `ruff check`, formatage avec `ruff format`),
+avec **Pytest** pour les tests et un seuil de couverture de **50 %** (périmètre Python, cf. Document
+QA).
 
 ---
 
@@ -174,12 +196,19 @@ consommer Redis TCG et écrire en PostgreSQL.
 
 - **PostgreSQL = source de vérité** ; tous les workers y écrivent (via `psycopg 3`, UPSERT
   idempotents), le backend lit.
+- **Contrat d'interface = schéma du backend** : les tables, colonnes, clés uniques et migrations sont
+  générées par le backend (Prisma). Le Microservice TCG n'écrit en base **qu'à partir de ce contrat** :
+  il ne crée, ne migre ni ne modifie aucune table.
+- **`GET /health`** : comme le backend (ADR-003), un unique endpoint hors de tout préfixe, qui
+  vérifie réellement les dépendances du service (PostgreSQL ; Redis une fois câblé) — `200` `ok` /
+  `503` `degraded`. Les probes K3s ciblent cette URL stable.
 - **Files Redis dédiées** par pipeline (`Redis TCG`, `Redis OCR`, `Redis Grading`) — planification,
   pas de stockage métier. `Redis TCG` utilise des **Redis Streams** (consumer groups) : `ioredis`
   (Node, côté backend/orchestrateur) et `redis-py` (Python, côté workers) parlent nativement le
   même protocole.
 - **Microservice TCG (orchestrateur)** : seul composant du pipeline TCG à exposer une route —
-  un endpoint **REST interne (FastAPI)** appelé uniquement par le backend, jamais par les clients.
+  un endpoint métier **REST interne (FastAPI)** appelé uniquement par le backend, jamais par les
+  clients (en plus de la sonde technique `GET /health`).
 - **K3s** : chaque composant est un **Pod** ; clés externes en **Secrets**, isolation via
   **NetworkPolicies**, redémarrage automatique des Pods.
 - **Workers Python** découplés du **backend NestJS (Fastify)** ; aucun worker n'expose d'API REST.

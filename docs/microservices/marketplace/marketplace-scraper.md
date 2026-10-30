@@ -174,6 +174,9 @@ Toutes les cartes  →  1 fois par jour (cron `0 3 * * *`, à 3 h du matin)
 
 > Le **schéma est la propriété du backend NestJS (Prisma)** ; le worker Python écrit via `psycopg 3`
 > avec des **UPSERT idempotents**. Les deux représentations doivent rester strictement alignées.
+> Ce schéma est le **contrat d'interface** : les workers n'écrivent en base **qu'à partir de ce
+> contrat** (tables, colonnes et clés uniques issues des migrations Prisma) et ne créent, ne migrent
+> ni ne modifient aucune table.
 
 ### Table `CardPrice` — prix actuel
 
