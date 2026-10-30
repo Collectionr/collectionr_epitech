@@ -14,12 +14,11 @@ DATABASE_DEPENDENCY = "database"
 class DependencyHealth:
     name: str
     state: DependencyState
+    latency_ms: int | None  # None when the dependency is down
 
 
 @dataclass(frozen=True, slots=True)
 class HealthStatus:
-    service: str
-    environment: str
     checked_at: datetime
     dependencies: tuple[DependencyHealth, ...]
 

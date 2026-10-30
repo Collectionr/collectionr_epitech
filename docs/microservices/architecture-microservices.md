@@ -148,6 +148,8 @@ tcg/
 ├── requirements.txt          # versions épinglées (exécution), générées depuis pyproject.toml avec uv
 ├── requirements-dev.txt      # versions épinglées (exécution + outils de dev)
 ├── .env.example              # variables d'environnement documentées (.env jamais commité)
+├── Dockerfile                # image multi-arch (x86-64 + ARM64), Python 3.13 figé, non-root
+├── CLAUDE.md                 # conventions du service (complète le CLAUDE.md racine)
 ├── .venv/                    # environnement virtuel local, jamais commité (.gitignore)
 ├── src/
 │   └── tcg_service/
@@ -186,9 +188,10 @@ discipline que le backend TypeScript, ici vérifiée par la règle `TID251` de R
 que dans `interface/api/`** (l'orchestrateur, `POST /sync`) ; les 3 workers dans `interface/workers/`
 n'en dépendent jamais, ils ne font que consommer Redis TCG et écrire en PostgreSQL.
 
-**Qualité** : **Ruff** est l'unique outil (lint avec `ruff check`, formatage avec `ruff format`),
-avec **Pytest** pour les tests et un seuil de couverture de **50 %** (périmètre Python, cf. Document
-QA).
+**Qualité** : **Ruff** pour le lint (`ruff check`) et le formatage (`ruff format`), lancés aussi par le
+hook Husky pre-commit sur `tcg/` ; **mypy** en mode strict pour le typage (équivalent du « zéro
+`any` » du backend) ; **Pytest** pour les tests avec un seuil de couverture de **50 %** (périmètre
+Python, cf. Document QA). Les logs sortent en JSON sur stdout (S05).
 
 ---
 
@@ -201,7 +204,8 @@ QA).
   il ne crée, ne migre ni ne modifie aucune table.
 - **`GET /health`** : comme le backend (ADR-003), un unique endpoint hors de tout préfixe, qui
   vérifie réellement les dépendances du service (PostgreSQL ; Redis une fois câblé) — `200` `ok` /
-  `503` `degraded`. Les probes K3s ciblent cette URL stable.
+  `503` `degraded`, avec le même contrat de réponse partout (`status`, `checkedAt`,
+  `dependencies[]` : `name`, `status`, `latencyMs`). Les probes K3s ciblent cette URL stable.
 - **Files Redis dédiées** par pipeline (`Redis TCG`, `Redis OCR`, `Redis Grading`) — planification,
   pas de stockage métier. `Redis TCG` utilise des **Redis Streams** (consumer groups) : `ioredis`
   (Node, côté backend/orchestrateur) et `redis-py` (Python, côté workers) parlent nativement le
