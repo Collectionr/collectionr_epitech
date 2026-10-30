@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: development
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: api
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+        app.kubernetes.io/part-of: collectionr
+        app.kubernetes.io/component: api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: backend
+          image: collectionr-backend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: LOG_LEVEL
+              value: "debug"
+            - name: SWAGGER_ENABLED
+              value: "true"
+            - name: CORS_ORIGINS
+              value: "http://collectionr.localhost"
+            - name: DATABASE_POOL_MAX
+              value: "10"
+            - name: THROTTLE_TTL
+              value: "60"
+            - name: THROTTLE_LIMIT
+              value: "100"
+            - name: AUDIT_LOG_RETENTION_DAYS
+              value: "90"
+            - name: PASSWORD_MIN_LENGTH
+              value: "8"
+            - name: TERMS_VERSION
+              value: "1"
+            - name: OCR_SHARED_DIR
+              value: "/data/ocr"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_DB
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgresql.development.svc.cluster.local:5432/$(POSTGRES_DB)"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-ocr-credentials
+                  key: password
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@redis-ocr.development.svc.cluster.local:6379"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-credentials
+                  key: JWT_SECRET
+          volumeMounts:
+            - name: shared-ocr
+              mountPath: /data/ocr
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: shared-ocr
+          persistentVolumeClaim:
+            claimName: shared-volume-ocr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: development
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: api
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  selector:
+    app.kubernetes.io/name: backend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend
+  namespace: development
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: api
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: api.collectionr.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  name: http
