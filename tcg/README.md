@@ -12,7 +12,7 @@ tables de ce contrat (UPSERT idempotents). Pour l'instant il ne fait qu'un `SELE
 
 ## Prérequis
 
-- Python ≥ 3.11
+- Python 3.13 (même version que le pipeline OCR ; elle sera figée dans le Dockerfile et la CI)
 - Une base PostgreSQL accessible (instance fournie par DevOps — cf. `devops/README.md`)
 
 ## Structure
@@ -23,6 +23,8 @@ Clean Architecture en 4 couches, alignée sur le backend (cf.
 ```text
 tcg/
 ├── pyproject.toml                # dépendances + configuration Ruff (lint et format) / Pytest / couverture
+├── requirements.txt              # versions épinglées (exécution), générées depuis pyproject.toml
+├── requirements-dev.txt          # versions épinglées (exécution + outils de dev)
 ├── .env.example                  # variables d'environnement documentées
 ├── src/tcg_service/
 │   ├── main.py                   # point d'entrée uvicorn (app_factory)
@@ -47,13 +49,32 @@ câblés dans `interface/api/app.py`.
 Depuis le dossier `tcg/` :
 
 ```bash
-python3 -m venv .venv
+python3.13 -m venv .venv             # Windows : py -3.13 -m venv .venv
 source .venv/bin/activate            # Windows : .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt  # versions épinglées
+pip install -e . --no-deps           # le package tcg_service lui-même
 cp .env.example .env                 # puis renseigner DATABASE_URL
 ```
 
 `.env` est ignoré par Git : ne jamais le committer.
+
+## Dépendances
+
+`pyproject.toml` déclare les dépendances directes avec des bornes minimales (`>=`). Les versions
+réellement installées sont **épinglées** dans `requirements.txt` (exécution, pour l'image Docker) et
+`requirements-dev.txt` (exécution + tests/lint, contraint par `requirements.txt` pour garder les
+mêmes versions). Deux installations à des dates différentes donnent ainsi le même environnement.
+
+Après une modification des dépendances dans `pyproject.toml`, régénérer les deux fichiers avec
+[uv](https://docs.astral.sh/uv/) (`pip install uv`) et committer le résultat :
+
+```bash
+uv pip compile pyproject.toml --universal --python-version 3.13 -o requirements.txt
+uv pip compile pyproject.toml --extra dev --universal --python-version 3.13 -c requirements.txt -o requirements-dev.txt
+```
+
+`--universal` produit un fichier valable sur Linux, macOS et Windows (marqueurs de plateforme, ex.
+`uvloop` hors Windows). Ajouter `--upgrade` pour monter de version les paquets déjà épinglés.
 
 ## Configuration
 
@@ -67,7 +88,8 @@ Les variables sont lues dans l'environnement, puis dans `.env`. Elles sont valid
 | `DATABASE_URL` | **oui** | — | `postgresql://<utilisateur>:<mot_de_passe>@<hote>:<port>/<base>` — même base que le backend. Sans paramètre Prisma (`?schema=…`). |
 | `DATABASE_POOL_MAX` | non | `5` | Taille maximale du pool (1-100). |
 | `DATABASE_CONNECT_TIMEOUT` | non | `5` | Délai de connexion en secondes (1-60). |
-| `HEALTH_CHECK_TIMEOUT` | non | `3` | Délai maximal du contrôle PostgreSQL de `/health`, en secondes. |
+| `DATABASE_STATEMENT_TIMEOUT` | non | `30` | Délai maximal d'une requête SQL métier (UPSERT des workers), en secondes (1-600). Appliqué à toutes les connexions du pool. |
+| `HEALTH_CHECK_TIMEOUT` | non | `3` | Délai maximal du contrôle PostgreSQL de `/health`, en secondes. Limité au seul `SELECT 1` de santé (`SET LOCAL`), sans effet sur les requêtes métier. |
 
 En staging, les variables sont injectées par l'environnement (Secret K3s), pas par un fichier.
 

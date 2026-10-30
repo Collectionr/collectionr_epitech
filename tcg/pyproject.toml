@@ -7,7 +7,7 @@ name = "tcg-service"
 version = "0.1.0"
 description = "Collectionr TCG microservice (FastAPI) — technical foundation."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
@@ -28,7 +28,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py313"
 src = ["src", "tests"]
 
 # Ruff is the single tool: `ruff check` lints and `ruff format` formats.

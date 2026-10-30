@@ -145,7 +145,8 @@ tcg/
 ├── pyproject.toml            # dépendances (fastapi, redis, httpx, pydantic, psycopg[binary], tenacity,
 │                             #   aiolimiter ; dev : pytest, pytest-cov, respx) + config Ruff (lint ET
 │                             #   format), Pytest, couverture
-├── requirements.txt          # versions épinglées, générées depuis pyproject.toml
+├── requirements.txt          # versions épinglées (exécution), générées depuis pyproject.toml avec uv
+├── requirements-dev.txt      # versions épinglées (exécution + outils de dev)
 ├── .env.example              # variables d'environnement documentées (.env jamais commité)
 ├── .venv/                    # environnement virtuel local, jamais commité (.gitignore)
 ├── src/
@@ -171,12 +172,13 @@ tcg/
 └── tests/                    # miroir de src/ + tests/integration (PostgreSQL réel)
 ```
 
-**Setup local (venv)** :
+**Setup local (venv, Python 3.13)** :
 
 ```bash
-python -m venv .venv
+py -3.13 -m venv .venv        # Linux/macOS : python3.13 -m venv .venv
 .venv\Scripts\activate        # Windows — Git Bash : source .venv/Scripts/activate
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt
+pip install -e . --no-deps
 ```
 
 `domain/` n'importe **aucun framework** (ni FastAPI, ni psycopg, ni redis, ni pydantic) — même

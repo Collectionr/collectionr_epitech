@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     database_url: SecretStr
     database_pool_max: int = Field(default=5, ge=1, le=100)
     database_connect_timeout: int = Field(default=5, ge=1, le=60)  # secondes
+    # Requêtes métier (UPSERT des workers) ; /health a son propre délai, plus court.
+    database_statement_timeout: int = Field(default=30, ge=1, le=600)  # secondes
     health_check_timeout: float = Field(default=3.0, gt=0, le=30)  # secondes
 
     @field_validator("database_url")

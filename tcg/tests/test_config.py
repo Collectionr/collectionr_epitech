@@ -15,6 +15,7 @@ def test_defaults() -> None:
     assert settings.app_env is Environment.DEV
     assert settings.database_pool_max == 5
     assert settings.database_connect_timeout == 5
+    assert settings.database_statement_timeout == 30
     assert settings.health_check_timeout == 3.0
 
 
@@ -39,6 +40,7 @@ def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
         {"app_env": "production"},
         {"database_url": "mysql://u:p@h/db"},
         {"database_pool_max": 0},
+        {"database_statement_timeout": 0},
         {"health_check_timeout": 0},
     ],
 )
