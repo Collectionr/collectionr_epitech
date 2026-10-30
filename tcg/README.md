@@ -1,6 +1,6 @@
 # Microservice TCG
 
-Socle technique FastAPI du microservice TCG de Collectionr (COLLR-498 à COLLR-501).
+Socle technique FastAPI du microservice TCG de Collectionr (COLLR-493, durci par COLLR-686).
 Il expose uniquement `GET /health` : aucune route métier, aucune synchronisation de cartes, aucun
 worker pour l'instant. Il est indépendant du backend NestJS (`backend/`) et se connecte à la
 **même base PostgreSQL partagée** (source de vérité), via `psycopg` 3.
@@ -12,7 +12,7 @@ tables de ce contrat (UPSERT idempotents). Pour l'instant il ne fait qu'un `SELE
 
 ## Prérequis
 
-- Python 3.13 (même version que le pipeline OCR ; elle sera figée dans le Dockerfile et la CI)
+- Python 3.13 (même version que le pipeline OCR ; figée à `3.13.9` dans le `Dockerfile`)
 - Une base PostgreSQL accessible (instance fournie par DevOps — cf. `devops/README.md`)
 
 ## Structure
@@ -22,10 +22,13 @@ Clean Architecture en 4 couches, alignée sur le backend (cf.
 
 ```text
 tcg/
-├── pyproject.toml                # dépendances + configuration Ruff (lint et format) / Pytest / couverture
+├── pyproject.toml                # dépendances + configuration Ruff / mypy / Pytest / couverture
 ├── requirements.txt              # versions épinglées (exécution), générées depuis pyproject.toml
 ├── requirements-dev.txt          # versions épinglées (exécution + outils de dev)
 ├── .env.example                  # variables d'environnement documentées
+├── Dockerfile                    # image multi-arch (x86-64 + ARM64), non-root
+├── .lintstagedrc.json            # hook pre-commit : ruff check + ruff format
+├── CLAUDE.md                     # conventions du service pour les agents IA
 ├── src/tcg_service/
 │   ├── main.py                   # point d'entrée uvicorn (app_factory)
 │   ├── config.py                 # configuration validée (Pydantic Settings)
@@ -34,6 +37,7 @@ tcg/
 │   │   └── ports/                # HealthIndicatorPort
 │   ├── application/              # cas d'usage (CheckHealthUseCase)
 │   ├── infrastructure/
+│   │   ├── logging/              # logs JSON sur stdout (JsonFormatter, configure_logging)
 │   │   └── persistence/          # pool psycopg 3 (Database), PostgresHealthIndicator
 │   └── interface/
 │       └── api/                  # FastAPI : app (create_app), routes /health, schémas Pydantic
@@ -108,36 +112,68 @@ Il est destiné à un usage interne (appelé par le backend), ne pas l'exposer a
 curl -i http://127.0.0.1:8000/health
 ```
 
-Comme sur le backend, `/health` est un endpoint unique, hors de tout préfixe, qui vérifie
+Comme sur le backend (ADR-003), `/health` est un endpoint unique, hors de tout préfixe, qui vérifie
 réellement les dépendances (PostgreSQL ici) : `200` si tout est disponible, `503` sinon. Le service
-exécute un `SELECT 1` sur PostgreSQL (timeout `HEALTH_CHECK_TIMEOUT`).
+exécute un `SELECT 1` sur PostgreSQL (timeout `HEALTH_CHECK_TIMEOUT`) et mesure sa latence.
 
-PostgreSQL disponible — `200` :
+La réponse suit **le même contrat que le backend** (`HealthResponseDto`) — PostgreSQL disponible,
+`200` :
 
 ```json
 {
   "status": "ok",
-  "service": "tcg",
-  "environment": "dev",
-  "timestamp": "2026-10-09T10:00:00Z",
-  "checks": { "api": "up", "database": "up" }
+  "checkedAt": "2026-10-30T15:18:26.948Z",
+  "dependencies": [{ "name": "database", "status": "up", "latencyMs": 1 }]
 }
 ```
 
 PostgreSQL indisponible — `503` : même format avec `"status": "degraded"` et
-`"database": "down"`. La réponse ne contient jamais d'identifiant ni de message d'erreur ; seul le
-type d'exception est journalisé.
+`{ "name": "database", "status": "down", "latencyMs": null }`. La réponse ne contient jamais
+d'identifiant ni de message d'erreur ; seul le type d'exception est journalisé. Le contrôle Redis
+(`cache`) sera ajouté quand Redis TCG sera câblé.
+
+## Logs
+
+Tous les logs (service, `psycopg`, uvicorn) sortent en **JSON, une ligne par événement, sur stdout**
+(S05), au niveau `LOG_LEVEL` :
+
+```json
+{"time": "2026-10-30T15:18:27.838Z", "level": "warning", "service": "tcg", "logger": "tcg_service.infrastructure.persistence.postgres_health_indicator", "msg": "PostgreSQL health check failed: AdminShutdown"}
+```
+
+Les champs passés via `extra=` sont ajoutés tels quels, et une exception (`logger.exception`) est
+ajoutée dans `exc_info`. Les logs d'accès uvicorn ne contiennent **pas l'adresse IP du client**
+(donnée personnelle) : seulement `http_method`, `http_path` et `status_code`.
+
+## Docker
+
+```bash
+docker build -t collectionr-tcg tcg/                                            # architecture locale
+docker buildx build --platform linux/amd64,linux/arm64 -t collectionr-tcg tcg/  # multi-arch
+docker run --rm -p 8000:8000 -e DATABASE_URL='postgresql://…' collectionr-tcg
+```
+
+Image en deux étapes (`python:3.13.9-slim-bookworm`), qui n'installe que `requirements.txt` puis le
+package. Elle tourne avec un utilisateur **non-root** (UID/GID numériques `10001`, compatibles
+`runAsNonRoot`) et avec `APP_ENV=staging` par défaut (`/docs` désactivé). Toutes les variables de
+configuration sont à fournir par l'environnement.
 
 ## Qualité
 
-Ruff est l'unique outil de qualité : lint et formatage.
+Ruff pour le lint et le formatage, mypy en mode strict pour le typage (l'équivalent du « zéro
+`any` » du backend), Pytest pour les tests.
 
 ```bash
 ruff check .                 # lint
 ruff format --check .        # vérification du formatage (ruff format . pour corriger)
+mypy                         # typage statique strict (src/ et tests/)
 pytest                       # tests unitaires (aucune base requise)
 pytest --cov                 # avec couverture (seuil 50 %, cf. Document QA)
 ```
+
+**Hook pre-commit** : quand un commit contient des fichiers `.py` de `tcg/`, Husky lance
+`ruff check --fix` puis `ruff format` dessus (`tcg/.lintstagedrc.json`). Le hook utilise le `ruff`
+du venv `tcg/.venv` : il faut donc avoir suivi l'[installation](#installation).
 
 ## Vérifier la connexion PostgreSQL
 

@@ -1,4 +1,3 @@
-import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,6 +5,7 @@ from fastapi import FastAPI
 
 from tcg_service.application.check_health import CheckHealthUseCase
 from tcg_service.config import Environment, Settings, get_settings
+from tcg_service.infrastructure.logging.json_logging import configure_logging
 from tcg_service.infrastructure.persistence.database import (
     Database,
     DatabaseProtocol,
@@ -20,7 +20,7 @@ def create_app(
     settings: Settings | None = None, database: DatabaseProtocol | None = None
 ) -> FastAPI:
     settings = settings or get_settings()
-    logging.basicConfig(level=settings.log_level.upper())
+    configure_logging(settings.log_level)
     database = database or Database(settings)
 
     @asynccontextmanager
@@ -42,7 +42,7 @@ def create_app(
         openapi_url="/openapi.json" if docs_enabled else None,
     )
     app.state.check_health_use_case = CheckHealthUseCase(
-        [PostgresHealthIndicator(database)], settings.app_env.value
+        [PostgresHealthIndicator(database)]
     )
     app.include_router(health.router)
     return app
