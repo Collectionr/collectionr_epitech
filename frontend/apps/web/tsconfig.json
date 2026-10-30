@@ -9,5 +9,5 @@
       "@shared/*": ["../../packages/shared/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", ".storybook/preview.ts", ".storybook/manager.ts"]
 }

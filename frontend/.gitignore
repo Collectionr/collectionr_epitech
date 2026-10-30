@@ -1,6 +1,7 @@
 # Dépendances et artefacts de build
 node_modules/
 dist/
+storybook-static/
 coverage/
 *.tsbuildinfo
 
