@@ -1,6 +1,6 @@
 # Pattern — Nouveau module Clean Architecture
 
-Modèle vivant : `src/modules/health/`. Remplacer `Carte`/`carte` par le domaine (fichiers **PascalCase**, cf. `docs/backend/conventions.md`).
+Modèle vivant : `src/modules/health/`. Remplacer `Carte`/`carte` par le domaine (fichiers **PascalCase**, cf. `docs/backend/CONVENTIONS.md`).
 
 ## Arborescence
 

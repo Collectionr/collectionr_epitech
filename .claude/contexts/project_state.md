@@ -20,6 +20,8 @@ _Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
 
 - **COLLR-683** — Dockerfile du backend (sous-tâche de COLLR-528, déploiement K3s). Branche `COLLR-683/feat/dockerfile-backend` (depuis `dev`). `backend/Dockerfile` multi-étapes (deps → build → prod-deps → runtime `node:24.18.0-bookworm-slim`, utilisateur `node`, `CMD node dist/main.js`, port 3000) + `backend/.dockerignore`. Piège : `tsconfig.json` doit être présent avant `npm ci`, sinon Prisma génère le client en ESM et `dist` ne se charge plus. Image construite, `/health` répond (503 `degraded` sans Redis, 200 attendu avec Postgres + Redis). Lint, format, 130 tests OK.
 
+- **COLLR-416 (COLLR-452 + COLLR-453 + COLLR-454)** — Domaine & logique métier Collection (épique COLLR-406). Branche `COLLR-416/feat/domaine-metier-collection` (depuis `dev`). Module `src/modules/collection/` (`domain/` + `application/` uniquement : ni infrastructure, ni endpoint, ni `CollectionModule`, comme `auth` — COLLR-417 les ajoute). Entités `Collection` et `CardEntry`, port `ICollectionRepository`, 9 use cases (Create/Get/List/Update/Delete Collection, Add/Update/Remove/List CardEntry), décisions et écarts : ADR-016. Lint clean, build OK, 447 tests unitaires + 22 e2e OK, couverture 99,28 % (module collection à 100 %). Plafond de 10 collections par utilisateur (à garantir sous concurrence en COLLR-417).
+
 ## En cours / à venir
 
 - **Merge COLLR-664 ↔ COLLR-665** : les deux branches ajoutent un modèle en fin de `schema.prisma` et un ADR après ADR-011 dans `architecture.md` (ainsi qu'une entrée « Fait » ici) → conflits attendus au second merge. Garder les deux (ADR-012 avant ADR-013), puis `prisma validate` + `prisma migrate status` : les deux migrations (`20260923…_add_data_retention_policies`, `20260924…_add_roles_permissions`) sont indépendantes, l'ordre des timestamps suffit.
@@ -43,6 +45,7 @@ _Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
 | --- | --- | --- |
 | `src/modules/health` | Healthcheck DB + Redis | **Exemple de référence** des 4 couches + ports |
 | `src/modules/audit` | Journal d'audit (`@Audit` + interceptor) | ADR-011 ; aucun endpoint HTTP propre |
+| `src/modules/collection` | Collections et entrées de cartes (domaine + use cases + port) | ADR-016 ; pas encore d'infrastructure ni d'endpoint (COLLR-417) |
 | `src/shared` | Socle transverse | config, bootstrap, filtres, pipes, `PrismaModule`/`RedisModule` |
 
 ## Outillage Git (Husky)

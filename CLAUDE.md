@@ -48,7 +48,7 @@ PostgreSQL/Redis ne sont **pas provisionnés par ce repo** — c'est l'équipe D
 
 | Besoin | Fichier |
 | --- | --- |
-| Conventions de code détaillées | `docs/backend/conventions.md` |
+| Conventions de code détaillées | `docs/backend/CONVENTIONS.md` |
 | Principes Clean Architecture | `docs/backend/clean-architecture.md` |
 | Décisions d'architecture (ADRs) | `.claude/contexts/architecture.md` |
 | État actuel du projet / tickets | `.claude/contexts/project_state.md` |
