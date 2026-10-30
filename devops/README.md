@@ -4,40 +4,29 @@ Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installati
 manifests Kubernetes, conventions techniques.
 
 ---
+## Sommaire
 
-## Convention de labels Kubernetes
+1. [Démarrage rapide](#démarrage-rapide)
+2. [Secrets à créer avant de déployer](#secrets-à-créer-avant-de-déployer)
+3. [Backend](#backend-backend)
+4. [Lancer les services](#lancer-les-services-deploysh)
+5. [Migrations Prisma](#migrations-prisma)
+6. [Frontend](#frontend)
+7. [Volume partagé OCR](#volume-partagé-ocr-shared-volume-ocr)
+8. [Convention de labels](#convention-de-labels)
 
-Toutes les ressources Kubernetes du projet appliquent la convention standard 
-`app.kubernetes.io/*`, dès le premier manifest (namespace `development`) :
+---
+## Démarrage rapide
 
-| Label | Valeur | Usage |
-|---|---|---|
-| `app.kubernetes.io/name` | `collectionr` | Nom du projet |
-| `app.kubernetes.io/part-of` | `collectionr` | Regroupement logique |
-| `app.kubernetes.io/managed-by` | `kubectl` | Outil de déploiement utilisé |
-| `app.kubernetes.io/component` | *(variable selon la ressource)* | Type de ressource — ex: `database` pour PostgreSQL, `backend` pour l'API. Non appliqué au namespace lui-même. |
+Pour un poste neuf, dans cet ordre :
 
-Cette convention permet aux NetworkPolicies, ServiceAccounts et Stern de sélectionner 
-les bons Pods sans ambiguïté.
+1. **Installer K3s** avec le script de ton OS : `devops/scripts/setup-local.sh` (Linux), `setup-wsl2.sh` (Windows/WSL2) ou `setup-macos.sh` (macOS).
+2. **Créer les Secrets** → [Secrets](#secrets-à-créer-avant-de-déployer)
+3. **Construire et importer l'image Backend** → [Backend](#backend-backend)
+4. **Lancer les services** : `./devops/scripts/deploy.sh --light`
+5. **Poste neuf uniquement : créer les tables** → [Migrations Prisma](#migrations-prisma)
 
-Exemple sur le namespace (`devops/k3s/namespace.yaml`) :
-```yaml
-metadata:
-  labels:
-    app.kubernetes.io/name: collectionr
-    app.kubernetes.io/part-of: collectionr
-    app.kubernetes.io/managed-by: kubectl
-```
-
-Exemple sur un service (à partir de #11, PostgreSQL) :
-```yaml
-metadata:
-  labels:
-    app.kubernetes.io/name: collectionr
-    app.kubernetes.io/part-of: collectionr
-    app.kubernetes.io/managed-by: kubectl
-    app.kubernetes.io/component: database
-```
+Vérifier : `./devops/scripts/deploy.sh --status`
 
 ---
 ## Secrets à créer avant de déployer
@@ -83,6 +72,83 @@ kubectl get secret redis-tcg-credentials --namespace development -o jsonpath='{.
 > ⚠️ Ne jamais modifier le Secret PostgreSQL après le premier démarrage : la base garde l'ancien mot de passe et la connexion échoue.
 > ⚠️ Toujours utiliser `-hex` (et non `-base64`) : les caractères `/`, `+`, `=` cassent les URL de connexion.
 
+---
+## Backend (`backend`)
+
+Image construite en local (pas de registre pour l'instant), depuis la racine du repo :
+
+```bash
+docker build -t collectionr-backend:dev backend/
+docker save collectionr-backend:dev | sudo k3s ctr images import -
+kubectl apply -f devops/k3s/backend.yaml
+```
+
+- Prérequis : les Secrets `postgresql-credentials`, `redis-ocr-credentials` et `backend-credentials` (voir "Secrets").
+- Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
+- ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
+- Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
+
+---
+## Lancer les services (`deploy.sh`)
+
+Depuis n'importe quel dossier du repo, après avoir créé les Secrets et importé l'image Backend :
+
+```bash
+./devops/scripts/deploy.sh --light   # PostgreSQL + Redis OCR + Redis TCG + Backend (postes 8 Go)
+./devops/scripts/deploy.sh           # profil complet (+ Frontend dès qu'il existe)
+./devops/scripts/deploy.sh --status  # affiche le mode actuel, sans rien relancer
+```
+
+Ce que fait le script :
+- Refuse de tourner si le cluster actif est un cluster k3d.
+- Vérifie les Secrets avant de déployer, et indique ceux qui manquent.
+- Mémorise le mode choisi (lu par `--status`). En `--light`, retire ce qui n'appartient qu'au profil complet.
+- **Teste `/health` automatiquement** à la fin : `✅ Backend répond sur /health`.
+- En cas d'erreur, indique l'étape qui a échoué et quoi vérifier.
+
+Test manuel, à tout moment :
+```bash
+curl -H "Host: api.collectionr.localhost" http://localhost/health
+```
+
+> Les Workers (OCR, TCG) seront ajoutés au profil en Beta.
+
+---
+## Migrations Prisma
+
+L'image Backend ne contient pas l'outil Prisma. Sur un **poste neuf** (base vide), on applique les migrations depuis le poste, via un tunnel.
+À refaire aussi quand l'équipe Back ajoute une nouvelle migration.
+
+Prérequis : Node.js installé.
+
+**Terminal 1** — ouvrir le tunnel (le laisser ouvert) :
+```bash
+kubectl port-forward -n development svc/postgresql 5432:5432
+```
+
+**Terminal 2** — depuis la racine du repo :
+```bash
+cd backend
+npm ci
+export DATABASE_URL="postgresql://collectionr:$(kubectl get secret postgresql-credentials -n development -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)@localhost:5432/collectionr_dev"
+npx prisma migrate deploy
+unset DATABASE_URL
+```
+
+Puis `Ctrl+C` dans le terminal 1.
+
+Vérifier : `kubectl exec -n development postgresql-0 -- psql -U collectionr -d collectionr_dev -c '\dt'`
+
+<!-- TODO : ajouter la commande de seed du lead Back (probablement `npx prisma db seed`), dispo prochainement -->
+
+> En Beta, les migrations seront lancées automatiquement par un Job Kubernetes.
+
+---
+## Frontend
+
+> À venir (#16) : en attente du Dockerfile Frontend.
+
+---
 ## Volume partagé OCR (`shared-volume-ocr`)
 
 Volume d'échange d'images entre le Backend et le Worker OCR.
@@ -123,17 +189,37 @@ kubectl delete -f devops/k3s/tests/test-shared-volume-ocr.yaml
 
 > ⚠️ Pour modifier le fichier de test, supprimer d'abord les Pods (`kubectl delete -f ...`) : un Pod existant ne peut pas changer de montage.
 
-## Backend (`backend`)
+---
+## Convention de labels Kubernetes
 
-Image construite en local (pas de registre pour l'instant), depuis la racine du repo :
+Toutes les ressources Kubernetes du projet appliquent la convention standard 
+`app.kubernetes.io/*`, dès le premier manifest (namespace `development`) :
 
-```bash
-docker build -t collectionr-backend:dev backend/
-docker save collectionr-backend:dev | sudo k3s ctr images import -
-kubectl apply -f devops/k3s/backend.yaml
+| Label | Valeur | Usage |
+|---|---|---|
+| `app.kubernetes.io/name` | `collectionr` | Nom du projet |
+| `app.kubernetes.io/part-of` | `collectionr` | Regroupement logique |
+| `app.kubernetes.io/managed-by` | `kubectl` | Outil de déploiement utilisé |
+| `app.kubernetes.io/component` | *(variable selon la ressource)* | Type de ressource — ex: `database` pour PostgreSQL, `backend` pour l'API. Non appliqué au namespace lui-même. |
+
+Cette convention permet aux NetworkPolicies, ServiceAccounts et Stern de sélectionner 
+les bons Pods sans ambiguïté.
+
+Exemple sur le namespace (`devops/k3s/namespace.yaml`) :
+```yaml
+metadata:
+  labels:
+    app.kubernetes.io/name: collectionr
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/managed-by: kubectl
 ```
 
-- Prérequis : les Secrets `postgresql-credentials`, `redis-ocr-credentials` et `backend-credentials` (voir "Secrets").
-- Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
-- ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
-- Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
+Exemple sur un service (à partir de #11, PostgreSQL) :
+```yaml
+metadata:
+  labels:
+    app.kubernetes.io/name: collectionr
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/managed-by: kubectl
+    app.kubernetes.io/component: database
+```
