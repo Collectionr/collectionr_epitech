@@ -2,7 +2,7 @@
 
 > Mettre à jour ce fichier quand un ticket est terminé, une décision prise, ou un piège découvert.
 
-_Dernière mise à jour : 2026-10-25 (COLLR-573 — tokens et vérifications web/Android)_
+_Dernière mise à jour : 2026-10-30 (COLLR-594 — installation Storybook web)_
 
 ## Fait
 
@@ -21,6 +21,8 @@ _Dernière mise à jour : 2026-10-25 (COLLR-573 — tokens et vérifications web
 - **COLLR-683** — Dockerfile du backend (sous-tâche de COLLR-528, déploiement K3s). Branche `COLLR-683/feat/dockerfile-backend` (depuis `dev`). `backend/Dockerfile` multi-étapes (deps → build → prod-deps → runtime `node:24.18.0-bookworm-slim`, utilisateur `node`, `CMD node dist/main.js`, port 3000) + `backend/.dockerignore`. Piège : `tsconfig.json` doit être présent avant `npm ci`, sinon Prisma génère le client en ESM et `dist` ne se charge plus. Image construite, `/health` répond (503 `degraded` sans Redis, 200 attendu avec Postgres + Redis). Lint, format, 130 tests OK.
 
 ## En cours / à venir
+
+- **COLLR-594 — Storybook web (30/10/2026, branche `COLLR-594/chore/installation-storybook`)** : branche créée depuis le 573 (`6011a28`), sans les atomes de la branche 569. Storybook 10.6.5 React/Vite et addon Docs installés dans `apps/web`. Configuration sous `.storybook/`, reprise de Vite/PostCSS/Tailwind et des tokens, import des sept polices mutualisé dans `src/styles/fonts.ts`. Canvas Écrin par défaut, interface et documentation sombres. Quatre groupes déduits des dossiers : Atoms, Molecules, Organisms, Templates (ne pas répéter le préfixe dans les titres de stories). Présentation `Atoms/Fondations` et introductions des autres niveaux ; aucune implémentation des atomes ajoutée. Commandes `npm run storybook` et `npm run build-storybook` depuis `frontend/`, documentées dans le README racine. Validation : typage, lint, format, 19 tests Vitest, build web et build Storybook réussis ; rendu des fondations et navigation Atomic Design contrôlés dans le navigateur intégré. Les stories des composants et la validation exhaustive des tokens restent à réaliser. Build Storybook avec avertissement de taille des bundles de documentation ; npm audit signale des dépendances vulnérables à traiter séparément, sans mise à jour générale appliquée. Travail non commité, non poussé, non mergé. Lionel a confirmé le chemin `packages/shared/src/tokens` du 573.
 
 - **COLLR-573 — Tokens Écrin (23/10/2026, branche `COLLR-573/feat/tokens-design`)** : repris par Lionel sur proposition de François. Valeurs dans `frontend/packages/shared/src/tokens`, mapping commun dans `frontend/styles/tailwindPreset.ts`, Tailwind 3.4.19 web + NativeWind mobile, sept graisses auto-hébergées/embarquées. `docs/frontend/docs/design-system.md` remplace la charte provisoire. Travail local à relire, pas encore mergé ; Storybook (594) et les atomes restent à réaliser. Décision 572 communiquée par François : UI dans `apps/web/src/components/atoms/`, `packages/shared` sans JSX ; formalisation Jira laissée au lead.
   - Vérifications automatisées : typage, lint, format, build web et export Android avec les sept TTF réussis. Après correctifs : 19 tests Vitest + 8 tests Jest réussis. Node 24.19 utilisé pour les contrôles ; le Node par défaut du terminal lors de ces contrôles (24.15) était inférieur à la version demandée par le projet.
