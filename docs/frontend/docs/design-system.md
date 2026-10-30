@@ -94,7 +94,32 @@ Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depu
 - Alerte est autorisé pour les actions destructrices. Button danger reste transparent, bordure/texte Alerte.
 - Cotes : hausse en Archive avec ↗ ; baisse en acier-texte avec ↘. Ni rouge/vert, ni Signal.
 
-## Vérification et extension
+## Validation visuelle du 573 (30/10/2026)
+
+**Bilan web — vérifications manuelles du 30/10/2026.** Vérifications manuelles dans Storybook sous Chrome et Firefox : palette, typographies, basculement à 1280 px, espacements, dimensions, états hover/active/disabled, focus clavier et réduction des animations. Aucun écart constaté.
+
+**Bilan Android — vérifications manuelles du 30/10/2026.** Vérifications de l'écran `TokensPreviewScreen` dans Expo Go compatible SDK 57, sans écart constaté.
+
+**Limite iOS.** Vérifications non effectuées : la version d'Expo Go disponible sur l'appareil iOS de test prend en charge le SDK 58, alors que le projet utilise le SDK 57. Cette limitation de l'environnement de test ne permet pas de conclure sur le rendu iOS. Le rendu iOS reste non vérifié ; la validation finale du reviewer, y compris l'acceptation de cette limite ou la demande de contrôles complémentaires, reste en attente.
+
+Storybook est présent sur la branche 573 après intégration du 594. Depuis `frontend/`, lancer `npm run storybook`, puis ouvrir `Atoms/Fondations`. Les exemples sont des démonstrations des tokens, pas les atomes des tickets 569/570.
+
+| Story | Contrôles manuels à consigner |
+| --- | --- |
+| Thème Écrin | Raccordement global au thème et aux fontes |
+| Palette | Neuf couleurs, texte secondaire sur les deux fonds, usages Alerte/Signal/Blanc, cotes Archive ↗ et acier-texte ↘ |
+| Typographie | Sept variantes, sept graisses, interlignes/crénages, chiffres alignés, uppercase ; canvas seul à 1279 puis 1280 px, puis largeur étroite |
+| Dimensions | Huit espacements, ratio 63/88, rayon carte 6 px, autres formes carrées, absence d'ombre |
+| États et focus clavier | Lisérés 15/40/90 %, disabled 40 %, hover/active réels ; Tab/Maj+Tab, outline Signal 1,5 px et offset 2 px sans rognage |
+| Mouvement | Quatre transitions 120/180/320/400 ms, easing commun, durées calculées à 0 avec reduced motion ; changement de préférence sans rechargement |
+
+Exécuter la matrice dans Chrome et Firefox. Vérifier le chargement local des fontes, `font-display: swap` et les familles réellement rendues dans les outils du navigateur. Pour chaque résultat, noter le commit, navigateur/version, largeur du canvas, préférence de mouvement et éventuelle anomalie ; conserver les captures pertinentes. Une story présente n'est pas un contrôle réussi, et une capture fixe ne valide pas une transition.
+
+Le rendu Android/iOS n'est pas couvert par ces stories web. L'écran `TokensPreviewScreen` s'affiche désormais automatiquement en développement : depuis `frontend/`, lancer `npm run dev:mobile`, puis ouvrir l'application dans Expo Go compatible SDK 57. Il présente les fontes, couleurs, dimensions, états, un champ et un bouton pour le focus avec clavier externe, les quatre transitions NativeWind et une transition Reanimated. Pour la réduction des animations, changer la préférence système puis revenir dans l'application et actionner les deux démonstrations, sans recharger. Les dimensions natives sont exprimées en unités logiques (dp), pas en pixels physiques. L'écran d'accueil minimal reste utilisé hors développement.
+
+Cet écran est implémenté et les vérifications manuelles Android sont réussies (bilan ci-dessus). Les contrôles iOS restent non effectués. L'acceptation par le reviewer est une étape séparée.
+
+## Historique de vérification et extension
 
 Au 25/10/2026, les contrôles automatisés ont réussi et Lionel a lancé les versions web sur PC et mobile sur Android avec Expo Go SDK 57. Les écrans actuels affichent uniquement Collectionr avec les styles de base : ce démarrage ne constitue pas une validation visuelle exhaustive des tokens. Cette validation reste en attente de Storybook (COLLR-594), non installé, ou d'un écran de démonstration dédié, non créé. Les variantes typographiques, espacements, états, breakpoints, focus et animations restent à examiner visuellement ; le rendu natif devra être vérifié séparément du web. iOS n'a pas été testé.
 

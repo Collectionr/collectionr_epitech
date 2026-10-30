@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { fontAssets } from '@/config/fonts';
 import { MotionAccessibility } from '@/config/MotionAccessibility';
 import { HomeScreen } from '@/screens';
+import { TokensPreviewScreen } from '@/screens/TokensPreviewScreen';
 
 import './global.css';
 
@@ -16,7 +17,7 @@ export function App() {
   return (
     <>
       <MotionAccessibility />
-      <HomeScreen />
+      {__DEV__ ? <TokensPreviewScreen /> : <HomeScreen />}
       <StatusBar style="light" />
     </>
   );
