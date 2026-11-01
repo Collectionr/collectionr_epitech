@@ -53,7 +53,7 @@ Toute la configuration d'app (préfixe, versioning, pipes, CORS, Helmet, Swagger
 
 ## ADR-007 — Logs JSON via nestjs-pino
 
-JSON une ligne/événement hors développement, `pino-pretty` en dev, niveau par `LOG_LEVEL`, redaction de `authorization`/`cookie`/`set-cookie`.
+JSON une ligne/événement hors développement, `pino-pretty` en dev, niveau par `LOG_LEVEL`, redaction de `authorization`/`cookie`/`set-cookie`. Hors développement, même forme de ligne que le microservice TCG : `level` en texte (`"info"`, pas `30`), `time` en ISO 8601, champ `service` (S05), pour filtrer les deux services avec les mêmes requêtes Loki.
 **Raison** : base exploitable par Grafana/Loki (observabilité portée par Cloud & Cyber) ; pino est le logger natif de Fastify (quasi zéro overhead).
 
 ## ADR-008 — Rate limiting à deux niveaux

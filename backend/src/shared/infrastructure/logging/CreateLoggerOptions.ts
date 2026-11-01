@@ -1,10 +1,13 @@
 import type { ConfigService } from '@nestjs/config';
 import type { Params } from 'nestjs-pino';
+import { stdTimeFunctions } from 'pino';
+import { LOG_SERVICE_NAME } from '../../config/AppConstants';
 import { NodeEnvironment } from '../../config/EnvironmentVariables';
 
 /**
  * Structured logger options (pino via nestjs-pino).
  * - One JSON line per event outside development (consumable by Grafana/Loki)
+ * - Same line shape as the TCG service: `level` as text ("info", not 30), ISO-8601 `time`, `service`
  * - pino-pretty in development for readability
  * - Redacts sensitive headers so a token or cookie is never logged
  * - Redacts the client address and port: an IP is personal data, and logs must carry none (S04 §11)
@@ -16,8 +19,18 @@ export function createLoggerOptions(configService: ConfigService): Params {
   );
   const isDevelopment = nodeEnvironment === NodeEnvironment.Development;
 
+  // pino-pretty expects numeric levels and epoch times, so the JSON shape only applies outside development.
+  const jsonLineShape = isDevelopment
+    ? {}
+    : {
+        base: { service: LOG_SERVICE_NAME },
+        formatters: { level: (label: string) => ({ level: label }) },
+        timestamp: stdTimeFunctions.isoTime,
+      };
+
   return {
     pinoHttp: {
+      ...jsonLineShape,
       level: configService.get<string>('LOG_LEVEL', 'info'),
       redact: {
         // req.body.* : safety net for future authentication endpoints.
