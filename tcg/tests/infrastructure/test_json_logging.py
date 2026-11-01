@@ -62,12 +62,39 @@ def test_each_log_is_one_json_line_with_the_s05_fields(stdout: Stdout) -> None:
 
 
 def test_level_below_log_level_is_dropped(stdout: Stdout) -> None:
-    configure_logging("warning")
+    configure_logging("warn")
 
     logging.getLogger("tcg_service.test").info("hidden")
     logging.getLogger("tcg_service.test").warning("shown")
 
     assert [entry["msg"] for entry in lines(stdout)] == ["shown"]
+
+
+def test_levels_are_named_like_the_backend(stdout: Stdout) -> None:
+    configure_logging("trace")
+    logger = logging.getLogger("tcg_service.test")
+
+    logger.warning("w")
+    logger.critical("c")
+
+    assert [entry["level"] for entry in lines(stdout)] == ["warn", "fatal"]
+
+
+@pytest.mark.parametrize(
+    ("log_level", "expected"),
+    [("fatal", ["c"]), ("error", ["e", "c"]), ("debug", ["d", "e", "c"])],
+)
+def test_backend_log_levels_filter_like_their_python_counterpart(
+    stdout: Stdout, log_level: str, expected: list[str]
+) -> None:
+    configure_logging(log_level)
+    logger = logging.getLogger("tcg_service.test")
+
+    logger.debug("d")
+    logger.error("e")
+    logger.critical("c")
+
+    assert [entry["msg"] for entry in lines(stdout)] == expected
 
 
 def test_extra_fields_and_exceptions_are_kept(stdout: Stdout) -> None:

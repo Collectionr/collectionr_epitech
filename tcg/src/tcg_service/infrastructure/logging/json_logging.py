@@ -9,6 +9,11 @@ from typing import Any
 SERVICE_NAME = "tcg"
 UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
 
+# Level names are the backend's (pino): WARNING and CRITICAL are written warn, fatal.
+_PINO_LEVEL_NAMES = {"warning": "warn", "critical": "fatal"}
+# LOG_LEVEL values that are not Python level names (Python has nothing below DEBUG).
+_PYTHON_LEVEL_NAMES = {"fatal": "CRITICAL", "warn": "WARNING", "trace": "DEBUG"}
+
 # Attributes every LogRecord has: anything else was passed through `extra=`.
 # color_message is uvicorn's copy of the message with ANSI color codes.
 _IGNORED_RECORD_ATTRIBUTES = frozenset(
@@ -18,11 +23,12 @@ _IGNORED_RECORD_ATTRIBUTES = frozenset(
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
+        level = record.levelname.lower()
         payload: dict[str, Any] = {
             "time": datetime.fromtimestamp(record.created, UTC)
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z"),
-            "level": record.levelname.lower(),
+            "level": _PINO_LEVEL_NAMES.get(level, level),
             "service": SERVICE_NAME,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -57,13 +63,14 @@ class AccessLogFilter(logging.Filter):
 
 def configure_logging(level: str) -> None:
     """Routes every log, uvicorn's included, through one JSON handler on stdout."""
+    python_level = _PYTHON_LEVEL_NAMES.get(level, level.upper())
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
-    handler.setLevel(level.upper())
+    handler.setLevel(python_level)
 
     root = logging.getLogger()
     root.handlers[:] = [handler]
-    root.setLevel(level.upper())
+    root.setLevel(python_level)
 
     # uvicorn installs its own text handlers before calling the app factory.
     for name in UVICORN_LOGGERS:

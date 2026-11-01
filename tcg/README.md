@@ -88,7 +88,7 @@ Les variables sont lues dans l'environnement, puis dans `.env`. Elles sont valid
 | Variable | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- |
 | `APP_ENV` | non | `dev` | `dev` ou `staging`. En `staging`, `/docs` et `/openapi.json` sont désactivés. |
-| `LOG_LEVEL` | non | `info` | `critical`, `error`, `warning`, `info`, `debug`. |
+| `LOG_LEVEL` | non | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` (mêmes valeurs que le backend ; `trace` équivaut à `debug`). |
 | `DATABASE_URL` | **oui** | — | `postgresql://<utilisateur>:<mot_de_passe>@<hote>:<port>/<base>` — même base que le backend. Sans paramètre Prisma (`?schema=…`). |
 | `DATABASE_POOL_MAX` | non | `5` | Taille maximale du pool (1-100). |
 | `DATABASE_CONNECT_TIMEOUT` | non | `5` | Délai de connexion en secondes (1-60). |
@@ -138,7 +138,7 @@ Tous les logs (service, `psycopg`, uvicorn) sortent en **JSON, une ligne par év
 (S05), au niveau `LOG_LEVEL` :
 
 ```json
-{"time": "2026-10-30T15:18:27.838Z", "level": "warning", "service": "tcg", "logger": "tcg_service.infrastructure.persistence.postgres_health_indicator", "msg": "PostgreSQL health check failed: AdminShutdown"}
+{"time": "2026-10-30T15:18:27.838Z", "level": "warn", "service": "tcg", "logger": "tcg_service.infrastructure.persistence.postgres_health_indicator", "msg": "PostgreSQL health check failed: AdminShutdown"}
 ```
 
 Les champs passés via `extra=` sont ajoutés tels quels, et une exception (`logger.exception`) est

@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     )
 
     app_env: Environment = Environment.DEV
-    log_level: Literal["critical", "error", "warning", "info", "debug"] = "info"
+    # Same values as the backend's LOG_LEVEL (pino): one setting can serve both.
+    log_level: Literal["fatal", "error", "warn", "info", "debug", "trace"] = "info"
 
     # Same shared database and same variable as the NestJS backend.
     database_url: SecretStr
