@@ -289,6 +289,48 @@ erDiagram
 - **Logo** : `licences_tcg.logoUrl` est une URL, vide dans le seed (TCGdex ne fournit pas de logo de licence) ; la source reste à choisir. Aucun fichier n'est stocké.
 - **Hors contrat** : prix, prédictions, légalité en tournoi (`legal`), `regulationMark` (inutiles à un collectionneur), drapeaux `has*` (déductibles de `variants`), et le détail de jeu des cartes (attaques, talents, faiblesses, résistances, coût de retraite, description, effet). Les champs `predictedPrice`, `priceLowerBound` et `priceUpperBound` de l'ancienne `CARD` sont retirés : ils appartiennent au worker de prédiction et n'ont pas encore de ticket backend. Les anciens champs `label` et `imageUrl` de `VARIANT` disparaissent aussi : TCGdex ne donne pas d'image par variante, et `type` / `subtype` / `stamps` / `foil` remplacent le libellé.
 
+### Règles d'écriture pour le service TCG
+
+Ordre : licence, puis set, puis carte, puis variantes (une variante vise `cards.id`, qu'on retrouve par `tcgdexId`). Gabarit SQL canonique (colonnes abrégées) :
+
+```sql
+-- Set : le français ne doit jamais effacer une traduction déjà écrite.
+INSERT INTO sets ("licenceTCGId", "tcgdexId", "nameEn", "nameFr", "officialCardCount", "totalCardCount")
+SELECT id, 'swsh3', 'Darkness Ablaze', 'Ténèbres Embrasées', 189, 201 FROM licences_tcg WHERE slug = 'pokemon'
+ON CONFLICT ("tcgdexId") DO UPDATE SET
+  "nameEn" = EXCLUDED."nameEn",
+  "nameFr" = COALESCE(EXCLUDED."nameFr", sets."nameFr"),
+  "officialCardCount" = EXCLUDED."officialCardCount",
+  "totalCardCount" = EXCLUDED."totalCardCount",
+  "updatedAt" = now();
+
+-- Carte : même principe ; une liste vide s'écrit '{}', jamais NULL.
+INSERT INTO cards ("setId", "tcgdexId", "number", "nameEn", "nameFr", "category", "types")
+SELECT id, 'swsh3-20', '20', 'Charizard VMAX', 'Dracaufeu VMAX', 'Pokemon', ARRAY['Fire'] FROM sets WHERE "tcgdexId" = 'swsh3'
+ON CONFLICT ("tcgdexId") DO UPDATE SET
+  "nameEn" = EXCLUDED."nameEn",
+  "nameFr" = COALESCE(EXCLUDED."nameFr", cards."nameFr"),
+  "types" = EXCLUDED."types",
+  "updatedAt" = now();
+
+-- Variante : la clé est la carte ET le variantId TCGdex.
+INSERT INTO variants ("cardId", "tcgdexVariantId", "type", "size")
+SELECT id, 'jr7oetx1mqug9', 'holo', 'standard' FROM cards WHERE "tcgdexId" = 'swsh3-20'
+ON CONFLICT ("cardId", "tcgdexVariantId") DO UPDATE SET
+  "type" = EXCLUDED."type", "size" = EXCLUDED."size", "updatedAt" = now();
+```
+
+- **Ce que la base fournit** : `id` (UUID) et `createdAt` ont une valeur par défaut. **`updatedAt` est à écrire explicitement** à chaque `DO UPDATE` : rien ne le met à jour tout seul. Aucun code du backend ne le lit aujourd'hui ; la fraîcheur d'une carte côté TCGdex est `cards.tcgdexUpdatedAt`.
+- **Listes (`types`, `dexIds`, `stamps`)** : `NOT NULL`, refusées par la base si NULL. Un `None` Python doit devenir une liste vide.
+- **Français partiel** : `COALESCE(EXCLUDED.x, x)` sur chaque colonne `…Fr`, sinon un appel qui n'a que l'anglais efface la traduction. Une carte absente en anglais ne s'écrit pas (`nameEn` est obligatoire).
+- **Paramètre nullable dans un `INSERT ... SELECT`** : il demande un cast explicite (`%s::text`, `%s::integer`), sinon PostgreSQL peut répondre « could not determine data type of parameter ». Les gabarits ci-dessus l'omettent pour rester lisibles ; le test sur base réelle ajoute `::text`. Non vérifié avec psycopg.
+- **Série et évolution précédente dans une seule langue** : TCGdex peut ne les fournir qu'en français. La base l'accepte (aucun `CHECK`, pour ne jamais bloquer la synchronisation) et le backend lit alors le texte français à la place de l'anglais. Écrire ce que TCGdex donne, sans le compléter.
+- **`INSERT ... SELECT` sans parent n'écrit rien et ne dit rien** : si la licence, le set ou la carte visés n'existent pas, la requête réussit avec 0 ligne affectée. Le service doit vérifier que le nombre de lignes affectées vaut 1, sinon écrire dans l'ordre licence, set, carte, variantes.
+- **Aucun `DELETE`** : le service n'a pas à supprimer, et les collections pointeront vers ces lignes (`ON DELETE RESTRICT`). Une carte ou une variante retirée par TCGdex, un set renommé ou renuméroté restent donc en base ; il n'existe pas de colonne d'état (`isActive`, `lastSeenAt`). **Question ouverte pour le PO.**
+- **`variantId` TCGdex** : sa stabilité dans le temps n'est pas vérifiée ; s'il était recalculé, des variantes orphelines s'accumuleraient (la clé est carte + `variantId`).
+- **Concurrence** : les upserts sont idempotents ; deux workers sur des cartes différentes ne se gênent pas, sur la même carte le dernier écrit gagne.
+- **Droits** : le contrat « ne crée ni ne modifie aucune table » est aujourd'hui une convention. Recommandation à porter à DevOps : un rôle SQL dédié au service TCG (`SELECT`, `INSERT`, `UPDATE`, sans `DELETE` ni DDL).
+- **Vérification** : `backend/prisma/catalogue/CatalogueDatabase.spec.ts` rejoue une version simplifiée de ces gabarits contre un vrai PostgreSQL jetable (clés d'upsert, `COALESCE` du français, listes `NOT NULL`, clé des variantes, `ON DELETE RESTRICT`, lecture du repository). Il est facultatif, la commande est dans l'en-tête du fichier. Il ne remplace pas un test du service TCG avec ses propres requêtes.
 ### Vocabulaires stockés en anglais, traduits par le front
 
 `category`, `rarity`, `types` et `stage` de `cards` contiennent le texte anglais de TCGdex, qui joue le rôle de code. Le front (web et mobile) le traduit avec un fichier de langue, et affiche le texte anglais tel quel pour une valeur qu'il ne connaît pas encore. Valeurs observées dans les 3 sets de référence (TCGdex en ajoute avec chaque nouveau set, et ses raretés ne sont pas toutes normalisées) :

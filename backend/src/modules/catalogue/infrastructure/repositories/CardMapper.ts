@@ -1,6 +1,6 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Card } from '../../domain/entities/Card';
-import { CardSet } from '../../domain/entities/CardSet';
+import { CardSet, type CardSetSerie } from '../../domain/entities/CardSet';
 import { CardVariant } from '../../domain/entities/CardVariant';
 import { LicenceTCG } from '../../domain/entities/LicenceTCG';
 import { LocalizedText } from '../../domain/value-objects/LocalizedText';
@@ -23,19 +23,30 @@ function toLicenceTCG(record: CardRecord['set']['licenceTCG']): LicenceTCG {
   });
 }
 
+// TCGdex data is community-made and language by language: a series or a previous evolution can be
+// known in French only. English is the reference, so the French text stands in for it rather than
+// the row being dropped (the database accepts it, because refusing it would stop the sync).
+function toSerie(record: CardRecord['set']): CardSetSerie | null {
+  const name = record.serieNameEn ?? record.serieNameFr;
+  if (record.serieTcgdexId === null || name === null) {
+    return null;
+  }
+  return { tcgdexId: record.serieTcgdexId, name: LocalizedText.of(name, record.serieNameFr) };
+}
+
+function toEvolveFrom(record: CardRecord): LocalizedText | null {
+  const name = record.evolveFromEn ?? record.evolveFromFr;
+  return name === null ? null : LocalizedText.of(name, record.evolveFromFr);
+}
+
 function toCardSet(record: CardRecord['set']): CardSet {
   return CardSet.restore({
     id: record.id,
     licenceTCG: toLicenceTCG(record.licenceTCG),
     tcgdexId: record.tcgdexId,
     name: LocalizedText.of(record.nameEn, record.nameFr),
-    serie:
-      record.serieTcgdexId !== null && record.serieNameEn !== null
-        ? {
-            tcgdexId: record.serieTcgdexId,
-            name: LocalizedText.of(record.serieNameEn, record.serieNameFr),
-          }
-        : null,
+    serie: toSerie(record),
+
     releaseDate: record.releaseDate,
     abbreviationOfficial: record.abbreviationOfficial,
     abbreviationFr: record.abbreviationFr,
@@ -82,10 +93,7 @@ export function toCard(record: CardRecord): Card {
     hp: record.hp,
     types: record.types,
     dexIds: record.dexIds,
-    evolveFrom:
-      record.evolveFromEn !== null
-        ? LocalizedText.of(record.evolveFromEn, record.evolveFromFr)
-        : null,
+    evolveFrom: toEvolveFrom(record),
     stage: record.stage,
     tcgdexUpdatedAt: record.tcgdexUpdatedAt,
     image: LocalizedUrl.of(record.imageUrlEn, record.imageUrlFr),

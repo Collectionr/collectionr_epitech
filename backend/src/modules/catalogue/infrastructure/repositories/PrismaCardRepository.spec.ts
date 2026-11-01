@@ -148,7 +148,7 @@ describe('PrismaCardRepository', () => {
       expect(set?.name.in('fr')).toBe('Ténèbres Embrasées');
       expect(set?.serie).toMatchObject({ tcgdexId: 'swsh' });
       expect(set?.serie?.name.in('fr')).toBe('Épée et Bouclier');
-      expect(set?.abbreviationIn('fr')).toBe('TEM');
+      expect(set?.abbreviationFr).toBe('TEM');
       expect(set?.logo.in('en')).toBe('https://assets.tcgdex.net/en/swsh/swsh3/logo');
       expect(set?.licenceTCG).toMatchObject({ slug: 'pokemon', name: 'Pokémon', logoUrl: null });
     });
@@ -161,7 +161,8 @@ describe('PrismaCardRepository', () => {
       const card = await repository.findById(CARD_ID);
 
       expect(card?.variants).toHaveLength(1);
-      expect(card?.findVariant('jr7oetx1mqug9')).toMatchObject({
+      expect(card?.findVariant('9a1f1e8e-2d1a-4d0c-9d0b-0f7e5b7a6c10')).toMatchObject({
+        tcgdexVariantId: 'jr7oetx1mqug9',
         type: 'holo',
         size: 'standard',
         cardmarketProductId: 482974,
@@ -196,6 +197,43 @@ describe('PrismaCardRepository', () => {
       expect(card).toMatchObject({ rarity: null, hp: null });
     });
 
+    it('still reads a series and a previous evolution that TCGdex knows in French only', async () => {
+      const frenchOnly = buildRecord({
+        evolveFromEn: null,
+        evolveFromFr: 'Reptincel',
+        set: {
+          ...buildRecord().set,
+          serieNameEn: null,
+          serieNameFr: 'Épée et Bouclier',
+        },
+      });
+      const { repository } = buildRepository({
+        findUnique: jest.fn().mockResolvedValue(frenchOnly),
+      });
+
+      const card = await repository.findById(CARD_ID);
+
+      expect(card?.set.serie?.name.in('en')).toBe('Épée et Bouclier');
+      expect(card?.set.serie?.name.in('fr')).toBe('Épée et Bouclier');
+      expect(card?.evolveFrom?.in('en')).toBe('Reptincel');
+      expect(card?.evolveFrom?.in('fr')).toBe('Reptincel');
+    });
+
+    it('has no series when there is no series id, whatever the names say', async () => {
+      const noSerie = buildRecord({ set: { ...buildRecord().set, serieTcgdexId: null } });
+      const { repository } = buildRepository({ findUnique: jest.fn().mockResolvedValue(noSerie) });
+
+      expect((await repository.findById(CARD_ID))?.set.serie).toBeNull();
+    });
+
+    it('has no series when the id is there but no name in any language', async () => {
+      const unnamed = buildRecord({
+        set: { ...buildRecord().set, serieNameEn: null, serieNameFr: null },
+      });
+      const { repository } = buildRepository({ findUnique: jest.fn().mockResolvedValue(unnamed) });
+
+      expect((await repository.findById(CARD_ID))?.set.serie).toBeNull();
+    });
     it('gives null when the card does not exist', async () => {
       const { repository } = buildRepository();
 

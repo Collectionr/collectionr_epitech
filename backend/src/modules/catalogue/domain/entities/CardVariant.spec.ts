@@ -27,14 +27,4 @@ describe('CardVariant', () => {
       cardtraderProductId: null,
     });
   });
-
-  it('recognises a first edition by its stamp', () => {
-    expect(buildVariant().isFirstEdition()).toBe(true);
-    expect(buildVariant({ stamps: ['pikachu', '1st-edition'] }).isFirstEdition()).toBe(true);
-  });
-
-  it('is not a first edition without that stamp', () => {
-    expect(buildVariant({ stamps: [] }).isFirstEdition()).toBe(false);
-    expect(buildVariant({ stamps: ['snowflake'] }).isFirstEdition()).toBe(false);
-  });
 });

@@ -21,8 +21,6 @@ export interface CardVariantProps {
   readonly cardtraderProductId: number | null;
 }
 
-const FIRST_EDITION_STAMP = '1st-edition';
-
 /** One printing of a card (normal, reverse holo, 1st edition...). Read only. */
 export class CardVariant {
   private constructor(
@@ -51,9 +49,5 @@ export class CardVariant {
       props.tcgplayerProductId,
       props.cardtraderProductId,
     );
-  }
-
-  isFirstEdition(): boolean {
-    return this.stamps.includes(FIRST_EDITION_STAMP);
   }
 }

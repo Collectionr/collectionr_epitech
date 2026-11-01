@@ -1,4 +1,3 @@
-import type { CatalogueLanguage } from '../value-objects/CatalogueLanguage';
 import type { LocalizedText } from '../value-objects/LocalizedText';
 import type { LocalizedUrl } from '../value-objects/LocalizedUrl';
 import type { LicenceTCG } from './LicenceTCG';
@@ -82,23 +81,5 @@ export class CardSet {
       props.logo,
       props.symbolUrl,
     );
-  }
-
-  /** The code of the set in the requested language: the French one when there is one. */
-  abbreviationIn(language: CatalogueLanguage): string | null {
-    return language === 'fr'
-      ? (this.abbreviationFr ?? this.abbreviationOfficial)
-      : this.abbreviationOfficial;
-  }
-
-  /**
-   * Share of the set a collector owns, from 0 to 1, counting the secret rares: 45 of 201 cards is
-   * 0.2239. Capped at 1 so a data glitch never shows more than a complete set.
-   */
-  completionOf(ownedCardCount: number): number {
-    if (this.totalCardCount === 0) {
-      return 0;
-    }
-    return Math.min(Math.max(ownedCardCount, 0) / this.totalCardCount, 1);
   }
 }

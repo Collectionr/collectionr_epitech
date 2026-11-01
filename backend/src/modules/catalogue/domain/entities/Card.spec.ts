@@ -108,14 +108,19 @@ describe('Card', () => {
   });
 
   describe('findVariant', () => {
-    it('finds a printing by its TCGdex variant id', () => {
+    it('finds a printing of the card by its own id', () => {
       const card = buildCard({ variants: [buildVariant('a'), buildVariant('b')] });
 
-      expect(card.findVariant('b')?.tcgdexVariantId).toBe('b');
+      expect(card.findVariant('id-b')?.tcgdexVariantId).toBe('b');
     });
 
     it('gives null for a printing the card does not have', () => {
       expect(buildCard().findVariant('unknown')).toBeNull();
+      expect(buildCard().findVariant('id-of-another-card')).toBeNull();
+    });
+
+    it('does not take the TCGdex variant id for an id: it is only meaningful with a card', () => {
+      expect(buildCard().findVariant('jr7oetx1mqug9')).toBeNull();
     });
   });
 

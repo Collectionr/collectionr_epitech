@@ -35,13 +35,15 @@ function columns(sql: string, table: string): Map<string, string> {
 describe('add_card_catalogue migration', () => {
   const sql = readMigration(MIGRATION_NAME);
 
-  it('is the newest migration, so it runs after the existing ones', () => {
+  it('is part of the history and runs after the migration it builds on', () => {
     const names = readdirSync(MIGRATIONS_DIRECTORY)
       .filter((name) => /^\d{14}_/.test(name))
       .sort();
 
-    expect(names[names.length - 1]).toBe(MIGRATION_NAME);
-    expect(names).toContain('20260924132529_add_roles_permissions');
+    expect(names).toContain(MIGRATION_NAME);
+    expect(names.indexOf(MIGRATION_NAME)).toBeGreaterThan(
+      names.indexOf('20260924132529_add_roles_permissions'),
+    );
   });
 
   it('creates the licences_tcg, sets, cards and variants tables and nothing else', () => {
@@ -127,8 +129,8 @@ describe('add_card_catalogue migration', () => {
       expect(sql).not.toMatch(/"(category|rarity|types|stage)(En|Fr)"/);
     });
 
-    it('defaults the type list to empty so a raw INSERT may leave it out', () => {
-      expect(columns(sql, 'cards').get('types')).toBe('TEXT[] DEFAULT ARRAY[]::TEXT[]');
+    it('never stores NULL in the type list, and defaults it to empty so a raw INSERT may leave it out', () => {
+      expect(columns(sql, 'cards').get('types')).toBe('TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]');
     });
 
     it('keeps French optional on every translated card column', () => {
@@ -146,10 +148,14 @@ describe('add_card_catalogue migration', () => {
     });
   });
 
+  it('has no CHECK constraint: a rule the service can break would stop its synchronisation', () => {
+    expect(sql).not.toMatch(/\bCHECK\b/);
+  });
+
   describe('additional TCGdex information', () => {
     it('keeps the card details that are not text', () => {
       const cards = columns(sql, 'cards');
-      expect(cards.get('dexIds')).toBe('INTEGER[] DEFAULT ARRAY[]::INTEGER[]');
+      expect(cards.get('dexIds')).toBe('INTEGER[] NOT NULL DEFAULT ARRAY[]::INTEGER[]');
       expect(cards.get('illustrator')).toBe('TEXT');
       expect(cards.get('tcgdexUpdatedAt')).toBe('TIMESTAMPTZ(6)');
     });
@@ -186,7 +192,7 @@ describe('add_card_catalogue migration', () => {
       expect(variants.get('size')).toBe('TEXT NOT NULL');
       expect(variants.get('subtype')).toBe('TEXT');
       expect(variants.get('foil')).toBe('TEXT');
-      expect(variants.get('stamps')).toBe('TEXT[] DEFAULT ARRAY[]::TEXT[]');
+      expect(variants.get('stamps')).toBe('TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]');
       for (const source of ['cardmarket', 'tcgplayer', 'cardtrader']) {
         expect(variants.get(`${source}ProductId`)).toBe('INTEGER');
       }

@@ -42,48 +42,4 @@ describe('CardSet', () => {
     expect(set.totalCardCount).toBe(201);
     expect(set.printingCounts.reverse).toBe(157);
   });
-
-  describe('abbreviationIn', () => {
-    it('gives the French code in French and the official one in English', () => {
-      const set = buildSet();
-
-      expect(set.abbreviationIn('fr')).toBe('TEM');
-      expect(set.abbreviationIn('en')).toBe('DAA');
-    });
-
-    it('falls back on the official code when there is no French one', () => {
-      expect(buildSet({ abbreviationFr: null }).abbreviationIn('fr')).toBe('DAA');
-    });
-
-    it('gives null when the set has no code at all', () => {
-      const set = buildSet({ abbreviationOfficial: null, abbreviationFr: null });
-
-      expect(set.abbreviationIn('fr')).toBeNull();
-      expect(set.abbreviationIn('en')).toBeNull();
-    });
-  });
-
-  describe('completionOf', () => {
-    it('counts the secret rares: 45 cards owned out of 201', () => {
-      expect(buildSet().completionOf(45)).toBeCloseTo(45 / 201, 10);
-    });
-
-    it('is 0 when nothing is owned and 1 when the set is complete', () => {
-      const set = buildSet();
-
-      expect(set.completionOf(0)).toBe(0);
-      expect(set.completionOf(201)).toBe(1);
-    });
-
-    it('never goes above 1 nor below 0', () => {
-      const set = buildSet();
-
-      expect(set.completionOf(500)).toBe(1);
-      expect(set.completionOf(-3)).toBe(0);
-    });
-
-    it('is 0 for a set that has no card, instead of dividing by zero', () => {
-      expect(buildSet({ totalCardCount: 0 }).completionOf(10)).toBe(0);
-    });
-  });
 });

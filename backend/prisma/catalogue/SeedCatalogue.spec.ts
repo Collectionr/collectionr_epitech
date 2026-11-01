@@ -55,7 +55,7 @@ describe('seedCatalogue', () => {
     expect(licence).toHaveBeenCalledTimes(1);
     expect(licence).toHaveBeenCalledWith({
       where: { slug: POKEMON_LICENCE.slug },
-      update: { name: POKEMON_LICENCE.name },
+      update: {},
       create: { slug: POKEMON_LICENCE.slug, name: POKEMON_LICENCE.name },
     });
   });
@@ -72,7 +72,6 @@ describe('seedCatalogue', () => {
     ]);
     for (const [args] of cardSet.mock.calls) {
       expect(args.create['licenceTCGId']).toBe('licence-id');
-      expect(args.update['licenceTCGId']).toBe('licence-id');
     }
   });
 
@@ -85,7 +84,6 @@ describe('seedCatalogue', () => {
     for (const [args] of card.mock.calls) {
       const tcgdexId = String(args.where['tcgdexId']);
       expect(args.create['tcgdexId']).toBe(tcgdexId);
-      expect(args.update['tcgdexId']).toBe(tcgdexId);
       expect(args.create['setId']).toBe(`set-id-${tcgdexId.slice(0, tcgdexId.lastIndexOf('-'))}`);
     }
   });
@@ -103,7 +101,6 @@ describe('seedCatalogue', () => {
       };
       expect(cardId).toMatch(/^card-id-/);
       expect(args.create).toMatchObject({ cardId, tcgdexVariantId });
-      expect(args.update).toMatchObject({ cardId, tcgdexVariantId });
       expect(args.create).not.toHaveProperty('cardTcgdexId');
     }
   });
@@ -116,7 +113,19 @@ describe('seedCatalogue', () => {
     expect(transaction).toHaveBeenCalledTimes(6);
   });
 
-  it('is idempotent: running it twice sends the very same upserts', async () => {
+  it('never overwrites a row that already exists: every upsert has an empty update', async () => {
+    const { prismaClient, licence, cardSet, card, variant } = createFakePrisma();
+
+    await seedCatalogue(prismaClient);
+
+    const allUpserts = [licence, cardSet, card, variant].flatMap((mock) => mock.mock.calls);
+    expect(allUpserts.length).toBeGreaterThan(1500);
+    for (const [args] of allUpserts) {
+      expect(args.update).toEqual({});
+    }
+  });
+
+  it('sends the very same upserts every time (deterministic; the idempotence in a real database is checked by CatalogueDatabase.spec.ts)', async () => {
     const first = createFakePrisma();
     const second = createFakePrisma();
 

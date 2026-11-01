@@ -13,7 +13,9 @@ module.exports = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  collectCoverageFrom: ['**/*.(t|j)s'],
+  // prisma/catalogue (fixtures mapping and seed) is tested and counted like src/; the rest of
+  // prisma/ (seed entry point, config) is plain wiring.
+  collectCoverageFrom: ['**/*.(t|j)s', '../prisma/catalogue/**/*.ts'],
   // Pure wiring (bootstrap, NestJS modules, main) is exercised by the e2e
   // tests; unit coverage targets business code and adapters.
   // The generated Prisma client (src/generated/) is not application code.

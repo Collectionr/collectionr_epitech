@@ -2,7 +2,7 @@ Les fichiers de ce dossier sont des réponses de l'API TCGdex (https://api.tcgde
 issues de la base de cartes TCGdex (https://github.com/tcgdex/cards-database), publiée sous la
 licence MIT reproduite ci-dessous (avis à conserver).
 
-Les noms Pokémon, les images de cartes et les marques restent la propriété de Nintendo, Creatures Inc.,
+Les noms Pokémon, les textes de jeu des cartes (attaques, talents, descriptions), les images et les marques restent la propriété de Nintendo, Creatures Inc.,
 GAME FREAK inc. et The Pokémon Company : la licence MIT ne couvre que la base TCGdex. Les prix
 relayés par TCGdex n'en font pas partie non plus, c'est pourquoi ils ont été retirés ici.
 

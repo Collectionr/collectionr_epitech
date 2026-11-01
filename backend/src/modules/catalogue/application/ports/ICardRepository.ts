@@ -15,7 +15,11 @@ export interface ICardRepository {
   /** An id that is not a UUID cannot exist: it gives null, not a database error. */
   findById(id: string): Promise<Card | null>;
 
-  /** The cards of a set in printed order (2, 10, 100, TG01). Empty for an unknown set id. */
+  /**
+   * The cards of a set in printed order (2, 10, 100, TG01). setId is the UUID of the set
+   * (CardSet.id), NOT its TCGdex id (swsh3): that one is just an unknown set, so the list is empty.
+   * Unbounded on purpose: a set holds a few hundred cards (201 and 207 in the reference sets).
+   */
   findBySetId(setId: string): Promise<readonly Card[]>;
 
   /**

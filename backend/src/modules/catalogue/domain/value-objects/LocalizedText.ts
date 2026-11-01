@@ -19,8 +19,4 @@ export class LocalizedText {
   in(language: CatalogueLanguage): string {
     return language === 'fr' ? (this.fr ?? this.en) : this.en;
   }
-
-  isTranslatedIn(language: CatalogueLanguage): boolean {
-    return language === 'en' || this.fr !== null;
-  }
 }

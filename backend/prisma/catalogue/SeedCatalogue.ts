@@ -13,15 +13,18 @@ export interface CatalogueSeedSummary {
   variants: number;
 }
 
-// Reference data only, idempotent: every row is an UPSERT on its natural key (licences_tcg.slug,
-// sets.tcgdexId, cards.tcgdexId, variants.(cardId, tcgdexVariantId)), the same keys the TCG
-// microservice uses (ADR-015).
+// Reference data only. INSERT-ONLY: every row is looked up on its natural key (licences_tcg.slug,
+// sets.tcgdexId, cards.tcgdexId, variants.(cardId, tcgdexVariantId)), the keys the TCG microservice
+// uses (ADR-015), and created when it is missing. A row that already exists is left alone, so
+// running the seed on a database the microservice has refreshed never brings old values back (the
+// fixtures are a snapshot of 2026-10-25). Nothing is ever deleted either. To get a fresh copy of the
+// fixtures in a development database, empty it (prisma migrate reset) and seed again.
 export async function seedCatalogue(prismaClient: PrismaClient): Promise<CatalogueSeedSummary> {
   const catalogue = loadReferenceCatalogue();
 
   const licence = await prismaClient.licenceTCG.upsert({
     where: { slug: POKEMON_LICENCE.slug },
-    update: { name: POKEMON_LICENCE.name },
+    update: {},
     create: { ...POKEMON_LICENCE },
   });
 
@@ -30,7 +33,7 @@ export async function seedCatalogue(prismaClient: PrismaClient): Promise<Catalog
   for (const { set, cards, variants } of catalogue) {
     const storedSet = await prismaClient.cardSet.upsert({
       where: { tcgdexId: set.tcgdexId },
-      update: { ...set, licenceTCGId: licence.id },
+      update: {},
       create: { ...set, licenceTCGId: licence.id },
     });
 
@@ -38,7 +41,7 @@ export async function seedCatalogue(prismaClient: PrismaClient): Promise<Catalog
       cards.map((card) =>
         prismaClient.card.upsert({
           where: { tcgdexId: card.tcgdexId },
-          update: { ...card, setId: storedSet.id },
+          update: {},
           create: { ...card, setId: storedSet.id },
         }),
       ),
@@ -55,7 +58,7 @@ export async function seedCatalogue(prismaClient: PrismaClient): Promise<Catalog
         }
         return prismaClient.variant.upsert({
           where: { cardId_tcgdexVariantId: { cardId, tcgdexVariantId: columns.tcgdexVariantId } },
-          update: { ...columns, cardId },
+          update: {},
           create: { ...columns, cardId },
         });
       }),

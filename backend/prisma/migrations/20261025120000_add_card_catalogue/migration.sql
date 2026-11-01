@@ -51,8 +51,8 @@ CREATE TABLE "cards" (
     "rarity" TEXT,
     "illustrator" TEXT,
     "hp" INTEGER,
-    "types" TEXT[] DEFAULT ARRAY[]::TEXT[],
-    "dexIds" INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+    "types" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    "dexIds" INTEGER[] NOT NULL DEFAULT ARRAY[]::INTEGER[],
     "evolveFromEn" TEXT,
     "evolveFromFr" TEXT,
     "stage" TEXT,
@@ -73,7 +73,7 @@ CREATE TABLE "variants" (
     "type" TEXT NOT NULL,
     "subtype" TEXT,
     "size" TEXT NOT NULL,
-    "stamps" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "stamps" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     "foil" TEXT,
     "cardmarketProductId" INTEGER,
     "tcgplayerProductId" INTEGER,
@@ -110,4 +110,3 @@ ALTER TABLE "cards" ADD CONSTRAINT "cards_setId_fkey" FOREIGN KEY ("setId") REFE
 
 -- AddForeignKey
 ALTER TABLE "variants" ADD CONSTRAINT "variants_cardId_fkey" FOREIGN KEY ("cardId") REFERENCES "cards"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

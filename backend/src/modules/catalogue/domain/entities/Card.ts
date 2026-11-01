@@ -92,8 +92,13 @@ export class Card {
     return this.image.in(language);
   }
 
-  /** A printing is found by the id TCGdex gives it, which only means something inside one card. */
-  findVariant(tcgdexVariantId: string): CardVariant | null {
-    return this.variants.find((variant) => variant.tcgdexVariantId === tcgdexVariantId) ?? null;
+  /**
+   * A printing of this card by its own id (variants.id), the one a collection item or a wishlist
+   * entry points at. Null when the id belongs to another card or to none, which is how the rule
+   * "a variant always belongs to a card" is checked. The TCGdex variant id is NOT accepted here: it
+   * only means something together with a card and is shared by many (see CardVariant).
+   */
+  findVariant(variantId: string): CardVariant | null {
+    return this.variants.find((variant) => variant.id === variantId) ?? null;
   }
 }
