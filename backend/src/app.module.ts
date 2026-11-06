@@ -8,6 +8,7 @@ import { createLoggerOptions } from './shared/infrastructure/logging/CreateLogge
 import { AllExceptionsFilter } from './shared/interface/filters/AllExceptionsFilter';
 import { HealthModule } from './modules/health/HealthModule';
 import { AuditModule } from './modules/audit/AuditModule';
+import { CatalogueModule } from './modules/catalogue/CatalogueModule';
 import { AuditContextGuard } from './modules/audit/interface/guards/AuditContextGuard';
 import { AuthModule } from './modules/auth/AuthModule';
 
@@ -32,6 +33,7 @@ import { AuthModule } from './modules/auth/AuthModule';
     HealthModule,
     AuditModule,
     AuthModule,
+    CatalogueModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

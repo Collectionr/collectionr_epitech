@@ -11,13 +11,11 @@ annotated-types==0.8.0
 anyio==4.15.1
     # via
     #   -c requirements.txt
-    #   httpx
+    #   httpx2
     #   starlette
     #   watchfiles
-certifi==2026.10.23
-    # via
-    #   httpcore
-    #   httpx
+ast-serialize==0.13.1
+    # via mypy
 click==8.5.0
     # via
     #   -c requirements.txt
@@ -33,29 +31,39 @@ fastapi==0.162.0
 h11==0.16.0
     # via
     #   -c requirements.txt
-    #   httpcore
+    #   httpcore2
     #   uvicorn
-httpcore==1.0.9
-    # via httpx
+httpcore2==2.16.0 ; sys_platform != 'emscripten'
+    # via httpx2
 httptools==0.9.0
     # via
     #   -c requirements.txt
     #   uvicorn
-httpx==0.28.1
+httpx2==2.16.0
     # via tcg-service (pyproject.toml)
+httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
+    # via httpx2
 idna==3.20
     # via
     #   -c requirements.txt
     #   anyio
-    #   httpx
+    #   httpx2
 iniconfig==2.3.1
     # via pytest
+librt==0.16.0 ; platform_python_implementation != 'PyPy'
+    # via mypy
+mypy==2.4.1
+    # via tcg-service (pyproject.toml)
+mypy-extensions==1.1.0
+    # via mypy
 opentelemetry-api==1.45.2
     # via
     #   -c requirements.txt
     #   fastapi
 packaging==26.3
     # via pytest
+pathspec==1.1.1
+    # via mypy
 pluggy==1.7.0
     # via
     #   pytest
@@ -108,11 +116,16 @@ starlette==1.10.0
     # via
     #   -c requirements.txt
     #   fastapi
+truststore==0.10.5 ; sys_platform != 'emscripten'
+    # via
+    #   httpcore2
+    #   httpx2
 typing-extensions==4.16.0
     # via
     #   -c requirements.txt
     #   anyio
     #   fastapi
+    #   mypy
     #   opentelemetry-api
     #   psycopg-pool
     #   pydantic

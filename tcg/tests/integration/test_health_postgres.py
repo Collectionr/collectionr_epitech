@@ -21,9 +21,12 @@ pytestmark = [
 
 
 def test_health_with_real_postgres() -> None:
-    settings = Settings(_env_file=None, database_url=DATABASE_URL)  # type: ignore[arg-type]
+    settings = Settings(_env_file=None, database_url=DATABASE_URL)
     with TestClient(create_app(settings, Database(settings))) as client:
         response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json()["checks"]["database"] == "up"
+    [database] = response.json()["dependencies"]
+    assert database["name"] == "database"
+    assert database["status"] == "up"
+    assert isinstance(database["latencyMs"], int)

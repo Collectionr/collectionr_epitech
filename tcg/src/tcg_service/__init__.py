@@ -1,1 +1,1 @@
-"""Microservice TCG de Collectionr."""
+"""Collectionr TCG microservice."""
