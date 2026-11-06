@@ -4,6 +4,7 @@ import json
 import logging
 import sys
 from datetime import UTC, datetime
+from traceback import format_tb
 from typing import Any
 
 SERVICE_NAME = "tcg"
@@ -39,25 +40,34 @@ class JsonFormatter(logging.Formatter):
             if key not in _IGNORED_RECORD_ATTRIBUTES and key not in payload
         )
         if record.exc_info:
-            payload["exc_info"] = self.formatException(record.exc_info)
+            exc_type, _, exc_traceback = record.exc_info
+            if exc_type is not None:
+                # Type and call stack only, never the message: a libpq message may
+                # contain the database user or host.
+                payload["exc_type"] = exc_type.__qualname__
+                payload["stack_trace"] = "".join(format_tb(exc_traceback))
         return json.dumps(payload, default=str, ensure_ascii=False)
 
 
 class AccessLogFilter(logging.Filter):
     """Drops the client address from uvicorn access logs: an IP is personal data.
 
-    uvicorn logs `'%s - "%s %s HTTP/%s" %d'` with
-    (client address, method, path, HTTP version, status code).
+    Depends on uvicorn's access log call (uvicorn 0.54, h11 and httptools):
+    `'%s - "%s %s HTTP/%s" %d'` with (client address, method, path, HTTP version,
+    status code). If that format changes, the real-server test in
+    tests/infrastructure/test_json_logging.py fails; meanwhile a record of any other
+    shape is dropped instead of being logged with a possible IP.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.args, tuple) and len(record.args) == 5:
-            _, method, path, _, status_code = record.args
-            record.msg = "%s %s %s"
-            record.args = (method, path, status_code)
-            record.http_method = method
-            record.http_path = path
-            record.status_code = status_code
+        if not (isinstance(record.args, tuple) and len(record.args) == 5):
+            return False
+        _, method, path, _, status_code = record.args
+        record.msg = "%s %s %s"
+        record.args = (method, path, status_code)
+        record.http_method = method
+        record.http_path = path
+        record.status_code = status_code
         return True
 
 

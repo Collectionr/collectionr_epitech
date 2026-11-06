@@ -137,3 +137,10 @@ kubectl apply -f devops/k3s/backend.yaml
 - Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
 - ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
 - Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
+
+## Microservice TCG (`tcg`)
+
+Pas encore déployé : aucun `devops/k3s/tcg.yaml` pour l'instant. À prévoir dans ce manifest :
+
+- ⚠️ `APP_ENV=dev` sur le namespace `development` : l'image démarre avec `APP_ENV=staging` par défaut, ce qui désactive `/docs` et `/openapi.json` (même logique que `NODE_ENV=production` pour le Backend).
+- Port `8000`, `/health` hors de tout préfixe (même contrat que le Backend). Image et variables : voir `tcg/README.md`.

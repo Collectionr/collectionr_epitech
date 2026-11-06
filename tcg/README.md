@@ -141,9 +141,14 @@ Tous les logs (service, `psycopg`, uvicorn) sortent en **JSON, une ligne par év
 {"time": "2026-10-30T15:18:27.838Z", "level": "warn", "service": "tcg", "logger": "tcg_service.infrastructure.persistence.postgres_health_indicator", "msg": "PostgreSQL health check failed: AdminShutdown"}
 ```
 
-Les champs passés via `extra=` sont ajoutés tels quels, et une exception (`logger.exception`) est
-ajoutée dans `exc_info`. Les logs d'accès uvicorn ne contiennent **pas l'adresse IP du client**
-(donnée personnelle) : seulement `http_method`, `http_path` et `status_code`.
+Les champs passés via `extra=` sont ajoutés tels quels. Une exception (`logger.exception`) n'est
+journalisée **que par son type** (`exc_type`) et sa pile d'appels (`stack_trace`), jamais par son
+message : un message libpq peut contenir l'utilisateur ou l'hôte de la base.
+
+Les logs d'accès uvicorn ne contiennent **pas l'adresse IP du client** (donnée personnelle) :
+seulement `http_method`, `http_path` et `status_code`. Le filtre dépend du format de log d'accès
+d'uvicorn (0.54) ; un test avec un vrai serveur uvicorn échoue si ce format change, et en attendant
+un log d'accès au format inconnu est supprimé plutôt que d'exposer une IP.
 
 ## Docker
 

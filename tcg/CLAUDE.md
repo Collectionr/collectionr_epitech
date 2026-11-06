@@ -52,7 +52,8 @@ Installation et régénération des dépendances : `README.md` (sections « Inst
   indicateur de santé ne lève jamais d'exception et la réponse ne contient aucun détail d'erreur.
 - **Logs** : `logging.getLogger(__name__)` uniquement (jamais `print`), sortie JSON sur stdout
   configurée par `configure_logging` (`infrastructure/logging/`). Jamais de secret, d'URL de
-  connexion, d'adresse IP ni de message libpq brut : on journalise le type d'exception.
+  connexion, d'adresse IP ni de message libpq brut : on journalise le type d'exception. Le
+  formateur JSON applique déjà cette règle à `logger.exception` (type + pile, sans message).
 - **Tests** : `tests/` est le miroir de `src/`. Tests unitaires avec doublures (`FakeDatabase`, faux
   pool…), sans infrastructure réelle ; les tests sur PostgreSQL réel vont dans `tests/integration/`
   (marqueur `integration`, ignorés sans `TCG_TEST_DATABASE_URL`). Couverture **≥ 50 %** (seuil du
