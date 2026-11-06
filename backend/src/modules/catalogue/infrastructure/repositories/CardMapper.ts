@@ -6,10 +6,14 @@ import { LicenceTCG } from '../../domain/entities/LicenceTCG';
 import { LocalizedText } from '../../domain/value-objects/LocalizedText';
 import { LocalizedUrl } from '../../domain/value-objects/LocalizedUrl';
 
-/** What the repository asks Prisma to load with a card: its set, the licence of the set, its printings. */
+/**
+ * What the repository asks Prisma to load with a card: its set, the licence of the set, its printings.
+ * The printings are sorted, because PostgreSQL gives no order for an unsorted relation and the display
+ * would move from one call to the next: by type, then by TCGdex variant id (unique inside a card).
+ */
 export const CARD_INCLUDE = {
   set: { include: { licenceTCG: true } },
-  variants: true,
+  variants: { orderBy: [{ type: 'asc' }, { tcgdexVariantId: 'asc' }] },
 } satisfies Prisma.CardInclude;
 
 export type CardRecord = Prisma.CardGetPayload<{ include: typeof CARD_INCLUDE }>;

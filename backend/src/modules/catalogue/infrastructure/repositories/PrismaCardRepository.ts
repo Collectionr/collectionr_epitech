@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import isUUID from 'validator/lib/isUUID';
 import type { PrismaClient } from '../../../../generated/prisma/client.js';
 import { PRISMA_CLIENT } from '../../../../shared/infrastructure/database/PrismaModule';
+import { isUuid } from '../../../../shared/infrastructure/IsUuid';
 import type { ICardRepository } from '../../application/ports/ICardRepository';
 import { Card } from '../../domain/entities/Card';
 import type { CardNameSearch } from '../../domain/value-objects/CardNameSearch';
@@ -24,7 +24,7 @@ export class PrismaCardRepository implements ICardRepository {
 
   async findById(id: string): Promise<Card | null> {
     // PostgreSQL rejects a malformed UUID with an error: such an id simply cannot exist.
-    if (!isUUID(id)) {
+    if (!isUuid(id)) {
       return null;
     }
 
@@ -37,7 +37,7 @@ export class PrismaCardRepository implements ICardRepository {
   }
 
   async findBySetId(setId: string): Promise<readonly Card[]> {
-    if (!isUUID(setId)) {
+    if (!isUuid(setId)) {
       return [];
     }
 

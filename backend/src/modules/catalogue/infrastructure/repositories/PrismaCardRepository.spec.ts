@@ -234,6 +234,11 @@ describe('PrismaCardRepository', () => {
 
       expect((await repository.findById(CARD_ID))?.set.serie).toBeNull();
     });
+    it('asks for the printings in a stable order: type, then TCGdex variant id', () => {
+      expect(CARD_INCLUDE.variants).toEqual({
+        orderBy: [{ type: 'asc' }, { tcgdexVariantId: 'asc' }],
+      });
+    });
     it('gives null when the card does not exist', async () => {
       const { repository } = buildRepository();
 

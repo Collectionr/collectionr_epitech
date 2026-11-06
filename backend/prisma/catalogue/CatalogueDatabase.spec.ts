@@ -313,6 +313,16 @@ describeWithDatabase('catalogue in a real PostgreSQL (opt-in)', () => {
       expect(card?.variants).toHaveLength(4);
     });
 
+    it('reads the printings of a card in a stable order: type, then TCGdex variant id', async () => {
+      const card = await repository.findById(await idOf('base1-4'));
+
+      expect(card?.variants.map((variant) => variant.tcgdexVariantId)).toEqual([
+        '3takscxpcqoqcfnxk1ivs2y6',
+        '4ffrmhcfiaejakhepqdkx7o',
+        'mtltux8qtgdu4exu903oasum21juxbvx6lx',
+        'zqq5g2u9n0st0gren5bssktmac2ywqaw',
+      ]);
+    });
     it('falls back on English for a card that has no French name', async () => {
       const card = await repository.findById(await idOf(`${CONTRACT_PREFIX}-1`));
 
