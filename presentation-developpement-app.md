@@ -99,9 +99,9 @@ Aucune valeur magique : tout passe par un **token**. Couleurs sémantiques, poli
 - Conventions : `any` interdit, `interface` pour les structures / `type` pour unions, Use Cases nommés `<Action><Entité>UseCase`, logique métier dans les services jamais dans les contrôleurs.
 
 ### Modèle de données (PostgreSQL, ids UUID)
-- **Catalogue** : `LICENCE_TCG → SET → CARD → VARIANT` (+ estimation de prix sur `CARD`).
+- **Catalogue** : `LICENCE_TCG → SET → CARD → VARIANT`.
 - **Utilisateurs & accès** : `USER`, `ROLE`, `PERMISSION`, `SESSION`, `CONSENT`.
-- **Collections** : `COLLECTION`, `COLLECTIONITEM`, `COLLECTIONVALUEHISTORY`.
+- **Collections** : `COLLECTION`, `CARDENTRY`, `COLLECTIONVALUEHISTORY`.
 - **Prix** : `DATASOURCE`, `CARDPRICE`, `PRICEHISTORY`, `SCRAPELOG`.
 - **Scan & grading** : `SCANHISTORY`, `GRADINGRESULT` (centrage, coins, bords, surface).
 - Règle transversale : `cardId` toujours obligatoire, `variantId` optionnel.

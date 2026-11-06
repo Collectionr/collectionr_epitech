@@ -20,14 +20,15 @@ erDiagram
     USER ||--o{ SCANHISTORY : triggers
     USER ||--o{ WISHLIST : "listed in"
     USER ||--o{ CONSENT : grants
-    COLLECTION ||--o{ COLLECTIONITEM : includes
+    LICENCE_TCG ||--o{ COLLECTION : classifies
+    COLLECTION ||--o{ CARDENTRY : includes
     COLLECTION ||--o{ COLLECTIONVALUEHISTORY : "tracks value"
-    CARD ||--o{ COLLECTIONITEM : "is in"
-    VARIANT ||--o{ COLLECTIONITEM : uses
+    CARD ||--o{ CARDENTRY : "is in"
+    VARIANT ||--o{ CARDENTRY : uses
     VARIANT ||--o{ WISHLIST : "listed in"
     CARD ||--o{ WISHLIST : "listed in"
     SCANHISTORY ||--o{ GRADINGRESULT : produces
-    GRADINGRESULT ||--o{ COLLECTIONITEM : "graded by"
+    GRADINGRESULT ||--o{ CARDENTRY : "graded by"
     CARD ||--o{ GRADINGRESULT : "graded"
     CARD ||--o{ SCRAPELOG : "scrape logs"
 
@@ -185,15 +186,22 @@ erDiagram
         uuid licenceTCGId FK
         string name
         datetime createdAt
+        datetime updatedAt
     }
 
-    COLLECTIONITEM {
+    CARDENTRY {
         uuid id PK
         uuid collectionId FK
         uuid cardId FK
         uuid variantId FK "nullable"
-        uuid gradingResultId FK
+        uuid gradingResultId FK "nullable"
+        int quantity
         enum condition
+        enum language
+        decimal gradingNote "nullable, decimal(3,1)"
+        string notes "nullable"
+        datetime addedAt
+        datetime updatedAt
     }
 
     COLLECTIONVALUEHISTORY {
