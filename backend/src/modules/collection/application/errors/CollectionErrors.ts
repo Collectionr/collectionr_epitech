@@ -39,12 +39,13 @@ export class LicenceNotFoundError extends Error {
 }
 
 /**
- * The card is not in the catalogue, or the variant is not a printing of that card. Raised by the
- * repository: the domain has no access to the catalogue to check it earlier.
+ * The card is not in the catalogue, the variant is not a printing of that card, or the card is
+ * from another licence than the collection's. Raised by the repository: the domain has no access
+ * to the catalogue to check it earlier. One message for all three, so it says nothing more than 404.
  */
 export class CardNotFoundError extends Error {
   constructor() {
-    super('Card or variant not found');
+    super('Card or variant not found for this collection');
     this.name = 'CardNotFoundError';
   }
 }

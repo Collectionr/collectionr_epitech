@@ -1,112 +1,107 @@
+import { randomUUID } from 'node:crypto';
 import { UpdateCardEntryUseCase } from './UpdateCardEntryUseCase';
 import { CardEntry } from '../../domain/entities/CardEntry';
+import type { ValidCardEntryChanges } from '../../domain/entities/CardEntry';
 import { Collection } from '../../domain/entities/Collection';
 import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { CardEntryNotFoundError, CollectionNotFoundError } from '../errors/CollectionErrors';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 
-function buildCollection(userId = 'user-1'): Collection {
-  return Collection.restore({
-    id: 'collection-1',
-    userId,
-    licenceTCGId: 'licence-1',
-    name: 'Ma collection',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-}
+const USER_ID = randomUUID();
+const ENTRY_ID = randomUUID();
 
-function buildEntry(): CardEntry {
-  return CardEntry.restore({
-    id: 'entry-1',
-    collectionId: 'collection-1',
-    cardId: 'card-1',
-    variantId: 'variant-1',
-    quantity: 2,
-    condition: 'NM',
-    language: 'fr',
-    gradingNote: null,
-    notes: null,
-    addedAt: new Date('2026-01-01T00:00:00.000Z'),
-    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  });
+function buildCollection(userId = USER_ID): Collection {
+  return Collection.create({ userId, licenceTCGId: randomUUID(), name: 'Ma collection' });
 }
-
-const baseInput = { userId: 'user-1', collectionId: 'collection-1', entryId: 'entry-1' };
 
 describe('UpdateCardEntryUseCase', () => {
   const findById = jest.fn();
-  const findCardEntryById = jest.fn();
-  const saveCardEntry = jest.fn<Promise<CardEntry>, [CardEntry]>();
+  const updateCardEntry = jest.fn<Promise<CardEntry>, [string, string, ValidCardEntryChanges]>();
+  let collection: Collection;
+  let stored: CardEntry;
 
   function build(): UpdateCardEntryUseCase {
-    const collectionRepository = {
+    return new UpdateCardEntryUseCase({
       findById,
-      findCardEntryById,
-      saveCardEntry,
-    } as unknown as ICollectionRepository;
-    return new UpdateCardEntryUseCase(collectionRepository);
+      updateCardEntry,
+    } as unknown as ICollectionRepository);
   }
+
+  const baseInput = () => ({ userId: USER_ID, collectionId: collection.id, entryId: ENTRY_ID });
 
   beforeEach(() => {
     jest.resetAllMocks();
-    findById.mockResolvedValue(buildCollection());
-    findCardEntryById.mockResolvedValue(buildEntry());
-    saveCardEntry.mockImplementation((entry: CardEntry) => Promise.resolve(entry));
-  });
-
-  it('updates the entry and saves it', async () => {
-    const updated = await build().execute({
-      ...baseInput,
-      changes: { quantity: 5, condition: 'LP', notes: 'resleeved' },
+    collection = buildCollection();
+    stored = CardEntry.create({
+      collectionId: collection.id,
+      cardId: randomUUID(),
+      quantity: 2,
+      condition: 'NM',
+      language: 'fr',
     });
-
-    expect(updated.quantity).toBe(5);
-    expect(updated.condition).toBe('LP');
-    expect(updated.notes).toBe('resleeved');
-    expect(updated.cardId).toBe('card-1');
-    expect(updated.variantId).toBe('variant-1');
-    expect(saveCardEntry).toHaveBeenCalledWith(updated);
+    findById.mockResolvedValue(collection);
+    updateCardEntry.mockResolvedValue(stored);
   });
 
-  it('looks the entry up inside the verified collection only', async () => {
-    await build().execute({ ...baseInput, changes: { quantity: 5 } });
+  it('sends the repository the validated fields only, scoped to the verified collection', async () => {
+    await expect(
+      build().execute({
+        ...baseInput(),
+        changes: { quantity: 5, condition: 'LP', notes: '  resleeved ' },
+      }),
+    ).resolves.toBe(stored);
 
-    expect(findCardEntryById).toHaveBeenCalledWith('collection-1', 'entry-1');
+    expect(updateCardEntry).toHaveBeenCalledWith(collection.id, ENTRY_ID, {
+      quantity: 5,
+      condition: 'LP',
+      notes: 'resleeved',
+    });
   });
 
-  it('rejects invalid changes without saving anything', async () => {
-    await expect(build().execute({ ...baseInput, changes: { quantity: 0 } })).rejects.toThrow(
-      DomainValidationError,
-    );
-    expect(saveCardEntry).not.toHaveBeenCalled();
+  it('never reads the entry first: no read-modify-write that a concurrent edit could undo', async () => {
+    await build().execute({ ...baseInput(), changes: { quantity: 5 } });
+
+    expect(updateCardEntry.mock.calls[0][2]).toEqual({ quantity: 5 });
   });
 
-  it('rejects when the entry does not exist in the collection', async () => {
-    findCardEntryById.mockResolvedValue(null);
+  it.each([
+    ['invalid changes', { changes: { quantity: 0 } }],
+    ['empty changes', { changes: {} }],
+    ['a malformed entry id', { entryId: 'entry-1', changes: { quantity: 5 } }],
+  ])(
+    'rejects %s as a validation error, without reading or writing anything',
+    async (_label, override) => {
+      await expect(build().execute({ ...baseInput(), ...override })).rejects.toThrow(
+        DomainValidationError,
+      );
+      expect(findById).not.toHaveBeenCalled();
+      expect(updateCardEntry).not.toHaveBeenCalled();
+    },
+  );
 
-    await expect(build().execute({ ...baseInput, changes: { quantity: 5 } })).rejects.toThrow(
-      CardEntryNotFoundError,
-    );
-    expect(saveCardEntry).not.toHaveBeenCalled();
-  });
-
-  it('rejects when the collection does not exist, without looking for the entry', async () => {
+  it('rejects when the collection does not exist', async () => {
     findById.mockResolvedValue(null);
 
-    await expect(build().execute({ ...baseInput, changes: { quantity: 5 } })).rejects.toThrow(
+    await expect(build().execute({ ...baseInput(), changes: { quantity: 5 } })).rejects.toThrow(
       CollectionNotFoundError,
     );
-    expect(findCardEntryById).not.toHaveBeenCalled();
+    expect(updateCardEntry).not.toHaveBeenCalled();
   });
 
   it("refuses to update an entry of another user's collection", async () => {
-    findById.mockResolvedValue(buildCollection('someone-else'));
+    findById.mockResolvedValue(buildCollection(randomUUID()));
 
-    await expect(build().execute({ ...baseInput, changes: { quantity: 5 } })).rejects.toThrow(
+    await expect(build().execute({ ...baseInput(), changes: { quantity: 5 } })).rejects.toThrow(
       CollectionNotFoundError,
     );
-    expect(findCardEntryById).not.toHaveBeenCalled();
-    expect(saveCardEntry).not.toHaveBeenCalled();
+    expect(updateCardEntry).not.toHaveBeenCalled();
+  });
+
+  it('propagates CardEntryNotFoundError thrown by the repository (unknown or deleted entry)', async () => {
+    updateCardEntry.mockRejectedValue(new CardEntryNotFoundError());
+
+    await expect(build().execute({ ...baseInput(), changes: { quantity: 5 } })).rejects.toThrow(
+      CardEntryNotFoundError,
+    );
   });
 });

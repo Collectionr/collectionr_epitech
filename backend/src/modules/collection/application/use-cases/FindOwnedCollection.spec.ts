@@ -1,19 +1,15 @@
+import { randomUUID } from 'node:crypto';
 import { findOwnedCollection } from './FindOwnedCollection';
 import { Collection } from '../../domain/entities/Collection';
+import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { CollectionNotFoundError } from '../errors/CollectionErrors';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 
 describe('findOwnedCollection', () => {
   const findById = jest.fn();
   const repository = { findById } as unknown as ICollectionRepository;
-  const owned = Collection.restore({
-    id: 'collection-1',
-    userId: 'user-1',
-    licenceTCGId: 'licence-1',
-    name: 'Ma collection',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  const userId = randomUUID();
+  const owned = Collection.create({ userId, licenceTCGId: randomUUID(), name: 'Ma collection' });
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -22,13 +18,13 @@ describe('findOwnedCollection', () => {
   it('returns the collection to its owner', async () => {
     findById.mockResolvedValue(owned);
 
-    await expect(findOwnedCollection(repository, 'collection-1', 'user-1')).resolves.toBe(owned);
+    await expect(findOwnedCollection(repository, owned.id, userId)).resolves.toBe(owned);
   });
 
   it('throws CollectionNotFoundError for a missing collection', async () => {
     findById.mockResolvedValue(null);
 
-    await expect(findOwnedCollection(repository, 'collection-1', 'user-1')).rejects.toThrow(
+    await expect(findOwnedCollection(repository, owned.id, userId)).rejects.toThrow(
       CollectionNotFoundError,
     );
   });
@@ -36,8 +32,15 @@ describe('findOwnedCollection', () => {
   it('throws CollectionNotFoundError, not a "forbidden" error, for someone else\'s collection', async () => {
     findById.mockResolvedValue(owned);
 
-    await expect(findOwnedCollection(repository, 'collection-1', 'user-2')).rejects.toThrow(
+    await expect(findOwnedCollection(repository, owned.id, randomUUID())).rejects.toThrow(
       CollectionNotFoundError,
     );
+  });
+
+  it('rejects a malformed id as a validation error, without querying the store', async () => {
+    await expect(findOwnedCollection(repository, 'not-a-uuid', userId)).rejects.toThrow(
+      DomainValidationError,
+    );
+    expect(findById).not.toHaveBeenCalled();
   });
 });

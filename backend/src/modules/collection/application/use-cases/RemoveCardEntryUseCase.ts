@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CardEntryNotFoundError } from '../errors/CollectionErrors';
+import { assertUuid } from '../../domain/rules/AssertUuid';
 import { COLLECTION_REPOSITORY } from '../ports/ICollectionRepository';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 import { findOwnedCollection } from './FindOwnedCollection';
@@ -17,16 +17,14 @@ export class RemoveCardEntryUseCase {
   ) {}
 
   async execute(input: RemoveCardEntryInput): Promise<void> {
+    assertUuid(input.entryId, 'Entry id');
     const collection = await findOwnedCollection(
       this.collectionRepository,
       input.collectionId,
       input.userId,
     );
-    const entry = await this.collectionRepository.findCardEntryById(collection.id, input.entryId);
-    if (entry === null) {
-      throw new CardEntryNotFoundError();
-    }
 
-    await this.collectionRepository.deleteCardEntry(collection.id, entry.id);
+    // Rejects with CardEntryNotFoundError if the entry is not in this collection (contract of the port).
+    await this.collectionRepository.deleteCardEntry(collection.id, input.entryId);
   }
 }

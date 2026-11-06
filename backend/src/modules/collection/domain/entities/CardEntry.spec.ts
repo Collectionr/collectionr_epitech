@@ -1,30 +1,19 @@
+import { randomUUID } from 'node:crypto';
 import { CardEntry } from './CardEntry';
 import { DomainValidationError } from '../errors/DomainValidationError';
 
+const COLLECTION_ID = randomUUID();
+const CARD_ID = randomUUID();
+const VARIANT_ID = randomUUID();
+
 function buildProps() {
   return {
-    collectionId: 'collection-1',
-    cardId: 'card-1',
+    collectionId: COLLECTION_ID,
+    cardId: CARD_ID,
     quantity: 2,
     condition: 'NM',
     language: 'fr',
   };
-}
-
-function buildEntry(): CardEntry {
-  return CardEntry.restore({
-    id: 'entry-1',
-    collectionId: 'collection-1',
-    cardId: 'card-1',
-    variantId: 'variant-1',
-    quantity: 2,
-    condition: 'NM',
-    language: 'fr',
-    gradingNote: 9.5,
-    notes: 'Bought at a fair',
-    addedAt: new Date('2026-01-01T00:00:00.000Z'),
-    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  });
 }
 
 describe('CardEntry', () => {
@@ -34,8 +23,8 @@ describe('CardEntry', () => {
 
       expect(entry.id).toHaveLength(36);
       expect(entry.addedAt).toEqual(entry.updatedAt);
-      expect(entry.collectionId).toBe('collection-1');
-      expect(entry.cardId).toBe('card-1');
+      expect(entry.collectionId).toBe(COLLECTION_ID);
+      expect(entry.cardId).toBe(CARD_ID);
       expect(entry.quantity).toBe(2);
       expect(entry.condition).toBe('NM');
       expect(entry.language).toBe('fr');
@@ -52,12 +41,12 @@ describe('CardEntry', () => {
     it('keeps the variant, the grading note and the notes when given', () => {
       const entry = CardEntry.create({
         ...buildProps(),
-        variantId: 'variant-1',
+        variantId: VARIANT_ID,
         gradingNote: 8.5,
         notes: 'Signed',
       });
 
-      expect(entry.variantId).toBe('variant-1');
+      expect(entry.variantId).toBe(VARIANT_ID);
       expect(entry.gradingNote).toBe(8.5);
       expect(entry.notes).toBe('Signed');
     });
@@ -94,12 +83,12 @@ describe('CardEntry', () => {
       expect(() => CardEntry.create({ ...buildProps(), language })).toThrow(/Language must be/);
     });
 
-    it.each([0, 5, 10, 0.5])('accepts the grading note %s', (gradingNote) => {
+    it.each([0, 5, 10, 0.5, 9.9])('accepts the grading note %s', (gradingNote) => {
       expect(CardEntry.create({ ...buildProps(), gradingNote }).gradingNote).toBe(gradingNote);
     });
 
-    it.each([-0.1, 10.1, Number.NaN, Number.POSITIVE_INFINITY])(
-      'rejects the grading note %s',
+    it.each([-0.1, 10.1, 9.55, 9.123456789, Number.NaN, Number.POSITIVE_INFINITY])(
+      'rejects the grading note %s (out of 0-10, more than one decimal, or not a number)',
       (gradingNote) => {
         expect(() => CardEntry.create({ ...buildProps(), gradingNote })).toThrow(
           /Grading note must be/,
@@ -119,6 +108,19 @@ describe('CardEntry', () => {
       expect(CardEntry.create({ ...buildProps(), notes: 'x'.repeat(500) }).notes).toHaveLength(500);
     });
 
+    it('counts characters as a person does: 500 emoji fit', () => {
+      expect(() => CardEntry.create({ ...buildProps(), notes: '😀'.repeat(500) })).not.toThrow();
+      expect(() => CardEntry.create({ ...buildProps(), notes: '😀'.repeat(501) })).toThrow(
+        /Notes must be at most/,
+      );
+    });
+
+    it('accepts emoji in the notes, including composed ones', () => {
+      const notes = '1ère édition ❤\uFE0F ⚡\uFE0F \u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
+
+      expect(CardEntry.create({ ...buildProps(), notes }).notes).toBe(notes);
+    });
+
     it('allows line breaks and tabs in the notes', () => {
       expect(CardEntry.create({ ...buildProps(), notes: 'line 1\nline 2\tend' }).notes).toBe(
         'line 1\nline 2\tend',
@@ -127,22 +129,23 @@ describe('CardEntry', () => {
 
     it.each([
       ['null byte', 'a\u0000b'],
-      ['zero-width space', 'a​b'],
-      ['right-to-left override', 'a‮b'],
-      ['line separator', 'a b'],
+      ['zero-width space', 'a\u200Bb'],
+      ['right-to-left override', 'a\u202Eb'],
+      ['line separator', 'a\u2028b'],
+      ['Hangul filler', 'a\u3164b'],
     ])('rejects notes containing a %s', (_label, notes) => {
       expect(() => CardEntry.create({ ...buildProps(), notes })).toThrow(/control or invisible/);
     });
 
     it.each([
-      ['collection', { collectionId: ' ' }],
-      ['card', { cardId: '' }],
-      ['variant', { variantId: '  ' }],
-    ])('refuses a blank %s as a bug, not as a validation error', (_label, override) => {
+      ['collection id', { collectionId: 'collection-1' }, 'Collection id'],
+      ['card id', { cardId: ' ' }, 'Card id'],
+      ['variant id', { variantId: '' }, 'Variant id'],
+    ])('rejects a %s that is not a UUID, as a validation error', (_label, override, field) => {
       const create = () => CardEntry.create({ ...buildProps(), ...override });
 
-      expect(create).toThrow(Error);
-      expect(create).not.toThrow(DomainValidationError);
+      expect(create).toThrow(DomainValidationError);
+      expect(create).toThrow(`${field} must be a valid UUID`);
     });
   });
 
@@ -167,53 +170,50 @@ describe('CardEntry', () => {
     });
   });
 
-  describe('update', () => {
-    it('changes only the given fields and keeps identity, card, variant and addedAt', () => {
-      const original = buildEntry();
+  describe('validateChanges', () => {
+    it('returns only the fields that were given, normalized', () => {
+      const valid = CardEntry.validateChanges({
+        quantity: 5,
+        condition: 'LP',
+        notes: '  resleeved ',
+      });
 
-      const updated = original.update({ quantity: 5, condition: 'LP' });
+      expect(valid).toEqual({ quantity: 5, condition: 'LP', notes: 'resleeved' });
+    });
 
-      expect(updated.quantity).toBe(5);
-      expect(updated.condition).toBe('LP');
-      expect(updated.language).toBe('fr');
-      expect(updated.gradingNote).toBe(9.5);
-      expect(updated.notes).toBe('Bought at a fair');
-      expect(updated.id).toBe(original.id);
-      expect(updated.collectionId).toBe(original.collectionId);
-      expect(updated.cardId).toBe(original.cardId);
-      expect(updated.variantId).toBe('variant-1');
-      expect(updated.addedAt).toBe(original.addedAt);
-      expect(updated.updatedAt.getTime()).toBeGreaterThan(original.updatedAt.getTime());
-      expect(original.quantity).toBe(2);
+    it('keeps null to clear the grading note and the notes, and leaves out what is undefined', () => {
+      const valid = CardEntry.validateChanges({ gradingNote: null, notes: null });
+
+      expect(valid).toEqual({ gradingNote: null, notes: null });
+      expect(valid).not.toHaveProperty('quantity');
+    });
+
+    it('normalizes blank notes to null', () => {
+      expect(CardEntry.validateChanges({ notes: '   ' })).toEqual({ notes: null });
     });
 
     it('changes the language', () => {
-      expect(buildEntry().update({ language: 'en' }).language).toBe('en');
+      expect(CardEntry.validateChanges({ language: 'en' })).toEqual({ language: 'en' });
     });
 
-    it('clears the grading note and the notes with null, and keeps them when undefined', () => {
-      const cleared = buildEntry().update({ gradingNote: null, notes: null });
-      const untouched = buildEntry().update({});
-
-      expect(cleared.gradingNote).toBeNull();
-      expect(cleared.notes).toBeNull();
-      expect(untouched.gradingNote).toBe(9.5);
-      expect(untouched.notes).toBe('Bought at a fair');
-    });
-
-    it('sets a new grading note and new notes', () => {
-      const updated = buildEntry().update({ gradingNote: 7, notes: '  resleeved ' });
-
-      expect(updated.gradingNote).toBe(7);
-      expect(updated.notes).toBe('resleeved');
+    it('sets a new grading note', () => {
+      expect(CardEntry.validateChanges({ gradingNote: 7 })).toEqual({ gradingNote: 7 });
     });
 
     it('applies the creation rules to every changed value', () => {
-      expect(() => buildEntry().update({ quantity: 0 })).toThrow(/Quantity must be/);
-      expect(() => buildEntry().update({ condition: 'MINT' })).toThrow(/Condition must be/);
-      expect(() => buildEntry().update({ language: 'jp' })).toThrow(/Language must be/);
-      expect(() => buildEntry().update({ gradingNote: 11 })).toThrow(/Grading note must be/);
-      expect(() => buildEntry().update({ notes: 'x'.repeat(501) })).toThrow(/Notes must be/);
+      expect(() => CardEntry.validateChanges({ quantity: 0 })).toThrow(/Quantity must be/);
+      expect(() => CardEntry.validateChanges({ condition: 'MINT' })).toThrow(/Condition must be/);
+      expect(() => CardEntry.validateChanges({ language: 'jp' })).toThrow(/Language must be/);
+      expect(() => CardEntry.validateChanges({ gradingNote: 11 })).toThrow(/Grading note must be/);
+      expect(() => CardEntry.validateChanges({ notes: 'x'.repeat(501) })).toThrow(/Notes must be/);
+    });
+
+    it('rejects an update that changes nothing, as a validation error', () => {
+      expect(() => CardEntry.validateChanges({})).toThrow(DomainValidationError);
+      expect(() => CardEntry.validateChanges({})).toThrow('At least one field must be changed');
+      expect(() => CardEntry.validateChanges({ quantity: undefined })).toThrow(
+        'At least one field must be changed',
+      );
     });
   });
 });

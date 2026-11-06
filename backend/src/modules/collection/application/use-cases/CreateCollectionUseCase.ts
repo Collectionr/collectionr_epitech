@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Collection } from '../../domain/entities/Collection';
 import { MAX_COLLECTIONS_PER_USER } from '../../domain/rules/CollectionLimits';
-import { CollectionLimitReachedError } from '../errors/CollectionErrors';
 import { COLLECTION_REPOSITORY } from '../ports/ICollectionRepository';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 
@@ -25,13 +24,8 @@ export class CreateCollectionUseCase {
       name: input.name,
     });
 
-    // This count-then-save is a fast, friendly check, not a guarantee: two concurrent requests
-    // can both pass it. The implementation of the port (COLLR-417) must close that gap.
-    if ((await this.collectionRepository.countByUserId(input.userId)) >= MAX_COLLECTIONS_PER_USER) {
-      throw new CollectionLimitReachedError();
-    }
-
-    // Rejects with LicenceNotFoundError when the licence is unknown (contract of the port).
-    return this.collectionRepository.save(collection);
+    // The repository checks the limit atomically with the insert, and rejects with
+    // CollectionLimitReachedError or LicenceNotFoundError (contract of the port).
+    return this.collectionRepository.create(collection, MAX_COLLECTIONS_PER_USER);
   }
 }

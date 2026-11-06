@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { DomainValidationError } from '../errors/DomainValidationError';
+import { assertUuid } from '../rules/AssertUuid';
 import { COLLECTION_NAME_MAX_LENGTH, COLLECTION_NAME_MIN_LENGTH } from '../rules/CollectionLimits';
-
-// Control, format (zero-width, bidi overrides) and line/paragraph separators: invisible characters
-// let two names look identical. A regular space is allowed.
-const NAME_FORBIDDEN_CHARACTERS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+import { characterCount, hasInvisibleCharacters } from '../rules/TextRules';
 
 export interface NewCollectionProps {
   readonly userId: string;
@@ -37,15 +35,13 @@ export class Collection {
   /** Exposed so callers can reject a bad name before touching the store. */
   static assertValidName(name: string): void {
     const trimmed = name.trim();
-    if (
-      trimmed.length < COLLECTION_NAME_MIN_LENGTH ||
-      trimmed.length > COLLECTION_NAME_MAX_LENGTH
-    ) {
+    const length = characterCount(trimmed);
+    if (length < COLLECTION_NAME_MIN_LENGTH || length > COLLECTION_NAME_MAX_LENGTH) {
       throw new DomainValidationError(
         `Collection name must be between ${COLLECTION_NAME_MIN_LENGTH} and ${COLLECTION_NAME_MAX_LENGTH} characters long`,
       );
     }
-    if (NAME_FORBIDDEN_CHARACTERS.test(trimmed)) {
+    if (hasInvisibleCharacters(trimmed)) {
       throw new DomainValidationError(
         'Collection name must not contain control or invisible characters',
       );
@@ -54,10 +50,11 @@ export class Collection {
 
   static create(props: NewCollectionProps): Collection {
     Collection.assertValidName(props.name);
-    // Not a user mistake: the interface layer takes both ids from the authenticated session and
-    // from a validated request, so a blank one is a bug that must not be stored.
-    if (props.userId.trim() === '' || props.licenceTCGId.trim() === '') {
-      throw new Error('A collection cannot be created without an owner and a licence');
+    assertUuid(props.licenceTCGId, 'Licence id');
+    // Not a user mistake: the owner is the authenticated user, taken from the session and never
+    // from a request, so a blank one is a bug that must not be stored.
+    if (props.userId.trim() === '') {
+      throw new Error('A collection cannot be created without an owner');
     }
     const now = new Date();
 

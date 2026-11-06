@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Collection } from '../../domain/entities/Collection';
+import { Collection } from '../../domain/entities/Collection';
 import { COLLECTION_REPOSITORY } from '../ports/ICollectionRepository';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 import { findOwnedCollection } from './FindOwnedCollection';
@@ -18,12 +18,15 @@ export class UpdateCollectionUseCase {
   ) {}
 
   async execute(input: UpdateCollectionInput): Promise<Collection> {
+    // Cheap check first: an invalid name costs no database read.
+    Collection.assertValidName(input.name);
     const collection = await findOwnedCollection(
       this.collectionRepository,
       input.collectionId,
       input.userId,
     );
 
-    return this.collectionRepository.save(collection.rename(input.name));
+    // Rejects with CollectionNotFoundError if it was deleted since (contract of the port).
+    return this.collectionRepository.rename(collection.rename(input.name));
   }
 }

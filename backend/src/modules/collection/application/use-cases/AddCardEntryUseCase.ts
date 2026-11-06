@@ -41,7 +41,8 @@ export class AddCardEntryUseCase {
     });
     await findOwnedCollection(this.collectionRepository, input.collectionId, input.userId);
 
-    // Rejects with CardNotFoundError when the card or the variant is unknown (contract of the port).
-    return this.collectionRepository.saveCardEntry(entry);
+    // Rejects with CardNotFoundError when the card or the variant is unknown, or when the card is
+    // not from the collection's licence (contract of the port).
+    return this.collectionRepository.addCardEntry(entry);
   }
 }

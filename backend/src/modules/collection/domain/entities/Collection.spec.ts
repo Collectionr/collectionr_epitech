@@ -1,8 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { Collection } from './Collection';
 import { DomainValidationError } from '../errors/DomainValidationError';
 
+const USER_ID = randomUUID();
+const LICENCE_ID = randomUUID();
+
 function buildProps() {
-  return { userId: 'user-1', licenceTCGId: 'licence-1', name: 'Ma collection Pokémon' };
+  return { userId: USER_ID, licenceTCGId: LICENCE_ID, name: 'Ma collection Pokémon' };
 }
 
 describe('Collection', () => {
@@ -12,8 +16,8 @@ describe('Collection', () => {
 
       expect(collection.id).toHaveLength(36);
       expect(collection.createdAt).toEqual(collection.updatedAt);
-      expect(collection.userId).toBe('user-1');
-      expect(collection.licenceTCGId).toBe('licence-1');
+      expect(collection.userId).toBe(USER_ID);
+      expect(collection.licenceTCGId).toBe(LICENCE_ID);
     });
 
     it('trims the name', () => {
@@ -31,14 +35,38 @@ describe('Collection', () => {
       expect(Collection.create({ ...buildProps(), name: 'x'.repeat(60) }).name).toHaveLength(60);
     });
 
+    it('counts characters as a person does: 60 emoji fit, 61 do not', () => {
+      expect(() => Collection.create({ ...buildProps(), name: '😀'.repeat(60) })).not.toThrow();
+      expect(() => Collection.create({ ...buildProps(), name: '😀'.repeat(61) })).toThrow(
+        /Collection name must be/,
+      );
+    });
+
     it.each([
       ['null byte', 'ma\u0000collection'],
-      ['zero-width space', 'ma​collection'],
-      ['right-to-left override', 'ma‮collection'],
+      ['zero-width space', 'ma\u200Bcollection'],
+      ['right-to-left override', 'ma\u202Ecollection'],
       ['line feed', 'ma\ncollection'],
-      ['line separator', 'ma collection'],
+      ['line separator', 'ma\u2028collection'],
+      ['Hangul filler', 'ma\u3164collection'],
+      ['blank braille pattern', 'ma\u2800collection'],
     ])('rejects a name containing a %s', (_label, name) => {
       expect(() => Collection.create({ ...buildProps(), name })).toThrow(/control or invisible/);
+    });
+
+    it('rejects a name made only of an invisible filler', () => {
+      expect(() => Collection.create({ ...buildProps(), name: '\u3164' })).toThrow(
+        DomainValidationError,
+      );
+    });
+
+    it('accepts emoji in a name, including composed ones', () => {
+      expect(Collection.create({ ...buildProps(), name: 'Dracaufeu ⚡\uFE0F' }).name).toBe(
+        'Dracaufeu ⚡\uFE0F',
+      );
+      expect(Collection.create({ ...buildProps(), name: '❤\uFE0F 1\uFE0F⃣' }).name).toBe(
+        '❤\uFE0F 1\uFE0F⃣',
+      );
     });
 
     it('allows a regular space and accented letters inside a name', () => {
@@ -47,13 +75,17 @@ describe('Collection', () => {
       );
     });
 
-    it.each([
-      ['owner', { userId: ' ' }],
-      ['licence', { licenceTCGId: '' }],
-    ])('refuses a blank %s as a bug, not as a validation error', (_label, override) => {
-      const create = () => Collection.create({ ...buildProps(), ...override });
+    it('rejects a licence id that is not a UUID, as a validation error', () => {
+      const create = () => Collection.create({ ...buildProps(), licenceTCGId: 'licence-1' });
 
-      expect(create).toThrow(/without an owner and a licence/);
+      expect(create).toThrow(DomainValidationError);
+      expect(create).toThrow('Licence id must be a valid UUID');
+    });
+
+    it('refuses a blank owner as a bug, not as a validation error', () => {
+      const create = () => Collection.create({ ...buildProps(), userId: ' ' });
+
+      expect(create).toThrow(/without an owner/);
       expect(create).not.toThrow(DomainValidationError);
     });
   });
@@ -65,8 +97,8 @@ describe('Collection', () => {
 
       const collection = Collection.restore({
         id: 'fixed-id',
-        userId: 'user-1',
-        licenceTCGId: 'licence-1',
+        userId: USER_ID,
+        licenceTCGId: LICENCE_ID,
         name: 'x'.repeat(200),
         createdAt,
         updatedAt,
@@ -83,8 +115,8 @@ describe('Collection', () => {
     it('is true for the owner only', () => {
       const collection = Collection.create(buildProps());
 
-      expect(collection.isOwnedBy('user-1')).toBe(true);
-      expect(collection.isOwnedBy('user-2')).toBe(false);
+      expect(collection.isOwnedBy(USER_ID)).toBe(true);
+      expect(collection.isOwnedBy(randomUUID())).toBe(false);
     });
   });
 

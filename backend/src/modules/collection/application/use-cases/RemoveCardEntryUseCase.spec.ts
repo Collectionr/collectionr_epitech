@@ -1,85 +1,69 @@
+import { randomUUID } from 'node:crypto';
 import { RemoveCardEntryUseCase } from './RemoveCardEntryUseCase';
-import { CardEntry } from '../../domain/entities/CardEntry';
 import { Collection } from '../../domain/entities/Collection';
+import { DomainValidationError } from '../../domain/errors/DomainValidationError';
 import { CardEntryNotFoundError, CollectionNotFoundError } from '../errors/CollectionErrors';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 
-function buildCollection(userId = 'user-1'): Collection {
-  return Collection.restore({
-    id: 'collection-1',
-    userId,
-    licenceTCGId: 'licence-1',
-    name: 'Ma collection',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-}
+const USER_ID = randomUUID();
+const ENTRY_ID = randomUUID();
 
-function buildEntry(): CardEntry {
-  return CardEntry.restore({
-    id: 'entry-1',
-    collectionId: 'collection-1',
-    cardId: 'card-1',
-    variantId: null,
-    quantity: 1,
-    condition: 'NM',
-    language: 'en',
-    gradingNote: null,
-    notes: null,
-    addedAt: new Date(),
-    updatedAt: new Date(),
-  });
+function buildCollection(userId = USER_ID): Collection {
+  return Collection.create({ userId, licenceTCGId: randomUUID(), name: 'Ma collection' });
 }
-
-const input = { userId: 'user-1', collectionId: 'collection-1', entryId: 'entry-1' };
 
 describe('RemoveCardEntryUseCase', () => {
   const findById = jest.fn();
-  const findCardEntryById = jest.fn();
   const deleteCardEntry = jest.fn<Promise<void>, [string, string]>();
+  let collection: Collection;
 
   function build(): RemoveCardEntryUseCase {
-    const collectionRepository = {
+    return new RemoveCardEntryUseCase({
       findById,
-      findCardEntryById,
       deleteCardEntry,
-    } as unknown as ICollectionRepository;
-    return new RemoveCardEntryUseCase(collectionRepository);
+    } as unknown as ICollectionRepository);
   }
+
+  const input = () => ({ userId: USER_ID, collectionId: collection.id, entryId: ENTRY_ID });
 
   beforeEach(() => {
     jest.resetAllMocks();
-    findById.mockResolvedValue(buildCollection());
-    findCardEntryById.mockResolvedValue(buildEntry());
+    collection = buildCollection();
+    findById.mockResolvedValue(collection);
     deleteCardEntry.mockResolvedValue(undefined);
   });
 
   it('removes the entry from the collection of its owner', async () => {
-    await build().execute(input);
+    await build().execute(input());
 
-    expect(findCardEntryById).toHaveBeenCalledWith('collection-1', 'entry-1');
-    expect(deleteCardEntry).toHaveBeenCalledWith('collection-1', 'entry-1');
+    expect(deleteCardEntry).toHaveBeenCalledWith(collection.id, ENTRY_ID);
   });
 
-  it('rejects when the entry does not exist in the collection', async () => {
-    findCardEntryById.mockResolvedValue(null);
-
-    await expect(build().execute(input)).rejects.toThrow(CardEntryNotFoundError);
+  it('rejects a malformed entry id as a validation error, without reading anything', async () => {
+    await expect(build().execute({ ...input(), entryId: 'entry-1' })).rejects.toThrow(
+      DomainValidationError,
+    );
+    expect(findById).not.toHaveBeenCalled();
     expect(deleteCardEntry).not.toHaveBeenCalled();
   });
 
   it('rejects when the collection does not exist', async () => {
     findById.mockResolvedValue(null);
 
-    await expect(build().execute(input)).rejects.toThrow(CollectionNotFoundError);
+    await expect(build().execute(input())).rejects.toThrow(CollectionNotFoundError);
     expect(deleteCardEntry).not.toHaveBeenCalled();
   });
 
   it("refuses to remove an entry of another user's collection", async () => {
-    findById.mockResolvedValue(buildCollection('someone-else'));
+    findById.mockResolvedValue(buildCollection(randomUUID()));
 
-    await expect(build().execute(input)).rejects.toThrow(CollectionNotFoundError);
-    expect(findCardEntryById).not.toHaveBeenCalled();
+    await expect(build().execute(input())).rejects.toThrow(CollectionNotFoundError);
     expect(deleteCardEntry).not.toHaveBeenCalled();
+  });
+
+  it('propagates CardEntryNotFoundError thrown by the repository (unknown entry)', async () => {
+    deleteCardEntry.mockRejectedValue(new CardEntryNotFoundError());
+
+    await expect(build().execute(input())).rejects.toThrow(CardEntryNotFoundError);
   });
 });

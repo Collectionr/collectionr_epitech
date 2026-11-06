@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { DomainValidationError } from '../errors/DomainValidationError';
+import { assertUuid } from '../rules/AssertUuid';
 import {
   CARD_ENTRY_MAX_QUANTITY,
   CARD_ENTRY_MIN_QUANTITY,
@@ -7,15 +8,11 @@ import {
   GRADING_NOTE_MAX,
   GRADING_NOTE_MIN,
 } from '../rules/CollectionLimits';
+import { characterCount, hasInvisibleCharactersInFreeText } from '../rules/TextRules';
 import { parseCardCondition } from '../value-objects/CardCondition';
 import type { CardCondition } from '../value-objects/CardCondition';
 import { parseCardLanguage } from '../value-objects/CardLanguage';
 import type { CardLanguage } from '../value-objects/CardLanguage';
-
-// Same as for names (control, format and separator characters), but notes are free text: line
-// breaks and tabs are legitimate there and are removed before the check.
-const NOTES_FORBIDDEN_CHARACTERS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
-const NOTES_ALLOWED_WHITESPACE = /[\n\r\t]/g;
 
 export interface NewCardEntryProps {
   readonly collectionId: string;
@@ -28,7 +25,7 @@ export interface NewCardEntryProps {
   readonly condition: string;
   /** Raw text: validated here (see parseCardLanguage). */
   readonly language: string;
-  /** Professional or AI grade, 0 to 10. null when the card is not graded. */
+  /** Professional grade, 0 to 10 with at most one decimal. null when the card is not graded. */
   readonly gradingNote?: number | null;
   readonly notes?: string | null;
 }
@@ -48,14 +45,34 @@ export interface CardEntryProps {
 }
 
 /**
- * What an update may change. The card and the printing are NOT in it: they are what the entry is,
- * so a collector who picked the wrong card removes the entry and adds another. `undefined` keeps
- * the current value; `null` (gradingNote, notes) clears it.
+ * What an update may change, as the caller sends it. The card and the printing are NOT in it:
+ * they are what the entry is, so a collector who picked the wrong card removes the entry and adds
+ * another. `undefined` leaves a field alone; `null` (gradingNote, notes) clears it.
  */
 export interface CardEntryChanges {
   readonly quantity?: number;
   readonly condition?: string;
   readonly language?: string;
+  readonly gradingNote?: number | null;
+  readonly notes?: string | null;
+}
+
+/** Type-only brand (no runtime value): see ValidCardEntryChanges. */
+export declare const validatedChanges: unique symbol;
+
+/**
+ * CardEntryChanges once validated and normalized (trimmed notes, parsed condition and language).
+ * It holds ONLY the fields to change: a repository writes exactly these and leaves every other
+ * column alone, so two concurrent edits of different fields never undo each other, and it holds
+ * at least one. The brand makes `CardEntry.validateChanges` the only way to obtain one: an object
+ * literal such as `{ quantity: -5 }` or `{}` does not type-check as a ValidCardEntryChanges, so a
+ * future caller of the port (a job, an import) cannot skip the rules.
+ */
+export interface ValidCardEntryChanges {
+  readonly [validatedChanges]: true;
+  readonly quantity?: number;
+  readonly condition?: CardCondition;
+  readonly language?: CardLanguage;
   readonly gradingNote?: number | null;
   readonly notes?: string | null;
 }
@@ -88,7 +105,10 @@ export class CardEntry {
     }
   }
 
-  /** Not graded is null; a grade must be a real number on the 0 to 10 scale (NaN and Infinity are not). */
+  /**
+   * Not graded is null; a grade is a real number on the 0 to 10 scale with at most one decimal, so
+   * the stored value (a decimal(3,1) column) is exactly the value that was validated.
+   */
   static normalizeGradingNote(gradingNote: number | null | undefined): number | null {
     if (gradingNote === null || gradingNote === undefined) {
       return null;
@@ -96,10 +116,11 @@ export class CardEntry {
     if (
       !Number.isFinite(gradingNote) ||
       gradingNote < GRADING_NOTE_MIN ||
-      gradingNote > GRADING_NOTE_MAX
+      gradingNote > GRADING_NOTE_MAX ||
+      Math.round(gradingNote * 10) / 10 !== gradingNote
     ) {
       throw new DomainValidationError(
-        `Grading note must be a number between ${GRADING_NOTE_MIN} and ${GRADING_NOTE_MAX}`,
+        `Grading note must be a number between ${GRADING_NOTE_MIN} and ${GRADING_NOTE_MAX} with at most one decimal`,
       );
     }
     return gradingNote;
@@ -111,26 +132,24 @@ export class CardEntry {
     if (trimmed === '') {
       return null;
     }
-    if (trimmed.length > CARD_ENTRY_NOTES_MAX_LENGTH) {
+    if (characterCount(trimmed) > CARD_ENTRY_NOTES_MAX_LENGTH) {
       throw new DomainValidationError(
         `Notes must be at most ${CARD_ENTRY_NOTES_MAX_LENGTH} characters long`,
       );
     }
-    if (NOTES_FORBIDDEN_CHARACTERS.test(trimmed.replace(NOTES_ALLOWED_WHITESPACE, ''))) {
+    // Line breaks and tabs are legitimate in free text, other invisible characters are not.
+    if (hasInvisibleCharactersInFreeText(trimmed)) {
       throw new DomainValidationError('Notes must not contain control or invisible characters');
     }
     return trimmed;
   }
 
   static create(props: NewCardEntryProps): CardEntry {
-    // Not user mistakes: ids come from the URL / the catalogue and are validated by the interface
-    // layer, so a blank one is a bug that must not be stored.
-    if (props.collectionId.trim() === '' || props.cardId.trim() === '') {
-      throw new Error('A card entry cannot be created without a collection and a card');
-    }
+    assertUuid(props.collectionId, 'Collection id');
+    assertUuid(props.cardId, 'Card id');
     const variantId = props.variantId ?? null;
-    if (variantId !== null && variantId.trim() === '') {
-      throw new Error('A card entry variant, when given, must not be blank');
+    if (variantId !== null) {
+      assertUuid(variantId, 'Variant id');
     }
     CardEntry.assertValidQuantity(props.quantity);
     const now = new Date();
@@ -171,26 +190,39 @@ export class CardEntry {
     );
   }
 
-  /** Applies the given changes; every changed value goes through the same rules as at creation. */
-  update(changes: CardEntryChanges): CardEntry {
+  /**
+   * Applies the creation rules to every field of an update and returns only the fields to write.
+   * An update that changes nothing is a client mistake, not a no-op to store.
+   */
+  static validateChanges(changes: CardEntryChanges): ValidCardEntryChanges {
+    const valid: {
+      quantity?: number;
+      condition?: CardCondition;
+      language?: CardLanguage;
+      gradingNote?: number | null;
+      notes?: string | null;
+    } = {};
+
     if (changes.quantity !== undefined) {
       CardEntry.assertValidQuantity(changes.quantity);
+      valid.quantity = changes.quantity;
+    }
+    if (changes.condition !== undefined) {
+      valid.condition = parseCardCondition(changes.condition);
+    }
+    if (changes.language !== undefined) {
+      valid.language = parseCardLanguage(changes.language);
+    }
+    if (changes.gradingNote !== undefined) {
+      valid.gradingNote = CardEntry.normalizeGradingNote(changes.gradingNote);
+    }
+    if (changes.notes !== undefined) {
+      valid.notes = CardEntry.normalizeNotes(changes.notes);
     }
 
-    return new CardEntry(
-      this.id,
-      this.collectionId,
-      this.cardId,
-      this.variantId,
-      changes.quantity ?? this.quantity,
-      changes.condition === undefined ? this.condition : parseCardCondition(changes.condition),
-      changes.language === undefined ? this.language : parseCardLanguage(changes.language),
-      changes.gradingNote === undefined
-        ? this.gradingNote
-        : CardEntry.normalizeGradingNote(changes.gradingNote),
-      changes.notes === undefined ? this.notes : CardEntry.normalizeNotes(changes.notes),
-      this.addedAt,
-      new Date(),
-    );
+    if (Object.keys(valid).length === 0) {
+      throw new DomainValidationError('At least one field must be changed');
+    }
+    return valid as ValidCardEntryChanges;
   }
 }
