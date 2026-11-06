@@ -20,7 +20,8 @@ manifests Kubernetes, conventions techniques.
 
 Pour un poste neuf, dans cet ordre :
 
-1. **Installer K3s** avec le script de ton OS : `devops/scripts/setup-local.sh` (Linux), `setup-wsl2.sh` (Windows/WSL2) ou `setup-macos.sh` (macOS).
+1. **Installer K3s** avec le script de ton OS : `devops/scripts/setup-local.sh` (Linux), `setup-wsl2.sh`      (Windows/WSL2) ou `setup-macos.sh` (macOS).
+    Pour démarrer le cluster ensuite : `sudo systemctl start k3s` (Linux/WSL) · ouvrir Rancher Desktop ou OrbStack (macOS).
 2. **Créer les Secrets** → [Secrets](#secrets-à-créer-avant-de-déployer)
 3. **Construire et importer l'image Backend** → [Backend](#backend-backend)
 4. **Lancer les services** : `./devops/scripts/deploy.sh --light`
@@ -83,6 +84,9 @@ docker save collectionr-backend:dev | sudo k3s ctr images import -
 kubectl apply -f devops/k3s/backend.yaml
 ```
 
+> ⚠️ macOS (Rancher Desktop / OrbStack) : la commande d'import (`k3s ctr images import`) ne fonctionne pas. Les images Docker sont souvent visibles directement par Kubernetes.
+<!-- TODO (#24) : vérifier la procédure exacte sur le poste Mac de l'équipe. -->
+
 - Prérequis : les Secrets `postgresql-credentials`, `redis-ocr-credentials` et `backend-credentials` (voir "Secrets").
 - Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
 - ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
@@ -91,20 +95,24 @@ kubectl apply -f devops/k3s/backend.yaml
 ---
 ## Lancer les services (`deploy.sh`)
 
-Depuis n'importe quel dossier du repo, après avoir créé les Secrets et importé l'image Backend :
+Depuis n'importe quel dossier du repo, après avoir créé les Secrets et importé les images :
 
 ```bash
 ./devops/scripts/deploy.sh --light   # PostgreSQL + Redis OCR + Redis TCG + Backend (postes 8 Go)
-./devops/scripts/deploy.sh           # profil complet (+ Frontend dès qu'il existe)
+./devops/scripts/deploy.sh           # profil complet (+ Frontend)
 ./devops/scripts/deploy.sh --status  # affiche le mode actuel, sans rien relancer
+./devops/scripts/deploy.sh --help    # aide
 ```
 
 Ce que fait le script :
 - Refuse de tourner si le cluster actif est un cluster k3d.
 - Vérifie les Secrets avant de déployer, et indique ceux qui manquent.
 - Mémorise le mode choisi (lu par `--status`). En `--light`, retire ce qui n'appartient qu'au profil complet.
-- **Teste `/health` automatiquement** à la fin : `✅ Backend répond sur /health`.
+- Teste `/health` automatiquement à la fin.
 - En cas d'erreur, indique l'étape qui a échoué et quoi vérifier.
+
+Code de sortie : `0` = tout est prêt et `/health` répond · `1` = problème (message d'aide affiché).
+Sur un cluster neuf, `--status` indique simplement qu'aucun déploiement n'a encore été fait.
 
 Test manuel, à tout moment :
 ```bash

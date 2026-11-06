@@ -3,24 +3,19 @@
 # deploy.sh — Lance les services CollectionR dans le cluster K3s local
 # =============================================================================
 #
-# Utilisation (depuis n'importe quel dossier du repo) :
-#   ./devops/scripts/deploy.sh           -> profil complet
-#   ./devops/scripts/deploy.sh --light   -> profil allégé (postes 8 Go de RAM)
-#   ./devops/scripts/deploy.sh --status  -> affiche le mode actuel, sans rien relancer
-#   ./devops/scripts/deploy.sh --help    -> aide
-#
 # Profil --light (Alpha) : PostgreSQL + Redis OCR + Redis TCG + Backend.
-# Profil complet         : idem + Frontend (dès que frontend.yaml existe, #16).
+# Profil complet         : idem + Frontend (si frontend.yaml existe).
 # Les Workers (OCR, TCG) seront ajoutés en Beta.
 #
 # Le mode choisi est mémorisé dans le cluster (ConfigMap collectionr-profile).
 # En --light, ce qui n'appartient qu'au profil complet est retiré automatiquement.
 # En cas d'erreur, le script indique l'étape qui a échoué et quoi vérifier.
+# Code de sortie : 0 = tout est prêt et /health répond · 1 = problème.
 #
 # Prérequis :
 #   - K3s installé (setup-local.sh / setup-wsl2.sh / setup-macos.sh)
 #   - Secrets créés (voir la section "Secrets" de devops/README.md)
-#   - Image Backend construite et importée (voir la section "Backend" du README)
+#   - Images construites et importées (sections "Backend" et "Frontend" du README)
 # =============================================================================
 
 set -euo pipefail
@@ -29,6 +24,10 @@ NAMESPACE="development"
 K3S_DIR="devops/k3s"
 PROFILE_CONFIGMAP="collectionr-profile"
 API_HOST="api.collectionr.localhost"
+
+# Messages d'aide valables sur tous les OS de l'équipe
+HINT_START_K3S="Linux/WSL : sudo systemctl start k3s · macOS : ouvre Rancher Desktop ou OrbStack"
+HINT_CONTEXT="kubectl config use-context default (Linux/WSL) ou rancher-desktop / orbstack (macOS). Liste des clusters : kubectl config get-contexts"
 
 # Secrets obligatoires avant tout déploiement
 REQUIRED_SECRETS=(
@@ -39,8 +38,8 @@ REQUIRED_SECRETS=(
 )
 
 # Manifests du profil allégé, dans l'ordre de démarrage
+# (namespace.yaml est appliqué à part, à l'étape 4)
 LIGHT_MANIFESTS=(
-  "namespace.yaml"
   "shared-volume-ocr.yaml"
   "postgresql.yaml"
   "redis-ocr.yaml"
@@ -73,12 +72,23 @@ on_error() {
 trap on_error ERR
 
 usage() {
-  sed -n '5,11p' "$0" | sed 's/^# \{0,1\}//'
+  cat <<'EOF'
+Utilisation (depuis n'importe quel dossier du repo) :
+  ./devops/scripts/deploy.sh           -> profil complet
+  ./devops/scripts/deploy.sh --light   -> profil allégé (postes 8 Go de RAM)
+  ./devops/scripts/deploy.sh --status  -> affiche le mode actuel, sans rien relancer
+  ./devops/scripts/deploy.sh --help    -> aide
+EOF
   exit 0
 }
 
 show_status() {
   local profile date
+  if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+    warn "Le namespace '$NAMESPACE' n'existe pas encore (aucun déploiement effectué)."
+    echo "   👉 Premier lancement : ./devops/scripts/deploy.sh --light"
+    exit 0
+  fi
   profile="$(kubectl get configmap "$PROFILE_CONFIGMAP" -n "$NAMESPACE" -o jsonpath='{.data.profile}' 2>/dev/null || true)"
   date="$(kubectl get configmap "$PROFILE_CONFIGMAP" -n "$NAMESPACE" -o jsonpath='{.data.date}' 2>/dev/null || true)"
   if [ -z "$profile" ]; then
@@ -87,15 +97,16 @@ show_status() {
     ok "Mode actuel : $profile (lancé le $date)"
   fi
   echo
-  kubectl get pods -n "$NAMESPACE"
+  kubectl get pods -n "$NAMESPACE" || true
   exit 0
 }
 
-# Attend qu'un service soit prêt, avec un message clair s'il bloque
+# Attend qu'un service soit prêt, avec un message clair s'il bloque.
+# 3e argument optionnel : un conseil spécifique à ce service.
 wait_ready() {
-  local kind="$1" name="$2"
+  local kind="$1" name="$2" custom_hint="${3:-}"
   STEP="démarrage de $name"
-  HINT="kubectl get pods -n $NAMESPACE  puis  kubectl describe pod -n $NAMESPACE <le pod $name> (section Events)  ou  kubectl logs -n $NAMESPACE $kind/$name --tail=20"
+  HINT="${custom_hint:-kubectl get pods -n $NAMESPACE  puis  kubectl describe pod -n $NAMESPACE <le pod $name> (section Events)  ou  kubectl logs -n $NAMESPACE $kind/$name --tail=20}"
   kubectl rollout status "$kind/$name" -n "$NAMESPACE" --timeout=120s
 }
 
@@ -117,19 +128,21 @@ cd "$SCRIPT_DIR/../.."
 [ -d "$K3S_DIR" ] || fail "Dossier $K3S_DIR introuvable. Le script doit rester dans devops/scripts/ du repo collectionr."
 
 # --- 3. Vérifier qu'on vise le bon cluster ----------------------------------
-command -v kubectl >/dev/null 2>&1 || fail "kubectl introuvable. Installe K3s avec le script de ton OS."
+command -v kubectl >/dev/null 2>&1 || fail "kubectl introuvable. Installe K3s avec le script de ton OS (devops/scripts/)."
 
 CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
-[ -n "$CONTEXT" ] || fail "Aucun cluster actif. Démarre K3s (sudo systemctl start k3s)."
+[ -n "$CONTEXT" ] || fail "Aucun cluster actif.
+   👉 Démarre ton cluster ($HINT_START_K3S)."
 
 case "$CONTEXT" in
   k3d-*)
     fail "Le cluster actif est '$CONTEXT' (k3d), pas CollectionR.
-   Bascule avec : kubectl config use-context default" ;;
+   👉 Bascule avec : $HINT_CONTEXT" ;;
 esac
 info "Cluster actif : $CONTEXT"
 
-kubectl cluster-info >/dev/null 2>&1 || fail "Le cluster ne répond pas. K3s est-il démarré ? (sudo systemctl start k3s)"
+kubectl cluster-info >/dev/null 2>&1 || fail "Le cluster ne répond pas.
+   👉 Vérifie qu'il est démarré ($HINT_START_K3S)."
 
 [ "$STATUS_ONLY" = "true" ] && show_status
 
@@ -166,7 +179,6 @@ info "Profil : $PROFILE"
 
 # --- 7. Appliquer les manifests ---------------------------------------------
 for m in "${MANIFESTS[@]}"; do
-  [ "$m" = "namespace.yaml" ] && continue
   STEP="application de $m"
   HINT="le fichier $K3S_DIR/$m existe, et son indentation YAML est correcte (test : kubectl apply -f $K3S_DIR/$m --dry-run=server)"
   kubectl apply -f "$K3S_DIR/$m"
@@ -196,20 +208,21 @@ info "Attente du démarrage (2 min max par service)..."
 wait_ready statefulset postgresql
 wait_ready statefulset redis-ocr
 wait_ready statefulset redis-tcg
-
-STEP="démarrage du Backend"
-HINT="image importée dans K3s ? (sudo k3s crictl images | grep collectionr-backend). Sinon : kubectl logs -n $NAMESPACE deploy/backend --tail=20"
-kubectl rollout status deployment/backend -n "$NAMESPACE" --timeout=120s
+wait_ready deployment backend \
+  "image importée ? (Linux/WSL : sudo k3s crictl images | grep collectionr-backend · macOS : voir la section Backend du README). Sinon : kubectl logs -n $NAMESPACE deploy/backend --tail=20"
 
 if [[ " ${MANIFESTS[*]} " == *" frontend.yaml "* ]]; then
-  wait_ready deployment frontend
+  wait_ready deployment frontend \
+    "image importée ? (Linux/WSL : sudo k3s crictl images | grep collectionr-frontend · macOS : voir la section Frontend du README). Sinon : kubectl logs -n $NAMESPACE deploy/frontend --tail=20"
 fi
 
 # --- 9. Tester le Backend via Traefik (/health) ------------------------------
 # Traefik peut mettre quelques secondes à prendre la nouvelle route : on réessaie.
-info "Test du Backend (/health)..."
 HEALTH_OK="false"
+CURL_OK="false"
 if command -v curl >/dev/null 2>&1; then
+  CURL_OK="true"
+  info "Test du Backend (/health)..."
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     code="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $API_HOST" http://localhost/health || true)"
     if [ "$code" = "200" ]; then HEALTH_OK="true"; break; fi
@@ -221,13 +234,17 @@ fi
 echo
 kubectl get pods -n "$NAMESPACE"
 echo
+
 if [ "$HEALTH_OK" = "true" ]; then
   ok "Backend répond sur /health"
+elif [ "$CURL_OK" = "false" ]; then
+  warn "curl est absent : /health n'a pas pu être testé automatiquement."
 else
-  warn "Le Backend ne répond pas encore sur /health (ou curl est absent)."
-  echo "   👉 À vérifier : Traefik tourne ? (kubectl get pods -n kube-system | grep traefik)"
-  echo "   👉 Puis : kubectl logs -n $NAMESPACE deploy/backend --tail=20"
-  echo "   👉 Base vide sur un nouveau poste ? Lancer les migrations Prisma (README d'onboarding)."
+  fail "Les services tournent, mais le Backend ne répond pas sur /health (20 s d'essais).
+   👉 Traefik tourne ? (kubectl get pods -n kube-system | grep traefik)
+   👉 Logs du Backend : kubectl logs -n $NAMESPACE deploy/backend --tail=20
+   👉 Base vide sur un nouveau poste ? Lancer les migrations Prisma (README, section 'Migrations Prisma')."
 fi
+
 ok "CollectionR démarré (profil $PROFILE)"
 echo "   Revoir le mode plus tard : ./devops/scripts/deploy.sh --status"
