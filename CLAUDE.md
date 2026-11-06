@@ -52,7 +52,7 @@ le dépôt.
 
 | Besoin | Fichier |
 | --- | --- |
-| Conventions de code détaillées | `docs/backend/conventions.md` |
+| Conventions de code détaillées | `docs/backend/CONVENTIONS.md` |
 | Microservice TCG (Python) | `tcg/CLAUDE.md`, `tcg/README.md` |
 | Principes Clean Architecture | `docs/backend/clean-architecture.md` |
 | Décisions d'architecture (ADRs) | `.claude/contexts/architecture.md` |
