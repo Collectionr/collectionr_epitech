@@ -78,7 +78,7 @@ Chaque endpoint hérite automatiquement des garanties transverses configurées d
 | Erreurs | Format standardisé `{ statusCode, error, message, timestamp, path }` — les 5xx sont génériques côté client, détaillées dans les logs |
 | CORS | Origines explicites via `CORS_ORIGINS`, credentials, pas de wildcard |
 | Rate limiting | Throttler global (`THROTTLE_TTL` / `THROTTLE_LIMIT`), 429 au format standard |
-| Logs | JSON structuré (pino), niveau via `LOG_LEVEL`, en-têtes sensibles caviardés, `pino-pretty` en dev |
+| Logs | JSON structuré (pino : `level` en texte, `time` ISO, `service`), niveau via `LOG_LEVEL`, en-têtes sensibles caviardés, `pino-pretty` en dev |
 | Sécurité HTTP | Helmet (`@fastify/helmet`) : CSP, `X-Frame-Options`, `nosniff`, etc. |
 | Healthcheck | `GET /health` vérifie réellement PostgreSQL (`SELECT 1`) et Redis (`PING`) — 200 ok / 503 degraded |
 | Documentation | Swagger UI sur `/api/docs` (JSON sur `/api/docs-json`), Bearer JWT, tags par domaine, désactivable via `SWAGGER_ENABLED` |

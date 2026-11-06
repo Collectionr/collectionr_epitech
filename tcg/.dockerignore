@@ -1,0 +1,29 @@
+# Dependencies are installed inside the image
+.venv
+
+# Build outputs and caches — regenerated inside the image
+build
+*.egg-info
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# Secrets and local environment — never baked into the image (.env.example stays)
+.env
+.env.*
+!.env.example
+
+# Tooling and files the runtime does not need
+.git
+.gitignore
+.lintstagedrc.json
+requirements-dev.txt
+tests
+*.log
+CLAUDE.md
+Dockerfile
+.dockerignore

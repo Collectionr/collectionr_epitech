@@ -9,7 +9,8 @@ router = APIRouter(tags=["health"])
 
 
 def get_check_health_use_case(request: Request) -> CheckHealthUseCase:
-    return request.app.state.check_health_use_case
+    use_case: CheckHealthUseCase = request.app.state.check_health_use_case
+    return use_case
 
 
 @router.get(

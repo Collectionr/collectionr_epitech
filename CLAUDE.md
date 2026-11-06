@@ -25,7 +25,11 @@ npm run build        # nest build
 
 PostgreSQL/Redis ne sont **pas provisionnés par ce repo** — c'est l'équipe DevOps qui les fournit (local ou environnement partagé). Renseigner `DATABASE_URL`/`REDIS_URL` dans `backend/.env` en conséquence.
 
-## Invariants absolus
+## Invariants absolus (backend NestJS)
+
+Ces invariants s'appliquent à `backend/`. Le microservice TCG (`tcg/`, Python) a son propre
+[`tcg/CLAUDE.md`](tcg/CLAUDE.md), qui précise lesquels il reprend. La section Git / Jira vaut pour tout
+le dépôt.
 
 - **Fichiers en PascalCase** avec suffixe de type : `CarteController.ts`, `CreateCarteUseCase.ts`, `HealthModule.ts` — jamais de kebab-case.
 - **Clean Architecture 4 couches** par module (`domain/`, `application/`, `infrastructure/`, `interface/`). Le module `src/modules/health/` est l'exemple de référence.
@@ -49,6 +53,7 @@ PostgreSQL/Redis ne sont **pas provisionnés par ce repo** — c'est l'équipe D
 | Besoin | Fichier |
 | --- | --- |
 | Conventions de code détaillées | `docs/backend/conventions.md` |
+| Microservice TCG (Python) | `tcg/CLAUDE.md`, `tcg/README.md` |
 | Principes Clean Architecture | `docs/backend/clean-architecture.md` |
 | Décisions d'architecture (ADRs) | `.claude/contexts/architecture.md` |
 | État actuel du projet / tickets | `.claude/contexts/project_state.md` |

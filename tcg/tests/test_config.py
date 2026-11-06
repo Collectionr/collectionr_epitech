@@ -28,6 +28,11 @@ def test_reads_environment_variables(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.database_pool_max == 10
 
 
+@pytest.mark.parametrize("level", ["fatal", "error", "warn", "info", "debug", "trace"])
+def test_log_level_accepts_the_backend_values(level: str) -> None:
+    assert build(log_level=level).log_level == level
+
+
 def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(ValidationError):
@@ -38,6 +43,7 @@ def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
     "overrides",
     [
         {"app_env": "production"},
+        {"log_level": "warning"},
         {"database_url": "mysql://u:p@h/db"},
         {"database_pool_max": 0},
         {"database_statement_timeout": 0},

@@ -1,3 +1,5 @@
+import re
+
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +10,9 @@ from tcg_service.infrastructure.persistence.database import Database
 from tcg_service.interface.api.app import create_app
 from tests.conftest import FakeDatabase
 
+# Date.toISOString() format, as returned by the backend.
+JS_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
+
 
 def test_health_returns_200_when_database_is_up(settings: Settings) -> None:
     database = FakeDatabase()
@@ -17,11 +22,14 @@ def test_health_returns_200_when_database_is_up(settings: Settings) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
     body = response.json()
+    assert set(body) == {"status", "checkedAt", "dependencies"}
     assert body["status"] == "ok"
-    assert body["service"] == "tcg"
-    assert body["environment"] == "dev"
-    assert body["checks"] == {"api": "up", "database": "up"}
-    assert set(body) == {"status", "service", "environment", "timestamp", "checks"}
+    assert JS_ISO_DATE.match(body["checkedAt"])
+    [dependency] = body["dependencies"]
+    assert set(dependency) == {"name", "status", "latencyMs"}
+    assert dependency["name"] == "database"
+    assert dependency["status"] == "up"
+    assert isinstance(dependency["latencyMs"], int)
     assert database.ping_calls == 1
 
 
@@ -42,7 +50,9 @@ def test_health_returns_503_when_database_is_down(
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "degraded"
-    assert body["checks"] == {"api": "up", "database": "down"}
+    assert body["dependencies"] == [
+        {"name": "database", "status": "down", "latencyMs": None}
+    ]
 
 
 def test_health_never_leaks_credentials(settings: Settings) -> None:
@@ -76,7 +86,7 @@ def test_health_returns_503_with_unreachable_postgres() -> None:
         response = client.get("/health")
 
     assert response.status_code == 503
-    assert response.json()["checks"]["database"] == "down"
+    assert response.json()["dependencies"][0]["status"] == "down"
 
 
 def test_docs_are_disabled_in_staging() -> None:
@@ -85,4 +95,5 @@ def test_docs_are_disabled_in_staging() -> None:
     )
     with TestClient(create_app(staging, FakeDatabase())) as client:
         assert client.get("/docs").status_code == 404
-        assert client.get("/health").json()["environment"] == "staging"
+        assert client.get("/openapi.json").status_code == 404
+        assert client.get("/health").status_code == 200
