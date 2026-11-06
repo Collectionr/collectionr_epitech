@@ -2,7 +2,7 @@
 
 > Mettre à jour ce fichier quand un ticket est terminé, une décision prise, ou un piège découvert.
 
-_Dernière mise à jour : 2026-11-06 (COLLR-573 — corrections de revue)_
+_Dernière mise à jour : 2026-11-06 (COLLR-416 — domaine Collection ; COLLR-573 — corrections de revue)_
 
 ## Fait
 
@@ -20,7 +20,7 @@ _Dernière mise à jour : 2026-11-06 (COLLR-573 — corrections de revue)_
 
 - **COLLR-683** — Dockerfile du backend (sous-tâche de COLLR-528, déploiement K3s). Branche `COLLR-683/feat/dockerfile-backend` (depuis `dev`). `backend/Dockerfile` multi-étapes (deps → build → prod-deps → runtime `node:24.18.0-bookworm-slim`, utilisateur `node`, `CMD node dist/main.js`, port 3000) + `backend/.dockerignore`. Piège : `tsconfig.json` doit être présent avant `npm ci`, sinon Prisma génère le client en ESM et `dist` ne se charge plus. Image construite, `/health` répond (503 `degraded` sans Redis, 200 attendu avec Postgres + Redis). Lint, format, 130 tests OK.
 
-- **COLLR-416 (COLLR-452 + COLLR-453 + COLLR-454)** — Domaine & logique métier Collection (épique COLLR-406). Branche `COLLR-416/feat/domaine-metier-collection` (depuis `dev`). Module `src/modules/collection/` (`domain/` + `application/` uniquement : ni infrastructure, ni endpoint, ni `CollectionModule`, comme `auth` — COLLR-417 les ajoute). Entités `Collection` et `CardEntry`, port `ICollectionRepository`, 9 use cases (Create/Get/List/Update/Delete Collection, Add/Update/Remove/List CardEntry), décisions et écarts : ADR-016. Lint clean, build OK, 447 tests unitaires + 22 e2e OK, couverture 99,28 % (module collection à 100 %). Plafond de 10 collections par utilisateur (à garantir sous concurrence en COLLR-417).
+- **COLLR-416 (COLLR-452 + COLLR-453 + COLLR-454)** — Domaine & logique métier Collection (épique COLLR-406). Branche `COLLR-416/feat/domaine-metier-collection` (depuis `dev`, `dev` mergé le 2026-11-06). Module `src/modules/collection/` (`domain/` + `application/` uniquement : ni infrastructure, ni endpoint, ni `CollectionModule`, comme `auth` — COLLR-417 les ajoute). Entités `Collection` et `CardEntry`, port `ICollectionRepository` à écritures atomiques et ciblées, 9 use cases (Create/Get/List/Update/Delete Collection, Add/Update/Remove/List CardEntry), plafond de 10 collections par utilisateur. Suite de contrat `src/contracts/CollectionPorts.contract.ts` + `InMemoryCollectionRepository` que COLLR-417 doit passer contre Prisma. Revue senior adversariale faite le 2026-11-06 ; décisions, écarts et reste pour 417 : ADR-017. Lint clean, build OK, 816 tests unitaires + 84 e2e OK, module collection à 100 % de couverture.
 
 - **COLLR-415 — rôles sur `users` (ADR-013)** : enum `UserRole` remplacé par `users.roleId` (FK `NOT NULL` → `roles`, `ON DELETE RESTRICT`), migration `20261021120000_users_role_fk`. Rôles `USER`/`ADMIN` insérés par la migration (valide en base vierge et sur base avec comptes existants, backfill vérifié pour `USER` et `ADMIN`). Inscription : rôle `USER` relié par nom. Reste à faire : `RolesGuard`/`@Roles` (COLLR-449).
 
@@ -49,7 +49,7 @@ _Dernière mise à jour : 2026-11-06 (COLLR-573 — corrections de revue)_
 | --- | --- | --- |
 | `src/modules/health` | Healthcheck DB + Redis | **Exemple de référence** des 4 couches + ports |
 | `src/modules/audit` | Journal d'audit (`@Audit` + interceptor) | ADR-011 ; aucun endpoint HTTP propre |
-| `src/modules/collection` | Collections et entrées de cartes (domaine + use cases + port) | ADR-016 ; pas encore d'infrastructure ni d'endpoint (COLLR-417) |
+| `src/modules/collection` | Collections et entrées de cartes (domaine + use cases + port) | ADR-017 ; pas encore d'infrastructure ni d'endpoint (COLLR-417) |
 | `src/shared` | Socle transverse | config, bootstrap, filtres, pipes, `PrismaModule`/`RedisModule` |
 
 ## Outillage Git (Husky)

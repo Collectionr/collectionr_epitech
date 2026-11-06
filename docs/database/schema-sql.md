@@ -160,7 +160,7 @@ erDiagram
         int quantity
         enum condition
         enum language
-        float gradingNote "nullable"
+        decimal gradingNote "nullable, decimal(3,1)"
         string notes "nullable"
         datetime addedAt
         datetime updatedAt

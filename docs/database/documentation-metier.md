@@ -77,7 +77,7 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 - Une quantité (`quantity`) : entier de 1 à 9999
 - Un état physique déclaré (`condition`) : NM (Near Mint), LP (Lightly Played), MP (Moderately Played), HP (Heavily Played), DMG (Damaged). Codes neutres : la traduction se fait côté front par clés
 - Une langue (`language`) : `fr` ou `en`, la langue de la carte physique (le catalogue porte déjà les deux noms, `nameFr` et `nameEn`). Elle détermine le prix associé (CDC §3.1.4)
-- Une note de gradage optionnelle (`gradingNote`) : de 0 à 10
+- Une note de gradage optionnelle (`gradingNote`) : de 0 à 10, avec au plus une décimale (colonne `decimal(3,1)`)
 - Des notes libres optionnelles (`notes`) : 500 caractères au maximum
 - La date d'ajout (`addedAt`)
 - Un lien optionnel vers un résultat de grading (`gradingResultId`) — pas encore exposé par le domaine
