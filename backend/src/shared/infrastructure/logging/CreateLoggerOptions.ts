@@ -7,6 +7,7 @@ import { NodeEnvironment } from '../../config/EnvironmentVariables';
  * - One JSON line per event outside development (consumable by Grafana/Loki)
  * - pino-pretty in development for readability
  * - Redacts sensitive headers so a token or cookie is never logged
+ * - Redacts the client address and port: an IP is personal data, and logs must carry none (S04 §11)
  */
 export function createLoggerOptions(configService: ConfigService): Params {
   const nodeEnvironment = configService.get<NodeEnvironment>(
@@ -32,6 +33,8 @@ export function createLoggerOptions(configService: ConfigService): Params {
           'req.body.token',
           'req.body.accessToken',
           'req.body.refreshToken',
+          'req.remoteAddress',
+          'req.remotePort',
         ],
         censor: '[REDACTED]',
       },

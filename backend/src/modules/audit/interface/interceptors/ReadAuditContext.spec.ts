@@ -13,6 +13,20 @@ describe('readActorId', () => {
       expect(readActorId(request)).toBeNull();
     },
   );
+
+  it('falls back to the actor a handler declared (login/register: nobody is authenticated yet)', () => {
+    expect(readActorId({ auditSubject: { actorId: UUID } })).toBe(UUID);
+  });
+
+  it('prefers the authenticated user over a declared actor', () => {
+    const other = '0b1f6c1e-6c1e-4b1e-8b1e-1b1e6c1e4b1e';
+
+    expect(readActorId({ user: { id: UUID }, auditSubject: { actorId: other } })).toBe(UUID);
+  });
+
+  it('ignores a declared actor that is not a UUID', () => {
+    expect(readActorId({ auditSubject: { actorId: 'not-a-uuid' } })).toBeNull();
+  });
 });
 
 describe('readTargetId', () => {
@@ -28,6 +42,40 @@ describe('readTargetId', () => {
       readTargetId({ params: { id: '12' } }, { action: 'a.b', targetIdParam: 'id' }),
     ).toBeNull();
     expect(readTargetId({}, { action: 'a.b', targetIdParam: 'id' })).toBeNull();
+  });
+});
+
+describe('readTargetId — declared by the handler', () => {
+  it('uses the target a handler declared when the route has no id parameter', () => {
+    expect(readTargetId({ auditSubject: { targetId: UUID } }, { action: 'a.b' })).toBe(UUID);
+  });
+
+  it('ignores a declared target that is not a UUID', () => {
+    expect(readTargetId({ auditSubject: { targetId: 'x' } }, { action: 'a.b' })).toBeNull();
+  });
+});
+
+describe('buildMetadata — declared by the handler', () => {
+  it('merges the metadata a handler declared', () => {
+    expect(
+      buildMetadata(
+        { id: 'req-1', auditSubject: { metadata: { email: 'a@example.com' } } },
+        { action: 'a.b' },
+      ),
+    ).toEqual({ requestId: 'req-1', email: 'a@example.com' });
+  });
+
+  it('redacts a declared value shaped like a token or a hash, like any other value', () => {
+    const metadata = buildMetadata(
+      {
+        auditSubject: {
+          metadata: { note: '$2b$12$abcdefghijklmnopqrstuuabcdefghijklmnopqrstuvwxyz0123' },
+        },
+      },
+      { action: 'a.b' },
+    );
+
+    expect(metadata).toEqual({ note: '[redacted]' });
   });
 });
 

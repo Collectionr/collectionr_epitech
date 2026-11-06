@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     projects: [
       {
+        test: { name: 'styles', environment: 'node', include: ['styles/**/*.test.ts'] },
+      },
+      {
         test: {
           name: 'shared',
           root: './packages/shared',

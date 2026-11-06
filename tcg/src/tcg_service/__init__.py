@@ -1,0 +1,1 @@
+"""Microservice TCG de Collectionr."""

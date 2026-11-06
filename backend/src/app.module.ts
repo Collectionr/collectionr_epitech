@@ -9,6 +9,7 @@ import { AllExceptionsFilter } from './shared/interface/filters/AllExceptionsFil
 import { HealthModule } from './modules/health/HealthModule';
 import { AuditModule } from './modules/audit/AuditModule';
 import { AuditContextGuard } from './modules/audit/interface/guards/AuditContextGuard';
+import { AuthModule } from './modules/auth/AuthModule';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuditContextGuard } from './modules/audit/interface/guards/AuditContext
     }),
     HealthModule,
     AuditModule,
+    AuthModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

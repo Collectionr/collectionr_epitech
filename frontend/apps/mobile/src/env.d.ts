@@ -5,5 +5,7 @@ declare namespace NodeJS {
   interface ProcessEnv {
     /** URL absolue de l'API (ex. : "http://localhost:3000/api/v1"), obligatoire à l'exécution, vérifiée dans config/api.ts */
     EXPO_PUBLIC_API_URL?: string;
+    /** "true" active la démonstration en développement ; absente ou autre valeur = désactivée. */
+    EXPO_PUBLIC_TOKENS_PREVIEW?: string;
   }
 }
