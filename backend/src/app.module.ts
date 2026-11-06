@@ -10,6 +10,7 @@ import { HealthModule } from './modules/health/HealthModule';
 import { AuditModule } from './modules/audit/AuditModule';
 import { CatalogueModule } from './modules/catalogue/CatalogueModule';
 import { AuditContextGuard } from './modules/audit/interface/guards/AuditContextGuard';
+import { AuthModule } from './modules/auth/AuthModule';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AuditContextGuard } from './modules/audit/interface/guards/AuditContext
     }),
     HealthModule,
     AuditModule,
+    AuthModule,
     CatalogueModule,
   ],
   providers: [

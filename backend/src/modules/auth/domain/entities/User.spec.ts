@@ -81,6 +81,7 @@ describe('User', () => {
         ...buildProps(),
         id: 'fixed-id',
         isActive: true,
+        version: 0,
         createdAt,
         updatedAt,
       });
@@ -97,6 +98,7 @@ describe('User', () => {
           username: 'ab',
           id: 'fixed-id',
           isActive: true,
+          version: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
         }),
@@ -108,6 +110,7 @@ describe('User', () => {
         ...buildProps(),
         id: 'fixed-id',
         isActive: false,
+        version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -121,6 +124,7 @@ describe('User', () => {
       ...buildProps(),
       id: 'fixed-id',
       isActive: false,
+      version: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

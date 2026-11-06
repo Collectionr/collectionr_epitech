@@ -4,6 +4,9 @@
 /** Upper bound for a dependency check (database, cache) in the /health endpoint. */
 export const HEALTH_CHECK_TIMEOUT_MS = 2000;
 
+/** How long boot waits for Redis to accept connections before serving traffic anyway. */
+export const REDIS_CONNECT_TIMEOUT_MS = 2000;
+
 /** Maximum time to wait for a new PostgreSQL connection. */
 export const DATABASE_CONNECTION_TIMEOUT_MS = 2000;
 

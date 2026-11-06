@@ -27,6 +27,12 @@ export interface UserProps extends NewUserProps {
   readonly id: string;
   /** A deactivated account (admin action, CDC §3.5) must not be able to log in. */
   readonly isActive: boolean;
+  /**
+   * Optimistic lock: the version this copy was loaded at. A repository must refuse to save it if the
+   * stored version moved on, otherwise a stale copy silently undoes a concurrent change (a password
+   * change, a deactivation).
+   */
+  readonly version: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -40,6 +46,7 @@ export class User {
     public readonly termsAcceptedAt: Date,
     public readonly termsVersion: string,
     public readonly isActive: boolean,
+    public readonly version: number,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {}
@@ -84,6 +91,7 @@ export class User {
       props.termsAcceptedAt,
       props.termsVersion,
       true,
+      0,
       now,
       now,
     );
@@ -104,6 +112,7 @@ export class User {
       props.termsAcceptedAt,
       props.termsVersion,
       props.isActive,
+      props.version,
       props.createdAt,
       props.updatedAt,
     );
@@ -122,6 +131,7 @@ export class User {
       this.termsAcceptedAt,
       this.termsVersion,
       false,
+      this.version,
       this.createdAt,
       new Date(),
     );
@@ -136,6 +146,7 @@ export class User {
       this.termsAcceptedAt,
       this.termsVersion,
       this.isActive,
+      this.version,
       this.createdAt,
       new Date(),
     );
@@ -152,6 +163,7 @@ export class User {
       this.termsAcceptedAt,
       this.termsVersion,
       this.isActive,
+      this.version,
       this.createdAt,
       new Date(),
     );

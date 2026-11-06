@@ -1,0 +1,4 @@
+5a6bb94a66cc1e569e16dc9d1b898ee5e9756f88:backend/src/contracts/IntegrationDatabase.ts:generic-api-key:8
+177f7d84b670434161925d556839df966a978f70:backend/src/modules/auth/infrastructure/services/JwtTokenCodec.spec.ts:generic-api-key:6
+9a722ea31efb803ddd58d01ea9b57be4b7547bc2:backend/src/shared/config/ValidateEnvironment.spec.ts:generic-api-key:93
+9a722ea31efb803ddd58d01ea9b57be4b7547bc2:backend/src/shared/config/ValidateEnvironment.spec.ts:generic-api-key:120

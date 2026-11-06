@@ -42,4 +42,14 @@ describe('createLoggerOptions', () => {
       }) as unknown,
     });
   });
+
+  it('redacts the client address and port (personal data, S04 §11)', () => {
+    const options = createLoggerOptions(buildConfigService({ NODE_ENV: 'production' }));
+
+    expect(options.pinoHttp).toMatchObject({
+      redact: expect.objectContaining({
+        paths: expect.arrayContaining(['req.remoteAddress', 'req.remotePort']) as unknown,
+      }) as unknown,
+    });
+  });
 });
