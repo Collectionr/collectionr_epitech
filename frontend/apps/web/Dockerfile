@@ -17,6 +17,7 @@ COPY packages/shared/package.json packages/shared/
 RUN npm ci --no-audit --no-fund
 
 COPY tsconfig.base.json ./
+COPY styles styles
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 # URL de l'API figée au build (défaut : même domaine derrière l'Ingress)

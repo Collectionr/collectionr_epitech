@@ -7,7 +7,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['**/dist/']),
+  globalIgnores(['**/dist/', '**/storybook-static/']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
@@ -44,7 +44,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['apps/mobile/*.config.js'],
+    files: ['apps/mobile/*.config.js', 'apps/web/*.config.cjs'],
     extends: [js.configs.recommended],
     languageOptions: {
       sourceType: 'commonjs',
