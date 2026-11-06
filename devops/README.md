@@ -143,4 +143,4 @@ kubectl apply -f devops/k3s/backend.yaml
 Pas encore déployé : aucun `devops/k3s/tcg.yaml` pour l'instant. À prévoir dans ce manifest :
 
 - ⚠️ `APP_ENV=dev` sur le namespace `development` : l'image démarre avec `APP_ENV=staging` par défaut, ce qui désactive `/docs` et `/openapi.json` (même logique que `NODE_ENV=production` pour le Backend).
-- Port `8000`, `/health` hors de tout préfixe (même contrat que le Backend). Image et variables : voir `tcg/README.md`.
+- Port `8000`, `/health` hors de tout préfixe (même contrat que le Backend). Image et variables : voir `microservices/tcg/README.md`.

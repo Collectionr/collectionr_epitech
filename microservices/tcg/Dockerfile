@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # Multi-stage build for the TCG microservice (COLLR-686).
-# Build context: tcg/ (see .dockerignore). Python version aligned with requires-python in pyproject.toml.
+# Build context: microservices/tcg/ (see .dockerignore). Python version aligned with requires-python in pyproject.toml.
 # Multi-arch (x86-64 + ARM64): the base image and every pinned dependency exist for both, e.g.
-#   docker buildx build --platform linux/amd64,linux/arm64 -t collectionr-tcg tcg/
+#   docker buildx build --platform linux/amd64,linux/arm64 -t collectionr-tcg microservices/tcg/
 
 ARG PYTHON_VERSION=3.13.9
 
