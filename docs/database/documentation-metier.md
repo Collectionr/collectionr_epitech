@@ -73,7 +73,7 @@ L'estimation de prix d'une carte n'est pas portée par `CARD` : elle sera modél
 
 ### Collections
 
-**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Un utilisateur peut en posséder 10 au maximum, toutes licences confondues. Une collection est rattachée à une licence (`LICENCE_TCG`). Le set d'appartenance des cartes est déductible via `CARDENTRY → CARD → SET`, il n'est donc pas stocké directement sur la collection. Le nom d'une collection fait 1 à 60 caractères ; la licence est fixée à la création, seul le nom peut changer ensuite. Une collection peut contenir jusqu'à 10 000 entrées (CDC §3.1.3) : elles sont lues page par page (50 par défaut, 100 au maximum).
+**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Un utilisateur peut en posséder 10 au maximum, toutes licences confondues. Une collection est rattachée à une licence (`LICENCE_TCG`). Le set d'appartenance des cartes est déductible via `CARDENTRY → CARD → SET`, il n'est donc pas stocké directement sur la collection. Le nom d'une collection fait 1 à 60 caractères ; la licence est fixée à la création, seul le nom peut changer ensuite. Une collection doit pouvoir supporter jusqu'à 10 000 entrées (CDC §3.1.3) ; aucun plafond n'est appliqué pour l'instant. Les entrées sont lues page par page (50 par défaut, 100 au maximum).
 
 **`CARDENTRY`** (table `card_entries`) — Une ligne de la collection : **des exemplaires d'une même carte** (ou variante), dans un état et une langue donnés. Elle porte :
 - Une carte (`cardId`) — obligatoire

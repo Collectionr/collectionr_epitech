@@ -329,7 +329,7 @@ Les composants ne font jamais fetch directement. Un composant qui appelle un ser
 
 | Pattern | Utilisation | Exemple |
 |---|---|---|
-| `useEntites` (pluriel) | Liste paginee ou complete | `useCards`, `useCollectionItems` |
+| `useEntites` (pluriel) | Liste paginee ou complete | `useCards`, `useCardEntries` |
 | `useEntite(id)` (singulier) | Detail d'une entite | `useCard(id)`, `useMarketPrice(cardId)` |
 | `useSearchEntite(query)` | Recherche | `useSearchCards(query)` |
 | `useCreateEntite` | Mutation de creation | `useCreateCard` |
