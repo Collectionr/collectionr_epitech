@@ -39,28 +39,29 @@ model AuditLog {
 /// §5) — not the full ROLE/PERMISSION join tables from docs/database/schema-sql.md, which no
 /// current use case reads or writes (see COLLR-415 summary).
 model User {
-  id              String     @id @default(uuid()) @db.Uuid
-  email           String     @unique
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique
   passwordHash    String
   username        String
   /// The account's role, by foreign key (ADR-013): a role is named, never identified by a hard-coded UUID.
-  roleId          String     @db.Uuid
-  role            Role       @relation(fields: [roleId], references: [id])
+  roleId          String       @db.Uuid
+  role            Role         @relation(fields: [roleId], references: [id])
   /// A deactivated account (admin action, CDC §3.5) cannot log in.
-  isActive        Boolean    @default(true)
+  isActive        Boolean      @default(true)
   /// Optimistic lock (User.version): incremented by every update, which must match the version the
   /// caller loaded, or a stale copy would overwrite a concurrent password change/deactivation.
-  version         Int        @default(0)
+  version         Int          @default(0)
   /// When the user accepted the terms of service (S04 §4: contract performance, not an optional consent).
-  termsAcceptedAt DateTime   @db.Timestamptz(6)
+  termsAcceptedAt DateTime     @db.Timestamptz(6)
   /// The version of the terms that was shown and accepted: the proof of what was agreed to.
   termsVersion    String
   /// Canonical username (User.usernameKey): unique, so "Pokemon" and "pokemon" cannot both exist.
-  usernameKey     String     @unique
-  createdAt       DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime   @updatedAt @db.Timestamptz(6)
+  usernameKey     String       @unique
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
   sessions        Session[]
   auditLogs       AuditLog[]
+  collections     Collection[]
 
   @@index([roleId])
   @@map("users")
@@ -152,16 +153,17 @@ model RolePermission {
 /// The catalogue tables generate their `id` in the database (not with Prisma's uuid(), which runs in the
 /// client), so a raw SQL INSERT ... ON CONFLICT does not have to supply one.
 model LicenceTCG {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Stable identifier of the licence (e.g. pokemon). Conflict target of the UPSERT.
-  slug      String    @unique
-  name      String
+  slug        String       @unique
+  name        String
   /// Logo of the licence. TCGdex has none: filled by hand or by the seed, as a URL (nothing is stored locally).
-  logoUrl   String?
-  sets      CardSet[]
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  logoUrl     String?
+  sets        CardSet[]
+  collections Collection[]
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
   /// Prisma only maintains it for its own writes: a raw SQL UPSERT must set it explicitly.
-  updatedAt DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedAt   DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@map("licences_tcg")
 }
@@ -216,10 +218,10 @@ model CardSet {
 /// Catalogue interface contract (ADR-015): UPSERT on `tcgdexId`. Prices are out of scope; the printings of a
 /// card are in `variants`. Attacks, abilities, weaknesses, resistances and retreat cost are deliberately not stored.
 model Card {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  setId           String    @db.Uuid
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  setId           String      @db.Uuid
   /// TCGdex card id, identical in every language (e.g. swsh3-20, sv03.5-006).
-  tcgdexId        String    @unique
+  tcgdexId        String      @unique
   /// TCGdex localId: the number inside the set, as printed. A string because of leading zeros (006) and prefixes (TG01).
   number          String
   nameEn          String
@@ -233,25 +235,26 @@ model Card {
   /// Absent on most Trainer and Energy cards, present on a few (Fossils, Clefairy Doll).
   hp              Int?
   /// Energy types in English (Fire, Water…). Empty for most Trainer and Energy cards, but TCGdex does type some (e.g. a Psychic Energy).
-  types           String[]  @default([])
+  types           String[]    @default([])
   /// National Pokédex numbers of the Pokémon (e.g. [6] for Charizard): links every card of the same Pokémon,
   /// across sets and languages. Several numbers on cards that show several Pokémon.
-  dexIds          Int[]     @default([])
+  dexIds          Int[]       @default([])
   /// Name of the Pokémon this one evolves from (e.g. Charizard V for Charizard VMAX).
   evolveFromEn    String?
   evolveFromFr    String?
   /// Evolution stage, in English: Basic, Stage1, Stage2, VMAX… The front-end translates it.
   stage           String?
   /// Last modification of the card on the TCGdex side (TCGdex `updated`): lets the sync skip unchanged cards.
-  tcgdexUpdatedAt DateTime? @db.Timestamptz(6)
+  tcgdexUpdatedAt DateTime?   @db.Timestamptz(6)
   /// TCGdex asset base URLs, without extension (append /high.webp for instance): nothing is stored locally.
   imageUrlEn      String?
   imageUrlFr      String?
-  set             CardSet   @relation(fields: [setId], references: [id], onDelete: Restrict)
+  set             CardSet     @relation(fields: [setId], references: [id], onDelete: Restrict)
   variants        Variant[]
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  cardEntries     CardEntry[]
+  createdAt       DateTime    @default(now()) @db.Timestamptz(6)
   /// Prisma only maintains it for its own writes: a raw SQL UPSERT must set it explicitly.
-  updatedAt       DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedAt       DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@index([setId])
   @@map("cards")
@@ -263,8 +266,8 @@ model Card {
 /// carry the same four). Collection items and prices will point at `id`.
 /// Codes are stored in English only (lower case, kebab-case): TCGdex French labels are partly untranslated.
 model Variant {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  cardId              String   @db.Uuid
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cardId              String      @db.Uuid
   tcgdexVariantId     String
   /// normal, reverse, holo, metal…
   type                String
@@ -273,18 +276,82 @@ model Variant {
   /// standard or jumbo.
   size                String
   /// Stamps printed on the card (1st-edition, pikachu, snowflake…).
-  stamps              String[] @default([])
+  stamps              String[]    @default([])
   /// Foil pattern (gold, rainbow, cosmos…).
   foil                String?
   /// Product ids of the printing at the price sources, to match prices later. null when the source has none.
   cardmarketProductId Int?
   tcgplayerProductId  Int?
   cardtraderProductId Int?
-  card                Card     @relation(fields: [cardId], references: [id], onDelete: Restrict)
-  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  card                Card        @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  cardEntries         CardEntry[]
+  createdAt           DateTime    @default(now()) @db.Timestamptz(6)
   /// Prisma only maintains it for its own writes: a raw SQL UPSERT must set it explicitly.
-  updatedAt           DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedAt           DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@unique([cardId, tcgdexVariantId])
+  /// Target of the composite foreign key card_entries(cardId, variantId): proves a variant is a printing of THAT card (ADR-017).
+  @@unique([cardId, id])
   @@map("variants")
+}
+
+/// Declared state of a physical card (CDC §3.1.4): near mint, lightly / moderately / heavily played, damaged.
+enum CardCondition {
+  NM
+  LP
+  MP
+  HP
+  DMG
+}
+
+/// Language of the physical card (not of the text displayed).
+enum CardLanguage {
+  fr
+  en
+}
+
+/// A named set of cards owned by one user, about one licence (COLLR-417, ADR-017).
+/// The limit of 10 collections per user is enforced by PrismaCollectionRepository.create under a lock on the owner.
+model Collection {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @db.Uuid
+  licenceTCGId String      @db.Uuid
+  name         String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenceTCG   LicenceTCG  @relation(fields: [licenceTCGId], references: [id], onDelete: Restrict)
+  cardEntries  CardEntry[]
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([licenceTCGId])
+  @@map("collections")
+}
+
+/// One line of a collection: copies of one card (or printing) in a declared condition and language.
+/// Deleted with its collection (ON DELETE CASCADE). `gradingResultId` is reserved for the grading
+/// epic: the domain does not model it and updates never touch it.
+model CardEntry {
+  id              String        @id @default(uuid()) @db.Uuid
+  collectionId    String        @db.Uuid
+  cardId          String        @db.Uuid
+  variantId       String?       @db.Uuid
+  gradingResultId String?       @db.Uuid
+  quantity        Int
+  condition       CardCondition
+  language        CardLanguage
+  /// 0 to 10 with at most one decimal: decimal(3,1) stores exactly the validated value.
+  gradingNote     Decimal?      @db.Decimal(3, 1)
+  notes           String?
+  collection      Collection    @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  card            Card          @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  /// Composite key (cardId, variantId) -> variants(cardId, id). With a null variantId the constraint is not checked (MATCH SIMPLE).
+  variant         Variant?      @relation(fields: [cardId, variantId], references: [cardId, id], onDelete: Restrict)
+  addedAt         DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+
+  /// Serves findCardEntries: newest first, ties broken on the id, without sorting the whole collection.
+  @@index([collectionId, addedAt(sort: Desc), id(sort: Desc)])
+  @@index([cardId])
+  @@map("card_entries")
 }

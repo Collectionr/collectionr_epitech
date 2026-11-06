@@ -121,7 +121,11 @@ export interface AuthTestContext {
  * double running the same counting rules. Real: bcrypt, JWT signing, guards, pipes, filters, audit.
  */
 export async function createAuthTestApp(
-  options: { extraModules?: Type[] } = {},
+  options: {
+    extraModules?: Type[];
+    /** More providers to replace (by injection token) with test doubles, e.g. another module's repository. */
+    overrides?: readonly { readonly token: string; readonly value: unknown }[];
+  } = {},
 ): Promise<AuthTestContext> {
   const store = new InMemoryAuthStore();
   const repository = new InMemoryUserRepository(store);
@@ -130,7 +134,7 @@ export async function createAuthTestApp(
   const redis = buildFakeRedisClient();
   const audit = jest.fn<Promise<void>, [AuditEntry]>().mockResolvedValue(undefined);
 
-  const moduleFixture = await Test.createTestingModule({
+  const builder = Test.createTestingModule({
     imports: [AppModule, ...(options.extraModules ?? [])],
   })
     .overrideProvider(PRISMA_CLIENT)
@@ -148,8 +152,11 @@ export async function createAuthTestApp(
     .overrideProvider(SESSION_PURGER)
     .useValue(tokens)
     .overrideProvider(AUDIT_LOG_REPOSITORY)
-    .useValue({ record: audit })
-    .compile();
+    .useValue({ record: audit });
+  for (const { token, value } of options.overrides ?? []) {
+    builder.overrideProvider(token).useValue(value);
+  }
+  const moduleFixture = await builder.compile();
 
   const app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await configureApp(app);
