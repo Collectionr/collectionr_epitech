@@ -2,7 +2,7 @@
 
 > Mettre à jour ce fichier quand un ticket est terminé, une décision prise, ou un piège découvert.
 
-_Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
+_Dernière mise à jour : 2026-11-06 (COLLR-573 — corrections de revue)_
 
 ## Fait
 
@@ -23,6 +23,8 @@ _Dernière mise à jour : 2026-09-24 (COLLR-665 — rôles & permissions)_
 - **COLLR-415 — rôles sur `users` (ADR-013)** : enum `UserRole` remplacé par `users.roleId` (FK `NOT NULL` → `roles`, `ON DELETE RESTRICT`), migration `20261021120000_users_role_fk`. Rôles `USER`/`ADMIN` insérés par la migration (valide en base vierge et sur base avec comptes existants, backfill vérifié pour `USER` et `ADMIN`). Inscription : rôle `USER` relié par nom. Reste à faire : `RolesGuard`/`@Roles` (COLLR-449).
 
 ## En cours / à venir
+
+- **COLLR-573 / COLLR-594 — fondations frontend** : tokens Écrin dans `frontend/packages/shared/src/tokens`, Tailwind 3 web et NativeWind via le preset commun `frontend/styles/tailwindPreset.ts`, sept fontes locales, focus et réduction du mouvement. Storybook (PR #84 fusionnée dans le 573) présente les tokens sous Fondations ; démonstration native activable explicitement en développement, exclue de la production. `packages/shared` reste sans JSX ; les atomes web vont dans `apps/web/src/components/atoms/`. PR #87 vers `dev` en cours de correction après revue ; validation finale et contrôle iOS encore en attente (appareil de test limité à Expo Go SDK 58, projet SDK 57). Bilans détaillés de vérification dans la PR.
 
 - **Merge COLLR-664 ↔ COLLR-665** : les deux branches ajoutent un modèle en fin de `schema.prisma` et un ADR après ADR-011 dans `architecture.md` (ainsi qu'une entrée « Fait » ici) → conflits attendus au second merge. Garder les deux (ADR-012 avant ADR-013), puis `prisma validate` + `prisma migrate status` : les deux migrations (`20260923…_add_data_retention_policies`, `20260924…_add_roles_permissions`) sont indépendantes, l'ordre des timestamps suffit.
 - **TODO (COLLR-665) — Liste des permissions RBAC à définir avec l'équipe avant COLLR-449.** Tables `permissions`/`role_permissions` créées mais vides : aucune liste n'existe dans `docs/` (seuls exemples : `collection:write`, `card:delete`). À décider : liste des `ressource:action` et matrice rôle → permissions. Pour l'instant seuls `USER` et `ADMIN` existent ; `MODERATOR` (retiré du seed le 2026-10-12) et ses droits sont à cadrer dans [COLLR-679](https://collectionr.atlassian.net/browse/COLLR-679), avant le back-office V1. Ne pas en inventer côté backend.
