@@ -12,6 +12,7 @@ export const fontWeights = {
 export const fonts = {
   sans: {
     family: 'Schibsted Grotesk',
+    fallback: ['ui-sans-serif', 'system-ui', 'sans-serif'],
     native: {
       [fontWeights.normal]: 'SchibstedGrotesk_400Regular',
       [fontWeights.medium]: 'SchibstedGrotesk_500Medium',
@@ -22,6 +23,7 @@ export const fonts = {
   },
   mono: {
     family: 'IBM Plex Mono',
+    fallback: ['ui-monospace', 'monospace'],
     native: {
       [fontWeights.medium]: 'IBMPlexMono_500Medium',
       [fontWeights.semibold]: 'IBMPlexMono_600SemiBold',

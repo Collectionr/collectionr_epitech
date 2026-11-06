@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { colors, fonts, motion, spacing, typography } from '@shared/tokens';
+import { colors, fonts, motion, opacity, spacing, typography } from '@shared/tokens';
 
 const meta = {
-  title: 'Fondations',
+  title: 'Tokens',
 } satisfies Meta;
 
 export default meta;
@@ -19,7 +19,7 @@ export const Ecrin: Story = {
       <p className="text-body">Fondations partagées : couleurs, typographie et espacements.</p>
       <div className="rounded-card border border-lisere bg-ecrin-elevated p-space-24">
         <h2 className="text-h2">Écrin</h2>
-        <p className="text-data">247 cartes · 1 234,56 €</p>
+        <p className="text-data">247 cartes · 1 234,56 EUR</p>
         <p className="text-caption text-acier-texte">Schibsted Grotesk et IBM Plex Mono</p>
       </div>
       <button
@@ -41,7 +41,6 @@ const colorClasses = {
   'acier-texte': 'bg-acier-texte',
   alerte: 'bg-alerte',
   blanc: 'bg-blanc',
-  lisere: 'bg-lisere',
 } satisfies Record<keyof typeof colors, string>;
 
 export const Palette: Story = {
@@ -62,6 +61,10 @@ export const Palette: Story = {
           </div>
         ))}
       </div>
+      <div className="space-y-space-8">
+        <div className="h-space-64 w-space-64 bg-lisere" />
+        <p className="text-caption">lisere · Archive à {opacity.lisere * 100} %</p>
+      </div>
       <p className="text-body text-acier-texte">
         Métadonnées en Acier texte ; Acier reste décoratif.
       </p>
@@ -81,8 +84,8 @@ export const Palette: Story = {
         Supprimer définitivement — exemple inactif
       </button>
       <div className="space-y-space-8">
-        <p className="text-data text-archive">↗ +12,50 €</p>
-        <p className="text-data text-acier-texte">↘ −12,50 €</p>
+        <p className="text-data text-archive">↗ +12,50 EUR</p>
+        <p className="text-data text-acier-texte">↘ −12,50 EUR</p>
       </div>
     </section>
   ),
@@ -121,7 +124,7 @@ export const Typographie: Story = {
           ) : (
             <p className={typographyClasses[name as keyof typeof typography]}>
               {name === 'data'
-                ? '001 · 111,11 € · 888,88 € · 30/10/2026'
+                ? '001 · 111,11 EUR · 888,88 EUR · 30/10/2026'
                 : 'Collection précieuse — Écrin'}
             </p>
           )}
@@ -134,15 +137,15 @@ export const Typographie: Story = {
         <p className="text-caption text-acier-texte">
           Graisse Schibsted 800 (spécimen supplémentaire)
         </p>
-        <p className="text-body font-extrabold">Collection précieuse — Écrin</p>
+        <p className="text-body font-sans-extrabold">Collection précieuse — Écrin</p>
       </div>
       <p className="text-body">
         Vérifier les fontes réellement rendues : Schibsted 400/500/700/800/900, Plex Mono 500/600,
         sans italique ni graisse synthétique. Les chiffres Data doivent rester alignés.
       </p>
       <div className="text-data">
-        <p>111111 · 111,11 €</p>
-        <p>888888 · 888,88 €</p>
+        <p>111111 · 111,11 EUR</p>
+        <p>888888 · 888,88 EUR</p>
       </div>
     </section>
   ),
@@ -221,7 +224,7 @@ export const EtatsEtFocus: Story = {
       <div className="flex flex-wrap gap-space-24 p-space-8">
         <button
           type="button"
-          className="border border-acier-texte px-space-16 py-space-8 text-button-label transition-colors duration-instant ease-lock hover:border-lisere-hover active:border-lisere-active"
+          className="border border-acier-texte px-space-16 py-space-8 text-button-label transition-colors duration-instant hover:border-lisere-hover active:border-lisere-active"
         >
           Survoler puis maintenir
         </button>
@@ -283,11 +286,11 @@ function MotionDemo() {
             {name} · {duration} ms
           </p>
           <div
-            className={`h-space-32 w-space-64 bg-archive transition-opacity ease-lock ${durationClasses[name as keyof typeof motion.duration]} ${active ? 'opacity-100' : 'opacity-disabled'}`}
+            className={`h-space-32 w-space-64 bg-archive transition-opacity ${durationClasses[name as keyof typeof motion.duration]} ${active ? 'opacity-100' : 'opacity-disabled'}`}
           />
         </div>
       ))}
-      <p className="text-data">Easing : {motion.easing}</p>
+      <p className="text-data">Easing : cubic-bezier({motion.easing.join(',')})</p>
       <p className="text-body">
         Activer la réduction des animations dans le système ou les outils du navigateur, puis
         basculer à nouveau : les quatre changements doivent être immédiats (0 ms). Désactiver la

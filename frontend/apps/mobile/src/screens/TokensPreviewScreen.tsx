@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, fonts, motion, opacity, spacing, typography } from '@shared/tokens';
+import { colors, motion, opacity, spacing, typography } from '@shared/tokens';
 
 const colorClasses = {
   ecrin: 'bg-ecrin',
@@ -19,7 +19,6 @@ const colorClasses = {
   'acier-texte': 'bg-acier-texte',
   alerte: 'bg-alerte',
   blanc: 'bg-blanc',
-  lisere: 'bg-lisere',
 } satisfies Record<keyof typeof colors, string>;
 
 const textClasses = {
@@ -50,16 +49,7 @@ const durationClasses = {
   sequence: 'duration-sequence',
 } satisfies Record<keyof typeof motion.duration, string>;
 
-// Conversion du token CSS commun vers l'API Reanimated, sans recopier les coefficients.
-const easingCoordinates = motion.easing
-  .slice(motion.easing.indexOf('(') + 1, -1)
-  .split(',')
-  .map(Number);
-const [x1, y1, x2, y2] = easingCoordinates;
-if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) {
-  throw new Error('Le token motion.easing doit définir quatre coefficients.');
-}
-const nativeEasing = Easing.bezier(x1, y1, x2, y2);
+const nativeEasing = Easing.bezier(...motion.easing);
 
 /** Démonstration de Reanimated : respecte la configuration globale de MotionAccessibility. */
 function ReanimatedPreview() {
@@ -143,12 +133,18 @@ export function TokensPreviewScreen() {
                 </View>
               </View>
             ))}
+            <View className="gap-space-8">
+              <View className="h-space-48 w-space-48 bg-lisere" />
+              <Text className="text-caption text-archive">
+                lisere · Archive à {opacity.lisere * 100} %
+              </Text>
+            </View>
             <View className="gap-space-8 border border-lisere bg-ecrin-elevated p-space-16">
               <Text className="text-body text-archive">Archive sur Écrin élevé</Text>
               <Text className="text-caption text-acier-texte">Métadonnées lisibles</Text>
             </View>
-            <Text className="text-data text-archive">↗ +12,50 €</Text>
-            <Text className="text-data text-acier-texte">↘ −12,50 €</Text>
+            <Text className="text-data text-archive">↗ +12,50 EUR</Text>
+            <Text className="text-data text-acier-texte">↘ −12,50 EUR</Text>
             <Text className="text-body text-alerte">Exemple d’erreur système</Text>
             <Text className="text-caption text-acier-texte">
               Acier : décoration. Blanc : print/slab. Signal : accents, jamais une cote. Le liséré
@@ -168,11 +164,11 @@ export function TokensPreviewScreen() {
                     {name} · graisse {token.weight}
                   </Text>
                   <Text className={`${textClasses[name as keyof typeof typography]} text-archive`}>
-                    {name === 'data' ? '111,11 €\n888,88 €' : 'Écrin — Collection'}
+                    {name === 'data' ? '111,11 EUR\n888,88 EUR' : 'Écrin — Collection'}
                   </Text>
                 </View>
               ))}
-            <Text className="text-body text-archive" style={{ fontFamily: fonts.sans.native[800] }}>
+            <Text className="text-body font-sans-extrabold text-archive">
               Schibsted 800 — Écrin
             </Text>
             <Text className="text-caption text-acier-texte">
@@ -270,7 +266,7 @@ export function TokensPreviewScreen() {
                   {name} · {duration} ms
                 </Text>
                 <View
-                  className={`h-space-32 w-space-64 bg-archive transition-opacity ease-lock ${durationClasses[name as keyof typeof motion.duration]} ${active ? 'opacity-100' : 'opacity-disabled'}`}
+                  className={`h-space-32 w-space-64 bg-archive transition-opacity ${durationClasses[name as keyof typeof motion.duration]} ${active ? 'opacity-100' : 'opacity-disabled'}`}
                 />
               </View>
             ))}

@@ -2,6 +2,7 @@ import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
   stories: [
+    { directory: '../src/stories', files: '**/*.@(mdx|stories.tsx)', titlePrefix: 'Fondations' },
     {
       directory: '../src/components/atoms',
       files: '**/*.@(mdx|stories.tsx)',

@@ -11,7 +11,9 @@ const preview: Preview = {
     layout: 'padded',
     backgrounds: { options: { ecrin: { name: 'Écrin', value: colors.ecrin } } },
     docs: { theme: themes.dark },
-    options: { storySort: { order: ['Atoms', 'Molecules', 'Organisms', 'Templates'] } },
+    options: {
+      storySort: { order: ['Fondations', 'Atoms', 'Molecules', 'Organisms', 'Templates'] },
+    },
   },
   initialGlobals: { backgrounds: { value: 'ecrin' } },
 };
