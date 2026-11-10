@@ -8,8 +8,8 @@ import type {
 } from '../../application/ports/ICardEntryViewReader';
 import type { Page } from '../../application/ports/Page';
 import type { PageRequest } from '../../domain/value-objects/PageRequest';
+import { CARD_ENTRY_ORDER } from './CardEntryOrder';
 import { toCardEntry } from './CollectionMapper';
-import { CARD_ENTRY_ORDER } from './PrismaCollectionRepository';
 
 /**
  * Entries joined with the catalogue in one query (no query per entry): the card, its set and the

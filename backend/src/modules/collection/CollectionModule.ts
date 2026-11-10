@@ -7,7 +7,6 @@ import { AddCardEntryUseCase } from './application/use-cases/AddCardEntryUseCase
 import { CreateCollectionUseCase } from './application/use-cases/CreateCollectionUseCase';
 import { DeleteCollectionUseCase } from './application/use-cases/DeleteCollectionUseCase';
 import { GetCollectionUseCase } from './application/use-cases/GetCollectionUseCase';
-import { ListCardEntriesUseCase } from './application/use-cases/ListCardEntriesUseCase';
 import { ListCollectionCardsUseCase } from './application/use-cases/ListCollectionCardsUseCase';
 import { ListCollectionsUseCase } from './application/use-cases/ListCollectionsUseCase';
 import { RemoveCardEntryUseCase } from './application/use-cases/RemoveCardEntryUseCase';
@@ -33,7 +32,6 @@ import { CollectionsController } from './interface/controllers/CollectionsContro
     AddCardEntryUseCase,
     UpdateCardEntryUseCase,
     RemoveCardEntryUseCase,
-    ListCardEntriesUseCase,
     ListCollectionCardsUseCase,
     { provide: COLLECTION_REPOSITORY, useClass: PrismaCollectionRepository },
     { provide: CARD_ENTRY_VIEW_READER, useClass: PrismaCardEntryViewReader },

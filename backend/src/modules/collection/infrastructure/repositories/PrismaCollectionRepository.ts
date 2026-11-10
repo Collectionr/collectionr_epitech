@@ -14,6 +14,7 @@ import type { Page } from '../../application/ports/Page';
 import type { CardEntry, ValidCardEntryChanges } from '../../domain/entities/CardEntry';
 import type { Collection } from '../../domain/entities/Collection';
 import type { PageRequest } from '../../domain/value-objects/PageRequest';
+import { CARD_ENTRY_ORDER } from './CardEntryOrder';
 import { toCardEntry, toCollection } from './CollectionMapper';
 import {
   COLLECTION_LICENCE_FK,
@@ -23,12 +24,6 @@ import {
   isForeignKeyViolationOn,
   isRecordNotFound,
 } from './ForeignKeyViolation';
-
-/** Most recent first, ties broken on the id: the order of the index on (collectionId, addedAt, id). */
-export const CARD_ENTRY_ORDER: Prisma.CardEntryOrderByWithRelationInput[] = [
-  { addedAt: 'desc' },
-  { id: 'desc' },
-];
 
 /**
  * PostgreSQL implementation of ICollectionRepository (COLLR-417, ADR-017). Every guarantee the
