@@ -11,6 +11,7 @@ import { AuditModule } from './modules/audit/AuditModule';
 import { CatalogueModule } from './modules/catalogue/CatalogueModule';
 import { AuditContextGuard } from './modules/audit/interface/guards/AuditContextGuard';
 import { AuthModule } from './modules/auth/AuthModule';
+import { CollectionModule } from './modules/collection/CollectionModule';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AuthModule } from './modules/auth/AuthModule';
     AuditModule,
     AuthModule,
     CatalogueModule,
+    CollectionModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
