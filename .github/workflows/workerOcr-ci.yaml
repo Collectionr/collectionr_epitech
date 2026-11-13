@@ -8,7 +8,7 @@ on:
             - main
         paths: 
             - 'microservices/worker-ocr/**'
-            - '.github/workflows/workerOCR-ci.yaml'
+            - '.github/workflows/workerOcr-ci.yaml'
 
 permissions:
     contents: read 
@@ -35,7 +35,7 @@ jobs:
                 GITHUB_LICENSE: ${{ secrets.GITHUB_LICENSE }}
 
     worker-ocr:
-        name: Worker OCR - Lint, Build & Tests
+        name: Worker OCR - Lint & Tests
         needs: [gitleaks]
         if: github.event.pull_request.draft == false
         runs-on: ubuntu-latest
@@ -45,32 +45,36 @@ jobs:
 
         steps: 
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
 
-            - name: Setup Python 3.12
-              uses: actions/setup-python@v4
+            - name: Setup Python 3.13
+              uses: actions/setup-python@v5
               with: 
-                python-version: '3.12'
+                python-version: '3.13'
                 cache: 'pip'
                 cache-dependency-path: microservices/worker-ocr/requirements.txt
 
-            - name: Install dependencies
-              run: |
-                python -m pip install --upgrade pip
-                if [ -f requirements.txt ]; then  pip install -r requirements.txt ; fi
-                pip install pytest pytest-cov
-                pip install ruff pytest-cov
-            - name: Run Pytest
-              run: |
-                if [ -d "tests" ]; then
-                    pytest -v --cov=.
-                else
-                    echo "Aucun test pour le moment - étape ignorée."
-                fi
-            
+            - name: Install Ruff
+              run: pip install ruff
+
             - name: Check code with Ruff
               run: |
                 ruff check .
                 ruff format --check .
+            
+            
+            - name: Install dependencies
+              run: |
+                python -m pip install --upgrade pip
+                if [ -f requirements.txt ]; then  pip install -r requirements.txt ; fi
+                pip install pytest pytest-cov ruff
+            - name: Run Pytest
+              run: |
+                if [ -d "tests" ]; then
+                    pytest -v --cov=. --cov-fail-under=50
+                else
+                    echo "Aucun test pour le moment - étape ignorée."
+                fi
+            
 
             
