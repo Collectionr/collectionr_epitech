@@ -1,4 +1,3 @@
-import { compare } from 'bcrypt';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import {
   DEFAULT_DEMO_PASSWORD,
@@ -9,6 +8,17 @@ import {
   DEMO_USERS,
 } from './DemoData';
 import { seedDemoData, shouldSeedDemoData } from './SeedDemoData';
+
+// A real bcrypt hash at cost 12 takes ~250 ms, twice per call (the hasher also hashes a dummy at
+// construction): across this file that exceeds Jest's 5 s timeout when the workers compete for the CPU
+// (the pre-push hook runs the whole suite). The hasher has its own specs; here bcrypt is a fast double
+// whose output differs from the password, which is all this file relies on.
+const fakeHash = (plain: string): string => `hashed(${Buffer.from(plain).toString('base64')})`;
+jest.mock('bcrypt', () => ({
+  hash: (plain: string) => Promise.resolve(`hashed(${Buffer.from(plain).toString('base64')})`),
+  hashSync: () => 'dummy-hash',
+  compare: () => Promise.resolve(false),
+}));
 
 interface FakeOptions {
   existingEmails?: string[];
@@ -114,7 +124,7 @@ describe('seedDemoData', () => {
     });
     const hash = String(admin.data['passwordHash']);
     expect(hash).not.toContain(DEFAULT_DEMO_PASSWORD);
-    await expect(compare(DEFAULT_DEMO_PASSWORD, hash)).resolves.toBe(true);
+    expect(hash).toBe(fakeHash(DEFAULT_DEMO_PASSWORD));
     const roles = userCreate.mock.calls.map(
       ([args]) => (args as { data: { roleId: string } }).data.roleId,
     );
