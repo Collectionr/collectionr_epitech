@@ -9,6 +9,7 @@ import {
   CardEntryNotFoundError,
   CardNotFoundError,
   CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
   CollectionNotFoundError,
   LicenceNotFoundError,
 } from '../application/errors/CollectionErrors';
@@ -43,6 +44,12 @@ describe('mapCollectionError', () => {
 
   it('maps CollectionLimitReachedError to 409', () => {
     expect(() => mapCollectionError(new CollectionLimitReachedError())).toThrow(ConflictException);
+  });
+
+  it('maps CollectionNameAlreadyUsedError to 409', () => {
+    expect(() => mapCollectionError(new CollectionNameAlreadyUsedError())).toThrow(
+      ConflictException,
+    );
   });
 
   it('does not turn the DomainValidationError of auth into a 400 (a different class: it is not this module’s)', () => {

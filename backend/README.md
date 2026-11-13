@@ -53,10 +53,12 @@ Toutes les commandes se lancent depuis `backend/`, contre la base pointée par `
 | `npm run prisma:migrate` | `prisma migrate dev` : crée une migration à partir de `schema.prisma` et l'applique | En dev, après une modification du schéma |
 | `npm run prisma:migrate:deploy` | Applique les migrations existantes, n'en crée jamais | Staging, prod, CI |
 | `npm run prisma:generate` | Régénère le client Prisma (`src/generated/prisma`) | Après chaque modification du schéma (Prisma 7 ne le fait plus après `migrate dev`) |
-| `npm run prisma:seed` | Insère les données de référence (rôles `USER`/`ADMIN`, catalogue de démonstration : 1 licence, 3 sets, 510 cartes, 1163 variantes) sans créer de doublon ni réécrire une ligne existante | Après une base neuve ou un reset (Prisma 7 ne le lance plus automatiquement) |
+| `npm run prisma:seed` | Insère les données de référence (rôles `USER`/`ADMIN`, catalogue de démonstration : 1 licence, 3 sets, 510 cartes, 1163 variantes) puis, hors production, des données de démo (10 comptes, chacun avec une collection de 150 à 500 cartes) ; n'ajoute que ce qui manque, sans doublon ni réécriture d'une ligne existante | Après une base neuve ou un reset (Prisma 7 ne le lance plus automatiquement) |
 | `npx prisma studio --port 5555` | Interface web pour parcourir et modifier les tables (http://localhost:5555) | Dev uniquement, jamais sur staging ou prod |
 | `npx prisma validate` / `npx prisma format` | Vérifie / formate `schema.prisma` | Avant de commiter un changement de schéma |
 | `npx prisma migrate reset` | ⚠️ **Efface toute la base** puis rejoue les migrations | Dev uniquement |
+
+Comptes de démo (créés par `prisma:seed` sauf si `NODE_ENV=production`) : `admin@collectionr.test` (rôle `ADMIN`) et `user1@collectionr.test` à `user9@collectionr.test` (rôle `USER`). Mot de passe commun : `Test!1234`, ou la valeur de `SEED_DEMO_PASSWORD` si elle est définie au lancement du seed. Chaque compte a une collection « Ma collection » de 150 à 500 cartes distinctes tirées du catalogue, de façon déterministe (mêmes données à chaque base neuve). Code dans `prisma/demo/`.
 
 Pièges :
 

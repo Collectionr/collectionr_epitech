@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { UpdateCollectionUseCase } from './UpdateCollectionUseCase';
 import { Collection } from '../../domain/entities/Collection';
 import { DomainValidationError } from '../../domain/errors/DomainValidationError';
-import { CollectionNotFoundError } from '../errors/CollectionErrors';
+import {
+  CollectionNameAlreadyUsedError,
+  CollectionNotFoundError,
+} from '../errors/CollectionErrors';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 
 const USER_ID = randomUUID();
@@ -69,6 +72,16 @@ describe('UpdateCollectionUseCase', () => {
       build().execute({ userId: USER_ID, collectionId: existing.id, name: 'Doubles' }),
     ).rejects.toThrow(CollectionNotFoundError);
     expect(rename).not.toHaveBeenCalled();
+  });
+
+  it('propagates CollectionNameAlreadyUsedError thrown by the repository (another collection has that name)', async () => {
+    const existing = buildCollection();
+    findById.mockResolvedValue(existing);
+    rename.mockRejectedValue(new CollectionNameAlreadyUsedError());
+
+    await expect(
+      build().execute({ userId: USER_ID, collectionId: existing.id, name: 'Doubles' }),
+    ).rejects.toThrow(CollectionNameAlreadyUsedError);
   });
 
   it('propagates CollectionNotFoundError thrown by the repository (deleted in the meantime)', async () => {

@@ -27,8 +27,10 @@ export interface ICollectionRepository {
    *
    * MUST reject with CollectionLimitReachedError (application/errors/CollectionErrors.ts) when the
    * owner already has `maxPerUser` collections, and with LicenceNotFoundError when `licenceTCGId`
-   * is not in the catalogue (foreign key). When both apply, which of the two is reported is
-   * unspecified. `maxPerUser` is a positive integer (the use case passes a constant).
+   * is not in the catalogue (foreign key), and with CollectionNameAlreadyUsedError when the owner
+   * already has a collection with this exact name (unique on owner + name; another owner may use
+   * it). When several apply, which one is reported is unspecified. `maxPerUser` is a positive
+   * integer (the use case passes a constant).
    *
    * An owner that does not exist (for example an account erased at the same moment) is not
    * expected: the owner is the authenticated user taken from the session. An implementation lets
@@ -42,7 +44,9 @@ export interface ICollectionRepository {
   /**
    * Writes the name and `updatedAt` of an EXISTING collection and nothing else. MUST reject with
    * CollectionNotFoundError when it no longer exists (deleted by a concurrent request): it never
-   * re-creates it, which would bring back an empty collection whose entries are gone.
+   * re-creates it, which would bring back an empty collection whose entries are gone. MUST reject
+   * with CollectionNameAlreadyUsedError when ANOTHER collection of the same owner already has that
+   * name; keeping its own current name is not a conflict.
    */
   rename(collection: Collection): Promise<Collection>;
   /**

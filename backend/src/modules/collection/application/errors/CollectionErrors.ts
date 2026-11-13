@@ -22,6 +22,17 @@ export class CollectionLimitReachedError extends Error {
   }
 }
 
+/**
+ * The user already owns a collection with this name (create or rename). Names are unique per owner,
+ * not globally: another user may use the same one. The fixed message does not echo the name.
+ */
+export class CollectionNameAlreadyUsedError extends Error {
+  constructor() {
+    super('You already have a collection with this name');
+    this.name = 'CollectionNameAlreadyUsedError';
+  }
+}
+
 /** The entry does not exist in this collection. */
 export class CardEntryNotFoundError extends Error {
   constructor() {

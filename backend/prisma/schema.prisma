@@ -312,6 +312,8 @@ enum CardLanguage {
 
 /// A named set of cards owned by one user, about one licence (COLLR-417, ADR-017).
 /// The limit of 10 collections per user is enforced by PrismaCollectionRepository.create under a lock on the owner.
+/// A user cannot own two collections with the same name (unique on userId + name); two users can. The comparison
+/// is exact (case-sensitive) on the trimmed name the domain stores.
 model Collection {
   id           String      @id @default(uuid()) @db.Uuid
   userId       String      @db.Uuid
@@ -323,6 +325,7 @@ model Collection {
   createdAt    DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
 
+  @@unique([userId, name])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([licenceTCGId])
   @@map("collections")

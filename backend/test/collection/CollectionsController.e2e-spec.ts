@@ -232,6 +232,34 @@ describe('CollectionsController (e2e)', () => {
       expect(accepted.id).toBeDefined();
     });
 
+    it('answers 409 to a second collection with the same name, but lets another user use it', async () => {
+      const first = await account();
+      const other = await account();
+      await createCollection(first.auth, 'Doubles');
+
+      const refused = await http()
+        .post('/api/v1/collections')
+        .set(...first.auth)
+        .send({ licenceTCGId: licenceId, name: 'Doubles' });
+      const accepted = await createCollection(other.auth, 'Doubles');
+
+      expect(refused.status).toBe(409);
+      expect(accepted.id).toBeDefined();
+    });
+
+    it('answers 409 when renaming onto the name of another own collection', async () => {
+      const { auth } = await account();
+      await createCollection(auth, 'Doubles');
+      const wishlist = await createCollection(auth, 'Wishlist');
+
+      const refused = await http()
+        .patch(`/api/v1/collections/${wishlist.id}`)
+        .set(...auth)
+        .send({ name: 'Doubles' });
+
+      expect(refused.status).toBe(409);
+    });
+
     it("lists only the caller's collections, which must not be cached", async () => {
       const mine = await account();
       const theirs = await account();
