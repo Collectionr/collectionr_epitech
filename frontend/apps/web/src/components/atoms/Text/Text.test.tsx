@@ -65,6 +65,17 @@ describe('Text', () => {
     expect(element).toBeDefined();
   });
 
+  it('refuse la balise label au niveau du typage', () => {
+    const element = (
+      // @ts-expect-error Un libellé de champ passe par l'atome Label, qui impose htmlFor.
+      <Text variant="caption" as="label">
+        Adresse e-mail
+      </Text>
+    );
+
+    expect(element).toBeDefined();
+  });
+
   it('applique la graisse demandée sur une variante Schibsted', () => {
     const html = renderToStaticMarkup(
       <Text variant="body" weight={700}>

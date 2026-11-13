@@ -19,8 +19,11 @@ export type TextWeight =
   | (typeof fontWeights)['extrabold']
   | (typeof fontWeights)['black'];
 
-/** Balises HTML pouvant remplacer la balise par défaut d'une variante. */
-export type TextElement = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span' | 'div' | 'label';
+/**
+ * Balises HTML pouvant remplacer la balise par défaut d'une variante.
+ * Pas de `label` : un libellé de champ passe par l'atome Label (COLLR-579), qui impose `htmlFor`.
+ */
+export type TextElement = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span' | 'div';
 
 /** Propriétés communes à toutes les variantes. */
 interface TextBaseProps {
