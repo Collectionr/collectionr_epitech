@@ -6,6 +6,7 @@ import {
   CardEntryNotFoundError,
   CardNotFoundError,
   CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
   CollectionNotFoundError,
   LicenceNotFoundError,
 } from '../../application/errors/CollectionErrors';
@@ -25,6 +26,7 @@ import {
   isRecordNotFound,
 } from './ForeignKeyViolation';
 import { PAGE_READ_TRANSACTION_OPTIONS } from './PageReadTransaction';
+import { COLLECTION_NAME_UNIQUE, isUniqueViolationOn } from './UniqueViolation';
 
 /**
  * PostgreSQL implementation of ICollectionRepository (COLLR-417, ADR-017). Every guarantee the
@@ -74,6 +76,11 @@ export class PrismaCollectionRepository implements ICollectionRepository {
       if (isForeignKeyViolationOn(error, COLLECTION_LICENCE_FK)) {
         throw new LicenceNotFoundError();
       }
+      // The unique index (userId, name) is the guarantee: no look-up before the insert, which two
+      // concurrent requests would both pass.
+      if (isUniqueViolationOn(error, COLLECTION_NAME_UNIQUE)) {
+        throw new CollectionNameAlreadyUsedError();
+      }
       throw error;
     }
   }
@@ -109,6 +116,9 @@ export class PrismaCollectionRepository implements ICollectionRepository {
     } catch (error) {
       if (isRecordNotFound(error)) {
         throw new CollectionNotFoundError();
+      }
+      if (isUniqueViolationOn(error, COLLECTION_NAME_UNIQUE)) {
+        throw new CollectionNameAlreadyUsedError();
       }
       throw error;
     }

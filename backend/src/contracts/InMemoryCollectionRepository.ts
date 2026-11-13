@@ -6,6 +6,7 @@ import {
   CardEntryNotFoundError,
   CardNotFoundError,
   CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
   CollectionNotFoundError,
   LicenceNotFoundError,
 } from '../modules/collection/application/errors/CollectionErrors';
@@ -47,6 +48,9 @@ export class InMemoryCollectionRepository implements ICollectionRepository {
       if (!this.catalogue.licences.has(collection.licenceTCGId)) {
         throw new LicenceNotFoundError();
       }
+      if (owned.some((c) => c.name === collection.name)) {
+        throw new CollectionNameAlreadyUsedError();
+      }
       this.collections.set(collection.id, collection);
       return collection;
     });
@@ -69,6 +73,15 @@ export class InMemoryCollectionRepository implements ICollectionRepository {
       const stored = this.collections.get(collection.id);
       if (stored === undefined) {
         throw new CollectionNotFoundError();
+      }
+      for (const other of this.collections.values()) {
+        if (
+          other.id !== stored.id &&
+          other.userId === stored.userId &&
+          other.name === collection.name
+        ) {
+          throw new CollectionNameAlreadyUsedError();
+        }
       }
       // Only the name and updatedAt are written: owner, licence and creation date stay as stored.
       const renamed = Collection.restore({

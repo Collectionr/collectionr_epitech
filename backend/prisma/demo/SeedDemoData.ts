@@ -98,8 +98,8 @@ async function seedCollection(
   catalogue: DemoCatalogue,
   seed: number,
 ): Promise<number> {
-  // A collection name is not unique in the schema, so the pair (owner, name) is the natural key of a
-  // demo collection. One that already exists is left alone, entries included: someone may have edited it.
+  // The pair (owner, name) is unique in the schema, so it is the natural key of a demo collection. One
+  // that already exists is left alone, entries included: someone may have edited it.
   const existing = await prismaClient.collection.findFirst({
     where: { userId, name: DEMO_COLLECTION_NAME },
     select: { id: true },

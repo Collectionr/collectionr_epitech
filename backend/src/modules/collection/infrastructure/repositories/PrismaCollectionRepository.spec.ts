@@ -9,6 +9,7 @@ import {
   CardEntryNotFoundError,
   CardNotFoundError,
   CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
   CollectionNotFoundError,
   LicenceNotFoundError,
 } from '../../application/errors/CollectionErrors';
@@ -17,6 +18,7 @@ import { Collection } from '../../domain/entities/Collection';
 import { PageRequest } from '../../domain/value-objects/PageRequest';
 import { ENTRY_CARD_FK, ENTRY_COLLECTION_FK, ENTRY_VARIANT_FK } from './ForeignKeyViolation';
 import { PrismaCollectionRepository } from './PrismaCollectionRepository';
+import { COLLECTION_NAME_UNIQUE } from './UniqueViolation';
 
 // What these tests prove: the repository asks the store for the right thing, in the right order, and
 // turns its failures into the typed errors of the port. That the store then really holds the
@@ -171,6 +173,21 @@ describe('PrismaCollectionRepository', () => {
       expect(collectionCreate).not.toHaveBeenCalled();
     });
 
+    it('turns a unique violation on (userId, name) into CollectionNameAlreadyUsedError', async () => {
+      collectionCreate.mockRejectedValue(knownError('P2002', COLLECTION_NAME_UNIQUE));
+
+      await expect(repository.create(newCollection(), 10)).rejects.toBeInstanceOf(
+        CollectionNameAlreadyUsedError,
+      );
+    });
+
+    it('lets any other unique violation surface as it is (a 5xx, never a wrong 409)', async () => {
+      const unexpected = knownError('P2002', 'collections_pkey');
+      collectionCreate.mockRejectedValue(unexpected);
+
+      await expect(repository.create(newCollection(), 10)).rejects.toBe(unexpected);
+    });
+
     it('accepts the last free place (9 owned, maximum 10)', async () => {
       collectionCount.mockResolvedValue(9);
       collectionCreate.mockResolvedValue(storedCollection());
@@ -261,6 +278,14 @@ describe('PrismaCollectionRepository', () => {
 
       await expect(repository.rename(newCollection().rename('Zombie'))).rejects.toBeInstanceOf(
         CollectionNotFoundError,
+      );
+    });
+
+    it('turns a unique violation on (userId, name) into CollectionNameAlreadyUsedError', async () => {
+      collectionUpdate.mockRejectedValue(knownError('P2002', COLLECTION_NAME_UNIQUE));
+
+      await expect(repository.rename(newCollection().rename('Doubles'))).rejects.toBeInstanceOf(
+        CollectionNameAlreadyUsedError,
       );
     });
 
