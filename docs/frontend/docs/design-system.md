@@ -22,7 +22,7 @@ Les tailles/espacements sont des nombres en pixels, les durées en millisecondes
 
 Exemples de classes : `bg-ecrin`, `bg-ecrin-elevated`, `text-archive`, `border-lisere`, `p-space-16`, `gap-space-8`, `rounded-card`, `rounded-none`, `aspect-card`, `opacity-disabled`, `duration-instant`.
 
-Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Les futurs composants passent par l'atome Text, sauf Button qui utilise directement `text-button-label`. Les écrans de démarrage utilisent provisoirement ces classes en attendant Text (COLLR-575).
+Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Sur le web, les composants passent par l'atome Text (COLLR-575), sauf Button qui utilise directement `text-button-label`. Text ne rend jamais de `<label>` : un libellé de champ passe par l'atome Label (COLLR-579), qui impose `htmlFor`. Les écrans de démarrage (`apps/web/src/App.tsx`, `HomeScreen` et `TokensPreviewScreen` sur mobile) utilisent encore ces classes directement ; le mobile n'a pas encore d'atome Text.
 
 ## Couleurs
 
@@ -102,11 +102,13 @@ Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depu
 
 Utiliser Lucide Icons (`lucide-react` / `lucide-react-native`), avec une taille explicite et un libellé accessible. Les icônes renforcent la compréhension sans remplacer le texte.
 
+Sur le web, passer par l'atome Icon (COLLR-577) plutôt que par Lucide directement. Il applique les règles du Gold Master §05.2 : trait constant de 1,5 px à toutes les tailles, terminaisons nettes, angles vifs, sans remplissage, couleur héritée du texte. Les glyphes Lucide dessinés avec des angles arrondis (grilles à rectangles arrondis) sont remplacés par des tracés dessinés dans l'atome. Valeurs dans le token `iconography`.
+
 | Taille | Valeur | Usage |
 | --- | --- | --- |
-| Small | 16 px | Icônes inline, badges |
-| Medium | 20 px | Boutons, navigation |
-| Large | 24 px | Tab bar, actions principales |
+| Small (`sm`) | 16 px | Icônes inline, badges |
+| Medium (`md`, défaut) | 20 px | Boutons, navigation |
+| Large (`lg`) | 24 px | Tab bar, actions principales |
 
 ## Prix et valeurs monétaires
 
@@ -114,7 +116,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens**, `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 
