@@ -22,7 +22,7 @@ Les tailles/espacements sont des nombres en pixels, les durées en millisecondes
 
 Exemples de classes : `bg-ecrin`, `bg-ecrin-elevated`, `text-archive`, `border-lisere`, `p-space-16`, `gap-space-8`, `rounded-card`, `rounded-none`, `aspect-card`, `opacity-disabled`, `duration-instant`.
 
-Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Les futurs composants passent par l'atome Text, sauf Button qui utilise directement `text-button-label`. Les écrans de démarrage utilisent provisoirement ces classes en attendant Text (COLLR-575).
+Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Sur le web, les composants passent par l'atome Text (COLLR-575), sauf Button qui utilise directement `text-button-label`. Text ne rend jamais de `<label>` : un libellé de champ passe par l'atome Label (COLLR-579), qui impose `htmlFor`. Les écrans de démarrage (`apps/web/src/App.tsx`, `HomeScreen` et `TokensPreviewScreen` sur mobile) utilisent encore ces classes directement ; le mobile n'a pas encore d'atome Text.
 
 ## Couleurs
 
