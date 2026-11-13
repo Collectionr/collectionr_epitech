@@ -21,7 +21,7 @@ export default defineConfig({
           name: 'web',
           root: './apps/web',
           environment: 'node',
-          include: ['src/**/*.test.tsx'],
+          include: ['src/**/*.test.{ts,tsx}'],
         },
       },
       {
