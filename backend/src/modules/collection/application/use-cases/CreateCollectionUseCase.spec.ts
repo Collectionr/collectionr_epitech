@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { CreateCollectionUseCase } from './CreateCollectionUseCase';
 import type { Collection } from '../../domain/entities/Collection';
 import { DomainValidationError } from '../../domain/errors/DomainValidationError';
-import { CollectionLimitReachedError, LicenceNotFoundError } from '../errors/CollectionErrors';
+import {
+  CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
+  LicenceNotFoundError,
+} from '../errors/CollectionErrors';
 import type { ICollectionRepository } from '../ports/ICollectionRepository';
 
 const USER_ID = randomUUID();
@@ -45,6 +49,14 @@ describe('CreateCollectionUseCase', () => {
     await expect(
       build().execute({ userId: USER_ID, licenceTCGId: LICENCE_ID, name: 'Doubles' }),
     ).rejects.toThrow(CollectionLimitReachedError);
+  });
+
+  it('propagates CollectionNameAlreadyUsedError thrown by the repository (same name, same owner)', async () => {
+    create.mockRejectedValue(new CollectionNameAlreadyUsedError());
+
+    await expect(
+      build().execute({ userId: USER_ID, licenceTCGId: LICENCE_ID, name: 'Doubles' }),
+    ).rejects.toThrow(CollectionNameAlreadyUsedError);
   });
 
   it('propagates LicenceNotFoundError thrown by the repository (unknown licence)', async () => {
