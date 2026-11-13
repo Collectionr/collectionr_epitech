@@ -1,60 +1,79 @@
 import { compare } from 'bcrypt';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
-import { DEFAULT_DEMO_PASSWORD, DEMO_TERMS_VERSION, DEMO_USERS } from './DemoData';
+import {
+  DEFAULT_DEMO_PASSWORD,
+  DEMO_COLLECTION_MAX_ENTRIES,
+  DEMO_COLLECTION_MIN_ENTRIES,
+  DEMO_COLLECTION_NAME,
+  DEMO_TERMS_VERSION,
+  DEMO_USERS,
+} from './DemoData';
 import { seedDemoData, shouldSeedDemoData } from './SeedDemoData';
 
 interface FakeOptions {
   existingEmails?: string[];
-  existingCollections?: string[];
-  missingCardId?: string;
-  noVariant?: boolean;
+  usersWithCollection?: string[];
+  cardCount?: number;
+}
+
+interface CollectionCreateArgs {
+  data: { id: string; userId: string; licenceTCGId: string; name: string };
+}
+interface CreateManyArgs {
+  data: { collectionId: string; cardId: string; variantId: string | null }[];
 }
 
 function createFakePrisma(options: FakeOptions = {}) {
+  const cardCount = options.cardCount ?? 510;
+  const cards = Array.from({ length: cardCount }, (_, index) => ({ id: `card-${index}` }));
+  // Two printings per card.
+  const variants = cards.flatMap(({ id }) => [
+    { id: `${id}-v1`, cardId: id },
+    { id: `${id}-v2`, cardId: id },
+  ]);
+
   const userCreate = jest.fn((args: { data: Record<string, unknown> }) =>
     Promise.resolve({ id: `user-${String(args.data['email'])}` }),
   );
-  const collectionCreate = jest.fn(() => Promise.resolve({}));
-  const userFindUnique = jest.fn((args: { where: { email: string } }) =>
-    Promise.resolve(
-      options.existingEmails?.includes(args.where.email)
-        ? { id: `user-${args.where.email}` }
-        : null,
-    ),
+  const collectionCreate = jest.fn((args: CollectionCreateArgs) => Promise.resolve(args.data));
+  const entryCreateMany = jest.fn((args: CreateManyArgs) =>
+    Promise.resolve({ count: args.data.length }),
   );
-  const collectionFindFirst = jest.fn((args: { where: { name: string } }) =>
-    Promise.resolve(options.existingCollections?.includes(args.where.name) ? { id: 'c' } : null),
-  );
-  const cardFindUnique = jest.fn((args: { where: { tcgdexId: string } }) =>
-    Promise.resolve(
-      args.where.tcgdexId === options.missingCardId ? null : { id: `card-${args.where.tcgdexId}` },
-    ),
-  );
-  const variantFindFirst = jest.fn((args: { where: { cardId: string } }) =>
-    Promise.resolve(options.noVariant ? null : { id: `variant-${args.where.cardId}` }),
-  );
-  const roleFindUniqueOrThrow = jest.fn((args: { where: { name: string } }) =>
-    Promise.resolve({ id: `role-${args.where.name}` }),
-  );
-  const licenceFindUniqueOrThrow = jest.fn(() => Promise.resolve({ id: 'licence-id' }));
+  const transaction = jest.fn((operations: Promise<unknown>[]) => Promise.all(operations));
 
   const prismaClient = {
-    user: { findUnique: userFindUnique, create: userCreate },
-    role: { findUniqueOrThrow: roleFindUniqueOrThrow },
-    licenceTCG: { findUniqueOrThrow: licenceFindUniqueOrThrow },
-    collection: { findFirst: collectionFindFirst, create: collectionCreate },
-    card: { findUnique: cardFindUnique },
-    variant: { findFirst: variantFindFirst },
+    user: {
+      findUnique: jest.fn((args: { where: { email: string } }) =>
+        Promise.resolve(
+          options.existingEmails?.includes(args.where.email)
+            ? { id: `user-${args.where.email}` }
+            : null,
+        ),
+      ),
+      create: userCreate,
+    },
+    role: {
+      findUniqueOrThrow: jest.fn((args: { where: { name: string } }) =>
+        Promise.resolve({ id: `role-${args.where.name}` }),
+      ),
+    },
+    licenceTCG: { findUniqueOrThrow: jest.fn(() => Promise.resolve({ id: 'licence-id' })) },
+    collection: {
+      findFirst: jest.fn((args: { where: { userId: string } }) =>
+        Promise.resolve(
+          options.usersWithCollection?.includes(args.where.userId) ? { id: 'existing' } : null,
+        ),
+      ),
+      create: collectionCreate,
+    },
+    card: { findMany: jest.fn(() => Promise.resolve(cards)) },
+    variant: { findMany: jest.fn(() => Promise.resolve(variants)) },
+    cardEntry: { createMany: entryCreateMany },
+    $transaction: transaction,
   } as unknown as PrismaClient;
 
-  return { prismaClient, userCreate, collectionCreate, variantFindFirst };
+  return { prismaClient, userCreate, collectionCreate, entryCreateMany, transaction };
 }
-
-const COLLECTION_COUNT = DEMO_USERS.reduce((total, user) => total + user.collections.length, 0);
-const ENTRY_COUNT = DEMO_USERS.reduce(
-  (total, user) => total + user.collections.reduce((sum, c) => sum + c.entries.length, 0),
-  0,
-);
 
 describe('shouldSeedDemoData', () => {
   it.each([undefined, 'development', 'test'])('seeds when NODE_ENV is %s', (nodeEnv) => {
@@ -67,16 +86,17 @@ describe('shouldSeedDemoData', () => {
 });
 
 describe('seedDemoData', () => {
-  it('creates every user, collection and entry on an empty database and reports it', async () => {
-    const { prismaClient, userCreate, collectionCreate } = createFakePrisma();
+  it('creates every user with one filled collection on an empty database and reports it', async () => {
+    const { prismaClient, userCreate, collectionCreate, entryCreateMany } = createFakePrisma();
 
-    await expect(seedDemoData(prismaClient)).resolves.toEqual({
-      users: DEMO_USERS.length,
-      collections: COLLECTION_COUNT,
-      cardEntries: ENTRY_COUNT,
-    });
+    const summary = await seedDemoData(prismaClient);
+
+    expect(summary.users).toBe(DEMO_USERS.length);
+    expect(summary.collections).toBe(DEMO_USERS.length);
     expect(userCreate).toHaveBeenCalledTimes(DEMO_USERS.length);
-    expect(collectionCreate).toHaveBeenCalledTimes(COLLECTION_COUNT);
+    expect(collectionCreate).toHaveBeenCalledTimes(DEMO_USERS.length);
+    const inserted = entryCreateMany.mock.calls.reduce((sum, [args]) => sum + args.data.length, 0);
+    expect(summary.cardEntries).toBe(inserted);
   });
 
   it('stores accounts the way a registration does: canonical key, role by name, terms, hashed password', async () => {
@@ -84,53 +104,73 @@ describe('seedDemoData', () => {
 
     await seedDemoData(prismaClient);
 
-    const [first] = userCreate.mock.calls[0] as [{ data: Record<string, unknown> }];
-    expect(first.data).toMatchObject({
-      email: 'ash.ketchum@collectionr.test',
-      username: 'Ash Ketchum',
-      usernameKey: 'ash ketchum',
-      roleId: 'role-USER',
+    const [admin] = userCreate.mock.calls[0] as [{ data: Record<string, unknown> }];
+    expect(admin.data).toMatchObject({
+      email: 'admin@collectionr.test',
+      username: 'admin',
+      usernameKey: 'admin',
+      roleId: 'role-ADMIN',
       termsVersion: DEMO_TERMS_VERSION,
     });
-    const hash = String(first.data['passwordHash']);
+    const hash = String(admin.data['passwordHash']);
     expect(hash).not.toContain(DEFAULT_DEMO_PASSWORD);
     await expect(compare(DEFAULT_DEMO_PASSWORD, hash)).resolves.toBe(true);
     const roles = userCreate.mock.calls.map(
       ([args]) => (args as { data: { roleId: string } }).data.roleId,
     );
-    expect(roles).toContain('role-ADMIN');
+    expect(roles.filter((role) => role === 'role-USER')).toHaveLength(DEMO_USERS.length - 1);
   });
 
-  it('attaches collections to their owner and to the Pokémon licence, with resolved card ids', async () => {
-    const { prismaClient, collectionCreate } = createFakePrisma();
+  it('gives each user one collection on the Pokémon licence, holding 150 to 500 distinct cards', async () => {
+    const { prismaClient, collectionCreate, entryCreateMany } = createFakePrisma();
 
     await seedDemoData(prismaClient);
 
-    const calls = collectionCreate.mock.calls as unknown as [
-      {
-        data: {
-          userId: string;
-          licenceTCGId: string;
-          name: string;
-          cardEntries: { create: { cardId: string; variantId: string | null }[] };
-        };
-      },
-    ][];
-    expect(calls[0][0].data).toMatchObject({
-      userId: 'user-ash.ketchum@collectionr.test',
-      licenceTCGId: 'licence-id',
-      name: 'Charizard',
+    expect(collectionCreate).toHaveBeenCalledTimes(DEMO_USERS.length);
+    DEMO_USERS.forEach((user, index) => {
+      const [collection] = collectionCreate.mock.calls[index];
+      const [entries] = entryCreateMany.mock.calls[index];
+      expect(collection.data).toMatchObject({
+        userId: `user-${user.email}`,
+        licenceTCGId: 'licence-id',
+        name: DEMO_COLLECTION_NAME,
+      });
+      expect(entries.data.length).toBeGreaterThanOrEqual(DEMO_COLLECTION_MIN_ENTRIES);
+      expect(entries.data.length).toBeLessThanOrEqual(DEMO_COLLECTION_MAX_ENTRIES);
+      expect(new Set(entries.data.map((entry) => entry.cardId)).size).toBe(entries.data.length);
+      for (const entry of entries.data) {
+        expect(entry.collectionId).toBe(collection.data.id);
+        if (entry.variantId !== null) {
+          expect(entry.variantId.startsWith(entry.cardId)).toBe(true);
+        }
+      }
     });
-    const firstEntry = calls[0][0].data.cardEntries.create[0];
-    expect(firstEntry.cardId).toBe('card-base1-4');
-    expect(firstEntry.variantId).toBe('variant-card-base1-4');
-    expect(calls[0][0].data.cardEntries.create[1].variantId).toBeNull();
+  });
+
+  it('writes a collection and its entries in one transaction', async () => {
+    const { prismaClient, transaction } = createFakePrisma();
+
+    await seedDemoData(prismaClient);
+
+    expect(transaction).toHaveBeenCalledTimes(DEMO_USERS.length);
+  });
+
+  it('sends the very same data every time (deterministic)', async () => {
+    const first = createFakePrisma();
+    const second = createFakePrisma();
+
+    await seedDemoData(first.prismaClient);
+    await seedDemoData(second.prismaClient);
+
+    expect(
+      second.entryCreateMany.mock.calls.map(([args]) => args.data.map((e) => e.cardId)),
+    ).toEqual(first.entryCreateMany.mock.calls.map(([args]) => args.data.map((e) => e.cardId)));
   });
 
   it('creates nothing when everything already exists (idempotent)', async () => {
-    const { prismaClient, userCreate, collectionCreate } = createFakePrisma({
+    const { prismaClient, userCreate, collectionCreate, entryCreateMany } = createFakePrisma({
       existingEmails: DEMO_USERS.map((user) => user.email),
-      existingCollections: DEMO_USERS.flatMap((user) => user.collections.map((c) => c.name)),
+      usersWithCollection: DEMO_USERS.map((user) => `user-${user.email}`),
     });
 
     await expect(seedDemoData(prismaClient)).resolves.toEqual({
@@ -140,33 +180,29 @@ describe('seedDemoData', () => {
     });
     expect(userCreate).not.toHaveBeenCalled();
     expect(collectionCreate).not.toHaveBeenCalled();
+    expect(entryCreateMany).not.toHaveBeenCalled();
   });
 
   it('adds only what is missing', async () => {
     const [first] = DEMO_USERS;
     const { prismaClient, userCreate, collectionCreate } = createFakePrisma({
       existingEmails: [first.email],
-      existingCollections: [first.collections[0].name],
+      usersWithCollection: [`user-${first.email}`],
     });
 
     const summary = await seedDemoData(prismaClient);
 
     expect(summary.users).toBe(DEMO_USERS.length - 1);
-    expect(summary.collections).toBe(COLLECTION_COUNT - 1);
+    expect(summary.collections).toBe(DEMO_USERS.length - 1);
     expect(userCreate).toHaveBeenCalledTimes(DEMO_USERS.length - 1);
-    expect(collectionCreate).toHaveBeenCalledTimes(COLLECTION_COUNT - 1);
+    expect(collectionCreate).toHaveBeenCalledTimes(DEMO_USERS.length - 1);
   });
 
-  it('fails with a clear message when a demo card is not in the catalogue', async () => {
-    const { prismaClient } = createFakePrisma({ missingCardId: 'base1-4' });
+  it('fails with a clear message when the catalogue is too small, before writing anything', async () => {
+    const { prismaClient, userCreate } = createFakePrisma({ cardCount: 10 });
 
-    await expect(seedDemoData(prismaClient)).rejects.toThrow('base1-4 is not in the catalogue');
-  });
-
-  it('fails with a clear message when a demo printing does not exist', async () => {
-    const { prismaClient } = createFakePrisma({ noVariant: true });
-
-    await expect(seedDemoData(prismaClient)).rejects.toThrow('has no holo/unlimited printing');
+    await expect(seedDemoData(prismaClient)).rejects.toThrow('seed the catalogue first');
+    expect(userCreate).not.toHaveBeenCalled();
   });
 
   it('refuses a password the policy would refuse at registration', async () => {
