@@ -1,6 +1,6 @@
-# Collectionr — Microservice TCG (`tcg/`)
+# Collectionr — Microservice TCG (`microservices/tcg/`)
 
-Complète le [`CLAUDE.md`](../CLAUDE.md) racine pour tout ce qui se trouve dans `tcg/` : en cas de
+Complète le [`CLAUDE.md`](../../CLAUDE.md) racine pour tout ce qui se trouve dans `microservices/tcg/` : en cas de
 conflit, ce fichier l'emporte. Service Python interne (appelé par le backend) qui alimentera les
 métadonnées et les prix des cartes ; pour l'instant seul `GET /health` existe.
 
@@ -12,7 +12,7 @@ métadonnées et les prix des cartes ; pour l'instant seul `GET /health` existe.
 - Dépendances : bornes dans `pyproject.toml`, versions épinglées dans `requirements.txt` /
   `requirements-dev.txt` (générés par `uv pip compile --universal`, jamais édités à la main)
 
-## Commandes (depuis `tcg/`, venv `.venv` activé)
+## Commandes (depuis `microservices/tcg/`, venv `.venv` activé)
 
 ```bash
 ruff check .                # lint
@@ -61,7 +61,7 @@ Installation et régénération des dépendances : `README.md` (sections « Inst
 
 ## Invariants du CLAUDE.md racine
 
-| Invariant racine | Dans `tcg/` |
+| Invariant racine | Dans `microservices/tcg/` |
 | --- | --- |
 | Git / Jira (branches, commits en français, ne jamais push) | ✅ s'applique tel quel |
 | Clean Architecture 4 couches, `domain/` sans framework, ports | ✅ (vérifié par Ruff `TID251`) |
