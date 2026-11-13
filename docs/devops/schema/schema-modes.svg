@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="400" viewBox="0 0 680 400" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Mode site et mode code</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="680" height="400" rx="12" fill="#FFFFFF"/>
+  <text x="180" y="22" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#2C2C2A">Mode site (deploy.sh)</text>
+  <text x="500" y="22" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#2C2C2A">Mode code (dev.sh)</text>
+  <rect x="40" y="110" width="280" height="252" rx="12" fill="none" stroke="#B4B2A9" stroke-width="0.8" stroke-dasharray="4 4"/>
+  <rect x="360" y="110" width="280" height="166" rx="12" fill="none" stroke="#B4B2A9" stroke-width="0.8" stroke-dasharray="4 4"/>
+  <rect x="360" y="296" width="280" height="66" rx="12" fill="none" stroke="#B4B2A9" stroke-width="0.8" stroke-dasharray="4 4"/>
+  <rect x="50" y="40" width="260" height="44" rx="8" fill="#F8F7F3" stroke="#888780" stroke-width="0.8"/>
+  <text x="180" y="62" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#2C2C2A">Navigateur · collectionr.localhost</text>
+  <line x1="180" y1="84" x2="180" y2="122" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="50" y="124" width="260" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="180" y="146" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#3C3489">Traefik · porte d'entrée</text>
+  <line x1="112" y1="168" x2="112" y2="206" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="247" y1="168" x2="247" y2="206" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="50" y="208" width="125" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="112" y="230" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#3C3489">Frontend</text>
+  <rect x="185" y="208" width="125" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="247" y="230" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#3C3489">Backend</text>
+  <line x1="247" y1="252" x2="247" y2="304" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="50" y="306" width="260" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="180" y="328" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#3C3489">PostgreSQL + Redis</text>
+  <text x="180" y="384" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#5F5E5A">Tout est dans le cluster K3s</text>
+  <rect x="370" y="40" width="260" height="44" rx="8" fill="#F8F7F3" stroke="#888780" stroke-width="0.8"/>
+  <text x="500" y="62" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#2C2C2A">Navigateur · localhost:5173</text>
+  <line x1="500" y1="84" x2="500" y2="122" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="370" y="124" width="260" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="500" y="146" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#085041">Frontend · npm run dev</text>
+  <line x1="500" y1="168" x2="500" y2="206" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="370" y="208" width="260" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="500" y="230" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#085041">Backend · npm run start:dev</text>
+  <text x="380" y="266" dominant-baseline="central" font-size="12" fill="#5F5E5A">Ta machine</text>
+  <path d="M560 252 L560 304" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="570" y="286" dominant-baseline="central" font-size="12" fill="#0F6E56">via dev.sh</text>
+  <rect x="370" y="306" width="260" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="500" y="328" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#3C3489">PostgreSQL + Redis</text>
+  <text x="500" y="384" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#5F5E5A">Seules les bases restent dans le cluster</text>
+</svg>
