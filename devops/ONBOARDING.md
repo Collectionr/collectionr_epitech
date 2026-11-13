@@ -11,11 +11,11 @@ Les détails techniques sont dans [`devops/README.md`](./README.md) : on y renvo
 
 ## Vue d'ensemble
 
-```mermaid
-flowchart LR
-    A["setup-*.sh<br/>Installe K3s<br/><i>1 fois par poste</i>"] --> B["deploy.sh<br/>Lance les services<br/><i>complet ou --light</i>"]
-    B --> C["dev.sh<br/>Ouvre 2 tunnels<br/><i>seulement pour coder</i>"]
-```
+![Les 3 scripts : setup, deploy, dev](../docs/devops/schema/schema-scripts.svg)
+
+- `setup-*.sh` : installe K3s, **une fois** par poste.
+- `deploy.sh` : lance les services dans le cluster (complet ou `--light`).
+- `dev.sh` : ouvre 2 tunnels vers les bases, **seulement pour coder**.
 
 ---
 
@@ -211,50 +211,101 @@ Le navigateur Windows ne voit pas directement le cluster WSL. Il faut un tunnel.
 - PostgreSQL et Redis restent **dans le cluster**.
 - `dev.sh` fait le pont entre les deux.
 
-```mermaid
-flowchart TB
-    subgraph SITE["Mode site — deploy.sh"]
-        N1["Navigateur<br/>collectionr.localhost"] --> T["Traefik"]
-        T --> F1["Frontend"]
-        T --> B1["Backend"]
-        B1 --> D1[("PostgreSQL + Redis")]
-    end
-    subgraph CODE["Mode code — dev.sh"]
-        N2["Navigateur<br/>localhost:5173"] --> F2["Frontend<br/>npm run dev"]
-        F2 --> B2["Backend<br/>npm run start:dev"]
-        B2 -. "tunnels dev.sh" .-> D2[("PostgreSQL + Redis<br/>dans le cluster")]
-    end
-```
+![Mode site et mode code](../docs/devops/schema/schema-modes.svg)
 
 **Exemple :** tu modifies un bouton du Front.
 - En mode site : rebuild de l'image + import + redéploiement (~5 min).
 - En mode code : tu sauvegardes, la page se recharge (~1 s).
 
-### Étapes
+### Quel cas pour toi ? (combien de terminaux)
+
+> **T1, T2, T3** = Terminal 1, Terminal 2, Terminal 3 : des fenêtres de terminal **ouvertes en même temps**.
+> Chacune fait tourner un programme qui doit **rester allumé** (tunnel, Backend, Frontend).
+> Sous Windows : une fenêtre Ubuntu (WSL) par terminal, ou un onglet par terminal dans Windows Terminal.
+
+> ⚠️ Le **mode site** (`deploy.sh`) tourne **tout seul en fond** : aucun terminal à garder ouvert.
+> Les terminaux ne servent qu'au **mode code**, et seulement pour ce que tu modifies.
+
+| Je veux… | Je lance | Terminaux ouverts | `.env` à préparer ? |
+|---|---|---|---|
+| **Voir / démontrer l'appli** (DevOps, démo) | `deploy.sh` | 0 (Linux/macOS) · 1 sous Windows : tunnel Traefik (§5) | Non |
+| **Modifier seulement le Front** | `deploy.sh --light`, puis T1 : `kubectl port-forward --namespace development svc/backend 3000:3000` · T2 : `cd frontend && npm run dev` | 2 | Non |
+| **Modifier seulement le Back** | `deploy.sh --light`, puis T1 : `dev.sh` · T2 : `cd backend && npm run start:dev` | 2 | Oui |
+| **Modifier le Front ET le Back** | `deploy.sh --light`, puis T1 : `dev.sh` · T2 : Backend · T3 : Frontend | 3 | Oui |
+
+**Exemples :**
+- Tu changes la couleur d'un bouton → « seulement le Front » : le Backend du cluster répond à ta place, sur le port 3000.
+- Tu ajoutes une route d'API → « seulement le Back » : tu testes avec `curl` ou Swagger, sans lancer le Front.
+- Tu branches un écran sur une nouvelle route → « Front ET Back ».
+
+> « Seulement le Front » utilise l'image du Backend **déjà déployée** dans le cluster.
+> Si le Back a changé sur `dev`, reconstruis l'image (§3.2) et relance `deploy.sh`.
+
+### Quels mots de passe dans `.env` ?
+
+| Variable | Valeur | Pourquoi |
+|---|---|---|
+| `DATABASE_URL` | **Même** mot de passe que le Secret | Une seule base : celle du cluster |
+| `REDIS_URL` | **Même** mot de passe que le Secret | Un seul Redis : celui du cluster |
+| `JWT_SECRET` | **Une clé à toi**, générée | C'est la clé du Backend local, pas d'une base |
+
+> Les données sont partagées entre mode site et mode code (même base).
+> Les sessions, non : change de mode → reconnecte-toi.
+
+### Préparation (une seule fois par poste — si tu lances le Back sur ta machine)
 
 1. Le cluster tourne (au moins `deploy.sh --light`).
-2. **Terminal 1** — ouvre les tunnels (laisse-le ouvert) :
+2. Crée ton `.env` :
    ```bash
-   ./devops/scripts/dev.sh
+   cd backend
+   cp .env.example .env
    ```
-3. Prépare `backend/.env` (une seule fois) :
-   - copie `backend/.env.example` en `backend/.env` ;
-   - `DATABASE_URL` et `REDIS_URL` doivent pointer sur `localhost` ;
-   - mets les **vrais** mots de passe des Secrets :
-     ```bash
-     kubectl get secret postgresql-credentials --namespace development -o jsonpath='{.data.password}' | base64 -d; echo
-     kubectl get secret redis-ocr-credentials --namespace development -o jsonpath='{.data.password}' | base64 -d; echo
-     ```
-   ⚠️ `.env` n'est **jamais** commité (il est dans `.gitignore`).
-4. **Terminal 2** — Backend :
+3. Remplis-le **sans que les mots de passe s'affichent dans le terminal** :
+   > Dans le fichier `.env`, ils sont écrits **en clair** : c'est normal, le Backend doit pouvoir les lire.
+   > Ce qui protège ce fichier : il reste sur ton PC et il est ignoré par Git.
    ```bash
-   cd backend && npm run start:dev
+   # PostgreSQL : même mot de passe que le Secret
+   PG_USER=$(kubectl get secret postgresql-credentials --namespace development -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+   PG_PWD=$(kubectl get secret postgresql-credentials --namespace development -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+   PG_DB=$(kubectl get secret postgresql-credentials --namespace development -o jsonpath='{.data.POSTGRES_DB}' | base64 -d)
+   sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://${PG_USER}:${PG_PWD}@localhost:5432/${PG_DB}|" .env
+   unset PG_USER PG_PWD PG_DB
+
+   # Redis OCR : même mot de passe que le Secret
+   REDIS_PWD=$(kubectl get secret redis-ocr-credentials --namespace development -o jsonpath='{.data.password}' | base64 -d)
+   sed -i "s|^REDIS_URL=.*|REDIS_URL=redis://:${REDIS_PWD}@localhost:6379|" .env
+   unset REDIS_PWD
+
+   # JWT : une clé à toi (le Backend refuse la valeur d'exemple)
+   sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
    ```
-5. **Terminal 3** — Frontend :
+   > `sed` cherche la **ligne** qui commence par `NOM=` et la remplace en entier.
+   > Tu n'as pas besoin de connaître l'ancienne valeur.
+4. Vérifie (mots de passe masqués) :
    ```bash
-   cd frontend && npm run dev
+   grep -E '^(DATABASE_URL|REDIS_URL|JWT_SECRET)=' .env | sed -E 's/:[^:@]*@/:***@/; s/(JWT_SECRET=).*/\1***/'
+   grep -v '^#' .env | cut -d= -f1 | sort | uniq -d
    ```
-6. Navigateur : `http://localhost:5173`
+   ✅ 3 lignes, avec des `***`. La 2e commande n'affiche **rien** (aucun doublon).
+5. Installe les dépendances et génère le client Prisma :
+   ```bash
+   cd backend && npm install && npx prisma generate
+   cd ../frontend && npm install
+   ```
+   > Relance `npx prisma generate` après chaque changement de `schema.prisma`.
+
+⚠️ `.env` n'est **jamais** commité (il est dans `.gitignore`). Avant chaque commit : `git status` ne doit montrer aucun `.env`.
+
+### Au quotidien (cas « Front ET Back » : 3 terminaux)
+
+| Terminal | Commande | Résultat attendu |
+|---|---|---|
+| T1 | `./devops/scripts/dev.sh` | `Tunnels ouverts` (laisse ouvert) |
+| T2 | `cd backend && npm run start:dev` | Log `Swagger documentation...` |
+| T3 | `cd frontend && npm run dev` | `Local: http://localhost:5173/` |
+
+Vérifier le Backend : `curl http://localhost:3000/health` → `status: ok`.
+Navigateur : `http://localhost:5173`.
 
 **Pour tout arrêter** : `Ctrl+C` dans chaque terminal.
 
@@ -304,6 +355,12 @@ kubectl delete ingress,service,deployment nginx-test
 | `ErrImagePull` / `ImagePullBackOff` | Image absente du cluster | Tag `:dev` (pas `:latest`) + import (§3.2) |
 | Page blanche dans le navigateur Windows | Pas de tunnel Traefik | Voir §5 Windows |
 | `Successfully tagged` ou `naming to` à la fin du build | Deux versions de Docker, même résultat | Rien à faire, c'est OK |
+| `has no exported member 'User'` (ou autre modèle) | Client Prisma pas généré sur ce poste | `cd backend && npx prisma generate` |
+| `JWT_SECRET looks like a placeholder` | Valeur d'exemple de `.env.example` | Générer une clé (§6, étape 3) |
+| `NOAUTH Authentication required` | Mauvais mot de passe dans `REDIS_URL` | Recopier depuis le Secret (§6, étape 3) |
+| `/health` → `degraded` | Une dépendance (souvent Redis) ne répond pas | Vérifier `dev.sh` (T1) et `REDIS_URL` |
+| `vite: not found` (code 127) | Dépendances du Front pas installées | `cd frontend && npm install` |
+| `Permission denied` sur un script `.sh` | Droits manquants (lecture ou exécution) | `chmod 755 devops/scripts/<script>.sh` |
 | `dev.sh` : « Un tunnel n'a pas démarré » | Port 5432 ou 6379 déjà pris | Arrête ton PostgreSQL/Redis local ou l'autre `dev.sh` |
 | `deploy.sh` refuse de tourner (contexte `k3d-*`) | Mauvais cluster visé | Voir §4 « Tu as aussi un cluster k3d ? » |
 
@@ -330,5 +387,6 @@ Sur Discord, donne toujours :
 ## 10. TODO connus
 
 - [ ] **Seeds** : commande à ajouter au §3.5 (lead Back, vers le 13/11).
+- [ ] **Équipe IA (Beta)** : ajouter le Worker OCR à `--light` dès que son Dockerfile est livré (prévu début décembre). En attendant, pour tester avec le Back sur ton PC : même dossier local dans `OCR_SHARED_DIR` pour le Backend **et** le Worker (ex. `/tmp/collectionr-ocr`).
+- [ ] **Équipe TCG (Beta)** : ajouter un tunnel Redis TCG à `dev.sh` quand le Microservice/Workers TCG seront déployés.
 - [ ] **macOS** : vérifier l'import d'image avec Rancher Desktop / OrbStack (les images Docker y sont peut-être visibles directement).
-- [ ] **Proxy Vite** : vérifier que `frontend/apps/web/vite.config.ts` renvoie `/api` vers `localhost:3000` (mode code).
