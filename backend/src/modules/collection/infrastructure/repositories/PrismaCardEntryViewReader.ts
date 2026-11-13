@@ -9,6 +9,7 @@ import type {
 import type { Page } from '../../application/ports/Page';
 import type { PageRequest } from '../../domain/value-objects/PageRequest';
 import { CARD_ENTRY_ORDER } from './CardEntryOrder';
+import { PAGE_READ_TRANSACTION_OPTIONS } from './PageReadTransaction';
 import { toCardEntry } from './CollectionMapper';
 
 /**
@@ -24,48 +25,51 @@ export class PrismaCardEntryViewReader implements ICardEntryViewReader {
       return { items: [], total: 0, page: page.page, pageSize: page.pageSize };
     }
 
-    const [total, records] = await this.prismaClient.$transaction([
-      this.prismaClient.cardEntry.count({ where: { collectionId } }),
-      this.prismaClient.cardEntry.findMany({
-        where: { collectionId },
-        orderBy: CARD_ENTRY_ORDER,
-        skip: page.offset,
-        take: page.pageSize,
-        include: {
-          card: {
-            select: {
-              id: true,
-              number: true,
-              nameEn: true,
-              nameFr: true,
-              category: true,
-              rarity: true,
-              imageUrlEn: true,
-              imageUrlFr: true,
-              set: {
-                select: {
-                  id: true,
-                  tcgdexId: true,
-                  nameEn: true,
-                  nameFr: true,
-                  abbreviationOfficial: true,
+    const [total, records] = await this.prismaClient.$transaction(
+      [
+        this.prismaClient.cardEntry.count({ where: { collectionId } }),
+        this.prismaClient.cardEntry.findMany({
+          where: { collectionId },
+          orderBy: CARD_ENTRY_ORDER,
+          skip: page.offset,
+          take: page.pageSize,
+          include: {
+            card: {
+              select: {
+                id: true,
+                number: true,
+                nameEn: true,
+                nameFr: true,
+                category: true,
+                rarity: true,
+                imageUrlEn: true,
+                imageUrlFr: true,
+                set: {
+                  select: {
+                    id: true,
+                    tcgdexId: true,
+                    nameEn: true,
+                    nameFr: true,
+                    abbreviationOfficial: true,
+                  },
                 },
               },
             },
-          },
-          variant: {
-            select: {
-              id: true,
-              type: true,
-              subtype: true,
-              size: true,
-              stamps: true,
-              foil: true,
+            variant: {
+              select: {
+                id: true,
+                type: true,
+                subtype: true,
+                size: true,
+                stamps: true,
+                foil: true,
+              },
             },
           },
-        },
-      }),
-    ]);
+        }),
+      ],
+      PAGE_READ_TRANSACTION_OPTIONS,
+    );
 
     return {
       items: records.map(({ card, variant, ...entry }) => ({

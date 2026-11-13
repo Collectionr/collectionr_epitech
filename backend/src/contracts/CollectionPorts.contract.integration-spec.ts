@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { PrismaCardEntryViewReader } from '../modules/collection/infrastructure/repositories/PrismaCardEntryViewReader';
 import { PrismaCollectionRepository } from '../modules/collection/infrastructure/repositories/PrismaCollectionRepository';
 import { CardEntry } from '../modules/collection/domain/entities/CardEntry';
 import { Collection } from '../modules/collection/domain/entities/Collection';
@@ -273,4 +274,72 @@ describe('PrismaCollectionRepository - what only the real store proves (COLLR-41
       expect(text).not.toContain('"Node Type":"Seq Scan"');
     });
   });
+});
+
+/**
+ * A page and its total must come from the same snapshot. Under PostgreSQL's default isolation each
+ * statement of the batch sees its own state: an entry committed between the count and the page gave
+ * `total: 0` with an item in `items`. Entries are inserted without pause while pages are read; every
+ * answer must agree with itself. (A stress test: it cannot fail with the fix, and with the bug it
+ * fails as soon as one insert lands between the two statements.)
+ */
+describe('page reads are a consistent snapshot (COLLR-417)', () => {
+  const repository = new PrismaCollectionRepository(prisma);
+  const viewReader = new PrismaCardEntryViewReader(prisma);
+  const INSERTS = 80;
+  const READS = 150;
+  const PAGE_SIZE = 100; // above INSERTS: a consistent page lists every entry counted
+
+  it.each([
+    [
+      'ICollectionRepository.findCardEntries',
+      (collectionId: string) =>
+        repository.findCardEntries(collectionId, PageRequest.create({ pageSize: PAGE_SIZE })),
+    ],
+    [
+      'ICardEntryViewReader.findCardEntryViews',
+      (collectionId: string) =>
+        viewReader.findCardEntryViews(collectionId, PageRequest.create({ pageSize: PAGE_SIZE })),
+    ],
+  ])(
+    '%s never answers a total that disagrees with its items',
+    async (_name, read) => {
+      const seeded = await sharedCatalogue();
+      const collection = await repository.create(
+        Collection.create({
+          userId: await createOwner(prisma),
+          licenceTCGId: seeded.licenceId,
+          name: 'Snapshot',
+        }),
+        10,
+      );
+      let inserting = true;
+      const writer = (async () => {
+        for (let i = 0; i < INSERTS; i += 1) {
+          await prisma.cardEntry.create({
+            data: {
+              collectionId: collection.id,
+              cardId: seeded.cardId,
+              quantity: 1,
+              condition: 'NM',
+              language: 'fr',
+            },
+          });
+        }
+        inserting = false;
+      })();
+
+      const disagreements: string[] = [];
+      for (let i = 0; i < READS && inserting; i += 1) {
+        const page = await read(collection.id);
+        if (page.items.length !== page.total) {
+          disagreements.push(`total ${page.total} for ${page.items.length} items`);
+        }
+      }
+      await writer;
+
+      expect(disagreements).toEqual([]);
+    },
+    60_000,
+  );
 });

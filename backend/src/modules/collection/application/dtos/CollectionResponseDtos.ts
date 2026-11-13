@@ -51,7 +51,7 @@ export class CardEntryResponseDto {
   @ApiProperty({ format: 'uuid' })
   cardId!: string;
 
-  @ApiProperty({ format: 'uuid', nullable: true })
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
   variantId!: string | null;
 
   @ApiProperty({ example: 2 })
@@ -63,10 +63,10 @@ export class CardEntryResponseDto {
   @ApiProperty({ enum: CARD_LANGUAGES })
   language!: string;
 
-  @ApiProperty({ example: 9.5, nullable: true })
+  @ApiProperty({ type: Number, example: 9.5, nullable: true })
   gradingNote!: number | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   notes!: string | null;
 
   @ApiProperty({ example: '2026-11-06T12:00:00.000Z' })
@@ -102,22 +102,23 @@ export class CardViewDto {
   @ApiProperty({ example: 'Charizard' })
   nameEn!: string;
 
-  @ApiProperty({ example: 'Dracaufeu', nullable: true })
+  @ApiProperty({ type: String, example: 'Dracaufeu', nullable: true })
   nameFr!: string | null;
 
   @ApiProperty({ example: 'Pokemon', description: 'Code in English, translated by the front-end.' })
   category!: string;
 
-  @ApiProperty({ example: 'Holo Rare', nullable: true })
+  @ApiProperty({ type: String, example: 'Holo Rare', nullable: true })
   rarity!: string | null;
 
   @ApiProperty({
+    type: String,
     nullable: true,
     description: 'Image base URL without extension (append /low.webp or /high.webp).',
   })
   imageUrlEn!: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   imageUrlFr!: string | null;
 
   static from(card: CardEntryCardView): CardViewDto {
@@ -144,10 +145,10 @@ export class SetViewDto {
   @ApiProperty({ example: 'Darkness Ablaze' })
   nameEn!: string;
 
-  @ApiProperty({ example: 'Ténèbres Embrasées', nullable: true })
+  @ApiProperty({ type: String, example: 'Ténèbres Embrasées', nullable: true })
   nameFr!: string | null;
 
-  @ApiProperty({ example: 'DAA', nullable: true })
+  @ApiProperty({ type: String, example: 'DAA', nullable: true })
   abbreviationOfficial!: string | null;
 
   static from(set: CardEntrySetView): SetViewDto {
@@ -168,7 +169,7 @@ export class VariantViewDto {
   @ApiProperty({ example: 'holo' })
   type!: string;
 
-  @ApiProperty({ example: 'unlimited', nullable: true })
+  @ApiProperty({ type: String, example: 'unlimited', nullable: true })
   subtype!: string | null;
 
   @ApiProperty({ example: 'standard' })
@@ -177,7 +178,7 @@ export class VariantViewDto {
   @ApiProperty({ type: [String], example: ['1st-edition'] })
   stamps!: string[];
 
-  @ApiProperty({ example: 'gold', nullable: true })
+  @ApiProperty({ type: String, example: 'gold', nullable: true })
   foil!: string | null;
 
   static from(variant: CardEntryVariantView): VariantViewDto {

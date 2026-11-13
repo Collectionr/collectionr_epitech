@@ -9,13 +9,18 @@ const NOW = new Date('2026-11-06T10:00:00.000Z');
 describe('PrismaCardEntryViewReader', () => {
   const count = jest.fn();
   const findMany = jest.fn();
+  let batchOptions: unknown[] = [];
   let reader: PrismaCardEntryViewReader;
 
   beforeEach(() => {
     jest.resetAllMocks();
+    batchOptions = [];
     const client = {
       cardEntry: { count, findMany },
-      $transaction: (queries: unknown[]) => Promise.all(queries),
+      $transaction: (queries: unknown[], options?: unknown) => {
+        batchOptions.push(options);
+        return Promise.all(queries);
+      },
     };
     reader = new PrismaCardEntryViewReader(client as unknown as PrismaClient);
   });
@@ -105,6 +110,15 @@ describe('PrismaCardEntryViewReader', () => {
       'number',
       'rarity',
     ]);
+  });
+
+  it('reads the total and the page in one snapshot (REPEATABLE READ), never two different states', async () => {
+    count.mockResolvedValue(0);
+    findMany.mockResolvedValue([]);
+
+    await reader.findCardEntryViews(randomUUID(), PageRequest.create());
+
+    expect(batchOptions).toEqual([{ isolationLevel: 'RepeatableRead' }]);
   });
 
   it('answers an empty page, without any query, for a malformed collection id', async () => {

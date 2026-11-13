@@ -74,6 +74,8 @@ function knownError(code: string, constraint?: string): Prisma.PrismaClientKnown
 
 describe('PrismaCollectionRepository', () => {
   const queryRaw = jest.fn();
+  /** Options given to each batch transaction (the paged reads). */
+  let batchOptions: unknown[] = [];
   const licenceFindUnique = jest.fn();
   const collectionCount = jest.fn();
   const collectionCreate = jest.fn();
@@ -92,6 +94,7 @@ describe('PrismaCollectionRepository', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    batchOptions = [];
     const client = {
       $queryRaw: queryRaw,
       licenceTCG: { findUnique: licenceFindUnique },
@@ -113,10 +116,13 @@ describe('PrismaCollectionRepository', () => {
         deleteMany: entryDeleteMany,
       },
       // Interactive transactions run their callback against the same fake; batches resolve together.
-      $transaction: (work: unknown) =>
-        typeof work === 'function'
-          ? (work as (tx: unknown) => unknown)(client)
-          : Promise.all(work as unknown[]),
+      $transaction: (work: unknown, options?: unknown) => {
+        if (typeof work === 'function') {
+          return (work as (tx: unknown) => unknown)(client);
+        }
+        batchOptions.push(options);
+        return Promise.all(work as unknown[]);
+      },
     };
     repository = new PrismaCollectionRepository(client as unknown as PrismaClient);
   });
@@ -524,6 +530,15 @@ describe('PrismaCollectionRepository', () => {
         skip: 40,
         take: 20,
       });
+    });
+
+    it('reads the total and the page in one snapshot (REPEATABLE READ), never two different states', async () => {
+      entryCount.mockResolvedValue(0);
+      entryFindMany.mockResolvedValue([]);
+
+      await repository.findCardEntries(collectionId, PageRequest.create());
+
+      expect(batchOptions).toEqual([{ isolationLevel: 'RepeatableRead' }]);
     });
 
     it('answers an empty page, without any query, for a malformed collection id', async () => {

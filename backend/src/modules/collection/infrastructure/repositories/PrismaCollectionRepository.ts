@@ -24,6 +24,7 @@ import {
   isForeignKeyViolationOn,
   isRecordNotFound,
 } from './ForeignKeyViolation';
+import { PAGE_READ_TRANSACTION_OPTIONS } from './PageReadTransaction';
 
 /**
  * PostgreSQL implementation of ICollectionRepository (COLLR-417, ADR-017). Every guarantee the
@@ -235,15 +236,18 @@ export class PrismaCollectionRepository implements ICollectionRepository {
       return { items: [], total: 0, page: page.page, pageSize: page.pageSize };
     }
 
-    const [total, records] = await this.prismaClient.$transaction([
-      this.prismaClient.cardEntry.count({ where: { collectionId } }),
-      this.prismaClient.cardEntry.findMany({
-        where: { collectionId },
-        orderBy: CARD_ENTRY_ORDER,
-        skip: page.offset,
-        take: page.pageSize,
-      }),
-    ]);
+    const [total, records] = await this.prismaClient.$transaction(
+      [
+        this.prismaClient.cardEntry.count({ where: { collectionId } }),
+        this.prismaClient.cardEntry.findMany({
+          where: { collectionId },
+          orderBy: CARD_ENTRY_ORDER,
+          skip: page.offset,
+          take: page.pageSize,
+        }),
+      ],
+      PAGE_READ_TRANSACTION_OPTIONS,
+    );
 
     return {
       items: records.map(toCardEntry),

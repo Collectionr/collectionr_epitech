@@ -51,6 +51,7 @@ export class AddCardEntryDto {
   cardId!: string;
 
   @ApiPropertyOptional({
+    type: String,
     format: 'uuid',
     nullable: true,
     description: 'Printing (holo, reverse...) of that card, when known.',
@@ -72,6 +73,7 @@ export class AddCardEntryDto {
   language!: string;
 
   @ApiPropertyOptional({
+    type: Number,
     example: 9.5,
     minimum: 0,
     maximum: 10,
@@ -82,7 +84,7 @@ export class AddCardEntryDto {
   @IsNumber({ allowNaN: false, allowInfinity: false })
   gradingNote?: number | null;
 
-  @ApiPropertyOptional({ maxLength: 500, nullable: true })
+  @ApiPropertyOptional({ type: String, maxLength: 500, nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(NOTES_PAYLOAD_MAX_LENGTH)
@@ -110,12 +112,12 @@ export class UpdateCardEntryDto {
   @IsString()
   language?: string;
 
-  @ApiPropertyOptional({ minimum: 0, maximum: 10, nullable: true })
+  @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 10, nullable: true })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   gradingNote?: number | null;
 
-  @ApiPropertyOptional({ maxLength: 500, nullable: true })
+  @ApiPropertyOptional({ type: String, maxLength: 500, nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(NOTES_PAYLOAD_MAX_LENGTH)
