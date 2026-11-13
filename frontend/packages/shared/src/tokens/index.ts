@@ -7,3 +7,4 @@ export { motion } from './motion';
 export { opacity } from './opacity';
 export { breakpoints } from './breakpoints';
 export { borders } from './borders';
+export { iconography } from './iconography';
