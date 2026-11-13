@@ -2,6 +2,8 @@
 
 Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installation, manifests Kubernetes, conventions techniques.
 
+> 🆕 **Nouveau dans le projet ?** Commence par le guide [ONBOARDING.md](./ONBOARDING.md) : installation, routine quotidienne, erreurs fréquentes.
+
 ---
 
 ## Sommaire
@@ -10,6 +12,7 @@ Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installati
 2. [Secrets à créer avant de déployer](#secrets-à-créer-avant-de-déployer)
 3. [Backend](#backend-backend)
 4. [Lancer les services](#lancer-les-services-deploysh)
+   - [Mode code (devs Front + Back)](#mode-code-devs-front--back)
 5. [Migrations Prisma](#migrations-prisma)
 6. [Frontend](#frontend)
 7. [Microservice TCG](#microservice-tcg-tcg)
@@ -123,6 +126,15 @@ curl -H "Host: api.collectionr.localhost" http://localhost/health
 ```
 
 > Les Workers (OCR, TCG) seront ajoutés au profil en Beta.
+
+### Mode code (devs Front + Back)
+
+Pour coder avec rechargement automatique, Front et Back tournent avec `npm` sur ta machine.
+PostgreSQL et Redis restent dans le cluster, joignables par 2 tunnels :
+
+    ./devops/scripts/dev.sh
+
+Détails pas à pas : [ONBOARDING.md — Mode code](./ONBOARDING.md#6-mode-code-devs-front--back).
 
 ---
 ## Migrations Prisma
