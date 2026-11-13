@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { fontWeights } from '@shared/tokens';
+import { fontWeights } from '@shared/tokens';
 
 /** Variantes typographiques issues des tokens (COLLR-573). */
 export type TextVariant = 'display' | 'h1' | 'h2' | 'body' | 'caption' | 'data';
@@ -70,6 +70,15 @@ const COLOR_CLASSES: Record<TextColor, string> = {
   signal: 'text-signal',
 };
 
+// Classes sémantiques du preset : famille et graisse ensemble, comme le documente design-system.md.
+const WEIGHT_CLASSES: Record<TextWeight, string> = {
+  [fontWeights.normal]: 'font-sans-normal',
+  [fontWeights.medium]: 'font-sans-medium',
+  [fontWeights.bold]: 'font-sans-bold',
+  [fontWeights.extrabold]: 'font-sans-extrabold',
+  [fontWeights.black]: 'font-sans-black',
+};
+
 const TRUNCATE_CLASSES = 'block truncate';
 
 /**
@@ -85,14 +94,15 @@ export function Text({
   children,
 }: TextProps) {
   const Element = as ?? DEFAULT_ELEMENTS[variant];
-  const className = [VARIANT_CLASSES[variant], COLOR_CLASSES[color], truncate && TRUNCATE_CLASSES]
+  const weightClass = variant !== 'data' && weight !== undefined && WEIGHT_CLASSES[weight];
+  const className = [
+    VARIANT_CLASSES[variant],
+    COLOR_CLASSES[color],
+    weightClass,
+    truncate && TRUNCATE_CLASSES,
+  ]
     .filter(Boolean)
     .join(' ');
-  const style = variant !== 'data' && weight !== undefined ? { fontWeight: weight } : undefined;
 
-  return (
-    <Element className={className} style={style}>
-      {children}
-    </Element>
-  );
+  return <Element className={className}>{children}</Element>;
 }

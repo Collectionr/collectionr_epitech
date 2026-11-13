@@ -83,7 +83,8 @@ describe('Text', () => {
       </Text>,
     );
 
-    expect(html).toContain('font-weight:700');
+    expect(html).toContain('font-sans-bold');
+    expect(html).not.toContain('style=');
   });
 
   it('ignore la graisse sur la variante data', () => {
@@ -93,12 +94,13 @@ describe('Text', () => {
       </Text>,
     );
 
-    expect(html).not.toContain('font-weight');
+    expect(html).not.toContain('font-sans-');
   });
 
   it('ne force aucune graisse par défaut', () => {
     const html = renderToStaticMarkup(<Text variant="h1">Titre</Text>);
 
+    expect(html).not.toContain('font-sans-');
     expect(html).not.toContain('style=');
   });
 

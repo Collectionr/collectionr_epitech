@@ -68,7 +68,7 @@ describe('Avatar', () => {
     const initial = avatar.querySelector('.text-body');
 
     expect(avatar.className).toContain('h-space-32 w-space-32');
-    expect(initial?.getAttribute('style')).toContain('font-weight: 700');
+    expect(initial?.className).toContain('font-sans-bold');
   });
 
   it("superpose la photo à l'initiale, invisible tant qu'elle n'est pas chargée", () => {
