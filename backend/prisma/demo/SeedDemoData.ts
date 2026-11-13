@@ -1,12 +1,18 @@
+import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { User } from '../../src/modules/auth/domain/entities/User';
 import { Password } from '../../src/modules/auth/domain/value-objects/Password';
-import { parseCardCondition } from '../../src/modules/collection/domain/value-objects/CardCondition';
-import { parseCardLanguage } from '../../src/modules/collection/domain/value-objects/CardLanguage';
 import { BcryptPasswordHasher } from '../../src/modules/auth/infrastructure/services/BcryptPasswordHasher';
 import { POKEMON_LICENCE } from '../catalogue/SeedCatalogue';
-import { DEFAULT_DEMO_PASSWORD, DEMO_TERMS_VERSION, DEMO_USERS } from './DemoData';
-import type { DemoCardEntry, DemoCollection, DemoUser } from './DemoData';
+import { buildDemoEntries } from './DemoCollectionBuilder';
+import {
+  DEFAULT_DEMO_PASSWORD,
+  DEMO_COLLECTION_MIN_ENTRIES,
+  DEMO_COLLECTION_NAME,
+  DEMO_TERMS_VERSION,
+  DEMO_USERS,
+} from './DemoData';
+import type { DemoUser } from './DemoData';
 
 /** PASSWORD_MIN_LENGTH default (EnvironmentVariables.ts): the seed does not load the app configuration. */
 const DEMO_PASSWORD_MIN_LENGTH = 8;
@@ -17,6 +23,12 @@ export interface DemoSeedSummary {
   cardEntries: number;
 }
 
+/** The catalogue as the builder needs it, both lists in a stable order (see buildDemoEntries). */
+interface DemoCatalogue {
+  cardIds: string[];
+  variantIdsByCard: Map<string, string[]>;
+}
+
 /**
  * Demo accounts share a publicly known password: they must never exist in production. The seed runs on
  * every environment (reference data), so this decides whether the demo part runs at all.
@@ -25,76 +37,26 @@ export function shouldSeedDemoData(nodeEnv: string | undefined): boolean {
   return nodeEnv !== 'production';
 }
 
-async function findVariantId(
-  prismaClient: PrismaClient,
-  cardId: string,
-  entry: DemoCardEntry,
-): Promise<string | null> {
-  if (entry.variant === undefined) {
-    return null;
-  }
-  const variant = await prismaClient.variant.findFirst({
-    where: {
-      cardId,
-      type: entry.variant.type,
-      subtype: entry.variant.subtype,
-      stamps: { isEmpty: true },
-    },
+async function loadCatalogue(prismaClient: PrismaClient): Promise<DemoCatalogue> {
+  const cards = await prismaClient.card.findMany({
     select: { id: true },
+    orderBy: { tcgdexId: 'asc' },
   });
-  if (variant === null) {
+  if (cards.length < DEMO_COLLECTION_MIN_ENTRIES) {
     throw new Error(
-      `Demo card ${entry.cardTcgdexId} has no ${entry.variant.type}/${String(entry.variant.subtype)} printing in the catalogue`,
+      `The demo collections need at least ${DEMO_COLLECTION_MIN_ENTRIES} cards in the catalogue, found ${cards.length}: seed the catalogue first`,
     );
   }
-  return variant.id;
-}
-
-async function seedCollection(
-  prismaClient: PrismaClient,
-  userId: string,
-  licenceTCGId: string,
-  collection: DemoCollection,
-): Promise<{ created: boolean; cardEntries: number }> {
-  // A collection name is not unique in the schema, so the pair (owner, name) is the natural key of a
-  // demo collection. One that already exists is left alone, entries included: someone may have edited it.
-  const existing = await prismaClient.collection.findFirst({
-    where: { userId, name: collection.name },
-    select: { id: true },
+  const variants = await prismaClient.variant.findMany({
+    select: { id: true, cardId: true },
+    orderBy: [{ tcgdexVariantId: 'asc' }, { id: 'asc' }],
   });
-  if (existing !== null) {
-    return { created: false, cardEntries: 0 };
-  }
 
-  const cardEntries = [];
-  for (const entry of collection.entries) {
-    const card = await prismaClient.card.findUnique({
-      where: { tcgdexId: entry.cardTcgdexId },
-      select: { id: true },
-    });
-    if (card === null) {
-      throw new Error(`Demo card ${entry.cardTcgdexId} is not in the catalogue: seed it first`);
-    }
-    cardEntries.push({
-      cardId: card.id,
-      variantId: await findVariantId(prismaClient, card.id, entry),
-      quantity: entry.quantity,
-      condition: parseCardCondition(entry.condition),
-      language: parseCardLanguage(entry.language),
-      gradingNote: entry.gradingNote ?? null,
-      notes: entry.notes ?? null,
-    });
+  const variantIdsByCard = new Map<string, string[]>();
+  for (const { id, cardId } of variants) {
+    variantIdsByCard.set(cardId, [...(variantIdsByCard.get(cardId) ?? []), id]);
   }
-
-  await prismaClient.collection.create({
-    data: {
-      userId,
-      licenceTCGId,
-      name: collection.name,
-      cardEntries: { create: cardEntries },
-    },
-  });
-  return { created: true, cardEntries: cardEntries.length };
+  return { cardIds: cards.map((card) => card.id), variantIdsByCard };
 }
 
 async function seedUser(
@@ -129,34 +91,73 @@ async function seedUser(
   return { id: created.id, created: true };
 }
 
-// Demo data only, for development and staging: accounts of each role and collections that exercise the
-// Collection API (several conditions and languages, graded and ungraded cards, printings, an empty
-// collection). Idempotent and INSERT-ONLY, like the catalogue seed: a user is looked up on its email, a
-// collection on (owner, name), and whatever exists is left untouched, so a second run creates nothing.
-// Needs the roles and the catalogue to be seeded first (seedRoles, seedCatalogue).
+async function seedCollection(
+  prismaClient: PrismaClient,
+  userId: string,
+  licenceTCGId: string,
+  catalogue: DemoCatalogue,
+  seed: number,
+): Promise<number> {
+  // A collection name is not unique in the schema, so the pair (owner, name) is the natural key of a
+  // demo collection. One that already exists is left alone, entries included: someone may have edited it.
+  const existing = await prismaClient.collection.findFirst({
+    where: { userId, name: DEMO_COLLECTION_NAME },
+    select: { id: true },
+  });
+  if (existing !== null) {
+    return 0;
+  }
+
+  const entries = buildDemoEntries(seed, catalogue.cardIds, catalogue.variantIdsByCard);
+  // The id is generated here so that the collection and its entries go in one transaction: a seed
+  // stopped halfway never leaves a half-filled collection that the next run would then skip.
+  const collectionId = randomUUID();
+  await prismaClient.$transaction([
+    prismaClient.collection.create({
+      data: { id: collectionId, userId, licenceTCGId, name: DEMO_COLLECTION_NAME },
+    }),
+    prismaClient.cardEntry.createMany({
+      data: entries.map((entry) => ({ collectionId, ...entry })),
+    }),
+  ]);
+  return entries.length;
+}
+
+// Demo data only, for development and staging: DEMO_USERS accounts (one admin, the others users), each
+// with one collection of 150 to 500 distinct catalogue cards, to exercise pagination, filters and
+// limits of the Collection API with a realistic volume. Idempotent and INSERT-ONLY, like the catalogue
+// seed: a user is looked up on its email, a collection on (owner, name), and whatever exists is left
+// untouched, so a second run creates nothing. Needs the roles and the catalogue to be seeded first.
 export async function seedDemoData(
   prismaClient: PrismaClient,
   password: string = DEFAULT_DEMO_PASSWORD,
 ): Promise<DemoSeedSummary> {
+  const hasher = new BcryptPasswordHasher();
+  // Same policy as a registration (an empty SEED_DEMO_PASSWORD, for instance, is refused here).
+  Password.create(password, DEMO_PASSWORD_MIN_LENGTH, hasher.maxPasswordBytes);
+
   const licence = await prismaClient.licenceTCG.findUniqueOrThrow({
     where: { slug: POKEMON_LICENCE.slug },
     select: { id: true },
   });
-  const hasher = new BcryptPasswordHasher();
-  // Same policy as a registration (an empty SEED_DEMO_PASSWORD, for instance, is refused here).
-  Password.create(password, DEMO_PASSWORD_MIN_LENGTH, hasher.maxPasswordBytes);
+  const catalogue = await loadCatalogue(prismaClient);
   const passwordHash = await hasher.hash(password);
 
   const summary: DemoSeedSummary = { users: 0, collections: 0, cardEntries: 0 };
-  for (const demoUser of DEMO_USERS) {
+  for (const [index, demoUser] of DEMO_USERS.entries()) {
     const user = await seedUser(prismaClient, demoUser, passwordHash);
     summary.users += user.created ? 1 : 0;
 
-    for (const collection of demoUser.collections) {
-      const result = await seedCollection(prismaClient, user.id, licence.id, collection);
-      summary.collections += result.created ? 1 : 0;
-      summary.cardEntries += result.cardEntries;
-    }
+    // The position in DEMO_USERS is the seed: the same account always gets the same collection.
+    const cardEntries = await seedCollection(
+      prismaClient,
+      user.id,
+      licence.id,
+      catalogue,
+      index + 1,
+    );
+    summary.collections += cardEntries > 0 ? 1 : 0;
+    summary.cardEntries += cardEntries;
   }
   return summary;
 }
