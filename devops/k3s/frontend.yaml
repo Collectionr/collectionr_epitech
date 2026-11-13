@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: development
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: web
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: collectionr
+        app.kubernetes.io/component: web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+      containers:
+        - name: frontend
+          image: collectionr-frontend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: development
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: web
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  selector:
+    app.kubernetes.io/name: frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: development
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: web
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: collectionr.localhost
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http

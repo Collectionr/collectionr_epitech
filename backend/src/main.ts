@@ -1,13 +1,17 @@
+import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
 import { configureApp } from './shared/bootstrap/ConfigureApp';
+import { createFastifyAdapter } from './shared/bootstrap/CreateFastifyAdapter';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
+  // Read from the environment directly: Fastify wants it at construction, before ConfigModule exists.
+  // Validated twice (here, and by validateEnvironment at boot).
+  const adapter = createFastifyAdapter(process.env.TRUSTED_PROXIES ?? '');
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     bufferLogs: true,
   });
 

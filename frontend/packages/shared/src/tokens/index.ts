@@ -1,7 +1,8 @@
 export { colors } from './colors';
 export { typography, fonts, fontWeights } from './typography';
 export { spacing } from './spacing';
-export { radius, aspectRatio } from './radius';
+export { radius } from './radius';
+export { aspectRatio } from './aspectRatio';
 export { motion } from './motion';
 export { opacity } from './opacity';
 export { breakpoints } from './breakpoints';

@@ -8,5 +8,4 @@ export const colors = {
   'acier-texte': '#8A8F98',
   alerte: '#E5484D',
   blanc: '#FFFFFF',
-  lisere: 'rgba(230,228,220,0.15)',
 } as const;

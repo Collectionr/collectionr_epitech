@@ -41,15 +41,19 @@ Licence TCG  →  Set (extension)  →  Carte  →  Variante
 ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 ```
 
-**`LICENCE_TCG`** — Représente un jeu de cartes (Pokémon, Magic: The Gathering, Yu-Gi-Oh!...).
+**`LICENCE_TCG`** — Représente un jeu de cartes (Pokémon, Magic: The Gathering, Yu-Gi-Oh!...). Identifié par son `slug` (`pokemon`) ; `logoUrl` est l'URL de son logo.
 
-**`SET`** — Une extension ou édition d'une licence. Le champ `totalCards` permet de suivre la complétude d'une collection (ex: "j'ai 45/200 cartes de ce set").
+**`SET`** — Une extension ou édition d'une licence. Les champs `officialCardCount` (cartes imprimées, ex: 189) et `totalCardCount` (avec les cartes secrètes, ex: 201) permettent de suivre la complétude d'une collection (ex: "j'ai 45/201 cartes de ce set"). Le nom existe en anglais (`nameEn`) et en français (`nameFr`). Un set appartient à une série (`serieNameEn`/`serieNameFr`, ex: « Épée et Bouclier »), porte une abréviation officielle (`abbreviationOfficial`, ex: `DAA`, et `abbreviationFr` quand elle diffère : `TEM`), le code Pokémon TCG Online (`tcgOnlineCode`) et le nombre d'impressions par type (`normalCardCount`, `reverseCardCount`, `holoCardCount`, `firstEditionCardCount`).
 
 **`CARD`** — Une carte individuelle dans un set. Elle porte :
-- Des infos descriptives (`name`, `number`, `rarity`, `types`, `hp`)
-- Une **estimation de prix** (`predictedPrice`, `priceLowerBound`, `priceUpperBound`) représentant la valeur estimée de la carte basée sur les données historiques de prix
+- Des infos descriptives : `nameEn`/`nameFr` (le nom, dans les deux langues), `number`, `hp` et `illustrator`, plus `category`, `rarity`, `types` et `stage` (Base, Niveau 1, VMAX…) stockés en anglais et traduits par l'interface
+- Des infos de jeu : `dexIds` (numéros du Pokédex national : relie toutes les cartes d'un même Pokémon) et `evolveFromEn`/`evolveFromFr` (l'évolution précédente : la carte Dracaufeu indique Reptincel)
+- `tcgdexUpdatedAt` : la date de dernière modification de la fiche côté TCGdex, qui évite de retraiter les cartes inchangées
+- Les URL des images du CDN TCGdex (`imageUrlEn`, `imageUrlFr`) : aucune image n'est stockée localement
 
-**`VARIANT`** — Une même carte peut exister en plusieurs variantes physiques : normale, holographique, reverse holo, first edition, etc. Chaque variante a sa propre image et son propre historique de prix. Toutes les cartes n'ont pas forcément de variante.
+L'estimation de prix d'une carte n'est pas portée par `CARD` : elle sera modélisée avec les tables de prix.
+
+**`VARIANT`** — Une même carte peut exister en plusieurs variantes physiques : normale, holographique, reverse holo, first edition, etc. Chaque variante est décrite par des codes (`type`, `subtype` comme `shadowless`, `stamps` comme `1st-edition`, `foil`, `size`) et par les identifiants du produit chez Cardmarket, TCGPlayer et CardTrader, qui serviront à rattacher les prix. Elle a son propre historique de prix. Une impression se repère par la carte **et** le `variantId` TCGdex : cet identifiant est partagé par de nombreuses cartes. TCGdex ne fournit pas d'image par variante : l'image est celle de la carte.
 
 ---
 
@@ -69,13 +73,20 @@ ex: Pokémon  →  Écarlate & Violet →  Pikachu →  Holo Rare
 
 ### Collections
 
-**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Une collection est rattachée à une licence TCG. Le set d'appartenance des cartes est déductible via `COLLECTIONITEM → CARD → SET`, il n'est donc pas stocké directement sur la collection.
+**`COLLECTION`** — Un utilisateur peut avoir plusieurs collections (ex: "Ma collection Pokémon", "Cartes à vendre"). Un utilisateur peut en posséder 10 au maximum, toutes licences confondues. Une collection est rattachée à une licence (`LICENCE_TCG`). Le set d'appartenance des cartes est déductible via `CARDENTRY → CARD → SET`, il n'est donc pas stocké directement sur la collection. Le nom d'une collection fait 1 à 60 caractères ; la licence est fixée à la création, seul le nom peut changer ensuite. Une collection doit pouvoir supporter jusqu'à 10 000 entrées (CDC §3.1.3) ; aucun plafond n'est appliqué pour l'instant. Les entrées sont lues page par page (50 par défaut, 100 au maximum).
 
-**`COLLECTIONITEM`** — Représente **une carte physique** dans une collection. Elle porte :
+**`CARDENTRY`** (table `card_entries`) — Une ligne de la collection : **des exemplaires d'une même carte** (ou variante), dans un état et une langue donnés. Elle porte :
 - Une carte (`cardId`) — obligatoire
-- Une variante (`variantId`) — optionnelle, car toutes les cartes n'ont pas de variante
-- Un état physique (`condition`) : NM (Near Mint), LP (Lightly Played), MP (Moderately Played), HP (Heavily Played), DMG (Damaged)
-- Un lien optionnel vers un résultat de grading (`gradingResultId`)
+- Une variante (`variantId`) — optionnelle, car toutes les cartes n'ont pas de variante ; quand elle est renseignée, elle appartient à la carte
+- Une quantité (`quantity`) : entier de 1 à 9999
+- Un état physique déclaré (`condition`) : NM (Near Mint), LP (Lightly Played), MP (Moderately Played), HP (Heavily Played), DMG (Damaged). Codes neutres : la traduction se fait côté front par clés
+- Une langue (`language`) : `fr` ou `en`, la langue de la carte physique (le catalogue porte déjà les deux noms, `nameFr` et `nameEn`). Elle détermine le prix associé (CDC §3.1.4)
+- Une note de gradage optionnelle (`gradingNote`) : de 0 à 10, avec au plus une décimale (colonne `decimal(3,1)`)
+- Des notes libres optionnelles (`notes`) : 500 caractères au maximum
+- La date d'ajout (`addedAt`)
+- Un lien optionnel vers un résultat de grading (`gradingResultId`) — pas encore exposé par le domaine
+
+La carte et la variante d'une entrée ne changent jamais : pour corriger une erreur de carte, on supprime l'entrée et on en ajoute une autre.
 
 **`COLLECTIONVALUEHISTORY`** — Snapshot de la valeur totale d'une collection à un instant T. Un snapshot est créé chaque matin en même temps que la mise à jour des prix du marché. Permet d'afficher une courbe d'évolution de la valeur du portefeuille de l'utilisateur.
 
@@ -101,7 +112,7 @@ C'est la fonctionnalité différenciante de l'application : permettre à un util
 
 **`SCANHISTORY`** — Enregistre chaque scan effectué. Un scan peut détecter plusieurs cartes à la fois (`detectedCount`, `detectedCards` via une structure de données permettant de stocker des informations flexibles). Le champ `status` permet de suivre le traitement du scan (en cours, terminé, erreur).
 
-**`GRADINGRESULT`** — Résultat détaillé de l'évaluation d'une carte, produit à partir d'un scan. Comme pour `COLLECTIONITEM`, `cardId` est obligatoire et `variantId` optionnelle. Le score final est décomposé en 4 critères physiques :
+**`GRADINGRESULT`** — Résultat détaillé de l'évaluation d'une carte, produit à partir d'un scan. Comme pour `CARDENTRY`, `cardId` est obligatoire et `variantId` optionnelle. Le score final est décomposé en 4 critères physiques :
 
 | Critère | Description |
 |---------|-------------|
@@ -133,7 +144,7 @@ Le champ `metadata` stocke le contexte de l'action (ex: les valeurs avant/après
 
 ## Règle transversale — cardId / variantId
 
-Une règle s'applique de manière uniforme sur toutes les tables qui référencent des cartes (`PRICEHISTORY`, `COLLECTIONITEM`, `GRADINGRESULT`, `WISHLIST`) :
+Une règle s'applique de manière uniforme sur toutes les tables qui référencent des cartes (`PRICEHISTORY`, `CARDENTRY`, `GRADINGRESULT`, `WISHLIST`) :
 
 | Champ | Obligatoire | Description |
 |-------|-------------|-------------|

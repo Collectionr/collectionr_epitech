@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json"
@@ -18,10 +20,13 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@storybook/addon-docs": "10.6.5",
+    "@storybook/react-vite": "10.6.5",
     "@types/node": "^24.13.6",
     "@types/react": "~19.2.18",
     "@types/react-dom": "~19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "storybook": "10.6.5",
     "vite": "^8.3.1"
   }
 }

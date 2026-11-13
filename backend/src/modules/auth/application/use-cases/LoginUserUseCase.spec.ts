@@ -112,6 +112,7 @@ describe('LoginUserUseCase', () => {
         termsVersion: '1',
         id: 'fixed-id',
         isActive: false,
+        version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       }),

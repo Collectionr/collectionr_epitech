@@ -1,0 +1,1 @@
+"""Collectionr TCG microservice."""

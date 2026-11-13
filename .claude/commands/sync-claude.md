@@ -19,7 +19,7 @@ Synchronise la documentation IA (`CLAUDE.md` + `.claude/`) avec l'état réel du
    - `CLAUDE.md` — seulement si un **invariant** a changé (nouvelle règle transverse, nouvelle commande npm, changement de stack). Le garder court : si un ajout dépasse 3 lignes, il va dans un fichier de `.claude/` et CLAUDE.md n'en garde que le pointeur
    - `.claude/patterns/` — si une convention de code a changé ou qu'un nouveau pattern de référence est apparu
    - `.claude/errors/` — si une erreur non triviale (> 15 min de debug) a été résolue pendant la période
-   - `docs/backend/conventions.md` — signaler à l'utilisateur si une pratique du code contredit la doc d'équipe, mais **ne pas la modifier sans son accord** (c'est un document d'équipe)
+   - `docs/backend/CONVENTIONS.md` — signaler à l'utilisateur si une pratique du code contredit la doc d'équipe, mais **ne pas la modifier sans son accord** (c'est un document d'équipe)
 
 4. **Ne pas inventer** : ne documenter que ce qui est visible dans le diff ou connu de la conversation. En cas de doute sur une intention, poser la question.
 

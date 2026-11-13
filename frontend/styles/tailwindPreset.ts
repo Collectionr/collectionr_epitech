@@ -24,10 +24,14 @@ function withOpacity(hex: string, alpha: number): string {
 }
 
 function fontFamily(token: TypographyToken, platform: Platform): string {
-  if (platform === 'web') return `"${fonts[token.family].family}"`;
+  if (platform === 'web') return webFontFamily(token.family).join(', ');
   return token.family === 'sans'
     ? fonts.sans.native[token.weight]
     : fonts.mono.native[token.weight];
+}
+
+function webFontFamily(family: keyof typeof fonts): string[] {
+  return [`"${fonts[family].family}"`, ...fonts[family].fallback];
 }
 
 function textStyle(token: TypographyToken, platform: Platform, size: number) {
@@ -74,31 +78,27 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
       },
       screens: { desktop: `${breakpoints.desktop}px` },
       fontFamily: {
-        sans: [platform === 'web' ? fonts.sans.family : fonts.sans.native[400]],
-        mono: [platform === 'web' ? fonts.mono.family : fonts.mono.native[500]],
-        ...Object.fromEntries(
-          Object.values(fonts).flatMap((font) =>
-            Object.values(font.native).map((name) => [
-              name,
-              [platform === 'native' ? name : font.family],
-            ]),
-          ),
-        ),
+        sans: platform === 'web' ? webFontFamily('sans') : [fonts.sans.native[400]],
+        mono: platform === 'web' ? webFontFamily('mono') : [fonts.mono.native[500]],
       },
       fontSize: {},
-      fontWeight: Object.fromEntries(
-        Object.entries(fontWeights).map(([name, weight]) => [name, String(weight)]),
-      ),
+      fontWeight:
+        platform === 'native'
+          ? {}
+          : Object.fromEntries(
+              Object.entries(fontWeights).map(([name, weight]) => [name, String(weight)]),
+            ),
       transitionDuration: {
         DEFAULT: platform === 'web' ? 'var(--duration-instant)' : `${motion.duration.instant}ms`,
         ...durations,
       },
-      transitionTimingFunction: { DEFAULT: motion.easing, lock: motion.easing },
+      transitionTimingFunction: { DEFAULT: `cubic-bezier(${motion.easing.join(',')})` },
       animation: { none: 'none' },
       keyframes: {},
       aspectRatio,
       extend: {
         colors: {
+          lisere: withOpacity(colors.archive, opacity.lisere),
           'lisere-hover': withOpacity(colors.archive, opacity['lisere-hover']),
           'lisere-active': withOpacity(colors.archive, opacity['lisere-active']),
         },
@@ -160,6 +160,28 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
                 },
               ];
             }),
+          ),
+        );
+        // Une classe sémantique sélectionne à la fois famille et graisse sur chaque plateforme.
+        addUtilities(
+          Object.fromEntries(
+            Object.entries(fonts).flatMap(([family, font]) =>
+              Object.entries(font.native).map(([weight, nativeFamily]) => {
+                const weightName = Object.entries(fontWeights).find(
+                  ([, value]) => value === Number(weight),
+                )![0];
+                return [
+                  `.font-${family}-${weightName}`,
+                  {
+                    fontFamily:
+                      platform === 'native'
+                        ? nativeFamily
+                        : webFontFamily(family as keyof typeof fonts).join(', '),
+                    fontWeight: platform === 'native' ? 'normal' : weight,
+                  },
+                ];
+              }),
+            ),
           ),
         );
         if (platform === 'native') {

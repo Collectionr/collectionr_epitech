@@ -26,3 +26,41 @@ export function consumeAuditContext(request: unknown): AuditOptions | undefined 
   delete typedRequest.auditContext;
   return options;
 }
+
+/**
+ * What the handler learns while running and a route-level `@Audit` cannot declare: who acted (login
+ * and register run before anyone is authenticated), which entity was targeted when it is not a route
+ * parameter, and metadata that must be derived (e.g. a canonical, truncated email) rather than
+ * copied verbatim from the body. The audit writer reads it when it records the entry.
+ */
+export interface AuditSubject {
+  readonly actorId?: string;
+  readonly targetId?: string;
+  readonly metadata?: Readonly<Record<string, string | number | boolean | null>>;
+}
+
+interface RequestWithAuditSubject {
+  auditSubject?: AuditSubject;
+}
+
+/** Successive calls add up: actor/target are replaced when given, metadata keys are merged. */
+export function setAuditSubject(request: unknown, subject: AuditSubject): void {
+  const typedRequest = request as RequestWithAuditSubject;
+  const current = typedRequest.auditSubject ?? {};
+  typedRequest.auditSubject = {
+    ...current,
+    ...subject,
+    metadata: { ...current.metadata, ...subject.metadata },
+  };
+  if (
+    typedRequest.auditSubject.metadata &&
+    Object.keys(typedRequest.auditSubject.metadata).length === 0
+  ) {
+    delete (typedRequest.auditSubject as { metadata?: unknown }).metadata;
+  }
+}
+
+export function readAuditSubject(request: unknown): AuditSubject {
+  const subject = (request as RequestWithAuditSubject).auditSubject;
+  return typeof subject === 'object' && subject !== null ? subject : {};
+}

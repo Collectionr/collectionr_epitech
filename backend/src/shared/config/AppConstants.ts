@@ -4,8 +4,14 @@
 /** Upper bound for a dependency check (database, cache) in the /health endpoint. */
 export const HEALTH_CHECK_TIMEOUT_MS = 2000;
 
+/** How long boot waits for Redis to accept connections before serving traffic anyway. */
+export const REDIS_CONNECT_TIMEOUT_MS = 2000;
+
 /** Maximum time to wait for a new PostgreSQL connection. */
 export const DATABASE_CONNECTION_TIMEOUT_MS = 2000;
+
+/** Service identifier carried by every JSON log line (S05), same field as the TCG service. */
+export const LOG_SERVICE_NAME = 'backend';
 
 /**
  * RBAC role names (docs/security/S03-api-security.md §5.2), upper case.
