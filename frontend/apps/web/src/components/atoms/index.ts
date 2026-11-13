@@ -1,3 +1,5 @@
+export { Avatar } from './Avatar';
+export type { AvatarProps, AvatarSize } from './Avatar';
 export { Icon } from './Icon';
 export type { IconName, IconProps, IconSize } from './Icon';
 export { Surface } from './Surface';
