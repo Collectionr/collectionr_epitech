@@ -6,7 +6,7 @@ import { seedCatalogue } from './catalogue/SeedCatalogue';
 import { seedDemoData, shouldSeedDemoData } from './demo/SeedDemoData';
 
 // Reference data (roles, catalogue) is idempotent and safe on every environment. Demo data (users and
-// collections, COLLR-688) is idempotent too but skipped in production: the demo accounts have a known password.
+// collections) is idempotent too but skipped in production: the demo accounts have a known password.
 // Permissions and role_permissions are not seeded: the permission list is not defined yet (COLLR-449).
 async function seedRoles(prismaClient: PrismaClient): Promise<void> {
   for (const name of ROLE_NAMES) {
