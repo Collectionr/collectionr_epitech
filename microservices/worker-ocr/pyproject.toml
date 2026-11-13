@@ -1,0 +1,62 @@
+[project]
+name = "worker-ocr"
+version = "0.1.0"
+description = "Collectionr OCR worker — consumes OCR jobs from a Redis queue."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "redis>=8.0",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    # In-memory Redis: the unit tests need no real Redis.
+    "fakeredis>=2.26",
+    "ruff>=0.8",
+    "mypy>=2.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["."]
+# Evaluation notebooks, not part of the worker.
+extend-exclude = ["Models"]
+
+# Ruff is the single tool: `ruff check` lints and `ruff format` formats.
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+# Strict static typing, the Python counterpart of the backend's "zero any" rule.
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["app", "scripts", "tests"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: needs a real Redis (WORKER_OCR_TEST_REDIS_URL), excluded by default",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 50
+show_missing = true
