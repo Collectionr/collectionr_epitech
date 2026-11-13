@@ -1,9 +1,9 @@
 # DevOps — CollectionR
 
-Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installation, 
-manifests Kubernetes, conventions techniques.
+Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installation, manifests Kubernetes, conventions techniques.
 
 ---
+
 ## Sommaire
 
 1. [Démarrage rapide](#démarrage-rapide)
@@ -12,24 +12,26 @@ manifests Kubernetes, conventions techniques.
 4. [Lancer les services](#lancer-les-services-deploysh)
 5. [Migrations Prisma](#migrations-prisma)
 6. [Frontend](#frontend)
-7. [Volume partagé OCR](#volume-partagé-ocr-shared-volume-ocr)
-8. [Convention de labels](#convention-de-labels)
+7. [Microservice TCG](#microservice-tcg-tcg)
+8. [Volume partagé OCR](#volume-partagé-ocr-shared-volume-ocr)
+9. [Convention de labels Kubernetes](#convention-de-labels-kubernetes)
 
 ---
+
 ## Démarrage rapide
 
 Pour un poste neuf, dans cet ordre :
 
-1. **Installer K3s** avec le script de ton OS : `devops/scripts/setup-local.sh` (Linux), `setup-wsl2.sh`      (Windows/WSL2) ou `setup-macos.sh` (macOS).
-    Pour démarrer le cluster ensuite : `sudo systemctl start k3s` (Linux/WSL) · ouvrir Rancher Desktop ou OrbStack (macOS).
+1. **Installer K3s** avec le script de ton OS : `devops/scripts/setup-local.sh` (Linux), `setup-wsl2.sh` (Windows/WSL2) ou `setup-macos.sh` (macOS).
 2. **Créer les Secrets** → [Secrets](#secrets-à-créer-avant-de-déployer)
-3. **Construire et importer l'image Backend** → [Backend](#backend-backend)
+3. **Construire et importer l'image Backend** → [Backend](#backend-backend) et [Frontend](#frontend)
 4. **Lancer les services** : `./devops/scripts/deploy.sh --light`
 5. **Poste neuf uniquement : créer les tables** → [Migrations Prisma](#migrations-prisma)
 
 Vérifier : `./devops/scripts/deploy.sh --status`
 
 ---
+
 ## Secrets à créer avant de déployer
 
 Les Secrets ne sont jamais versionnés. Chaque membre les crée une fois sur son poste, **avant** les `kubectl apply`.
@@ -85,12 +87,13 @@ kubectl apply -f devops/k3s/backend.yaml
 ```
 
 > ⚠️ macOS (Rancher Desktop / OrbStack) : la commande d'import (`k3s ctr images import`) ne fonctionne pas. Les images Docker sont souvent visibles directement par Kubernetes.
-<!-- TODO (#24) : vérifier la procédure exacte sur le poste Mac de l'équipe. -->
+<!-- TODO : vérifier la procédure exacte sur le poste Mac de l'équipe. -->
 
 - Prérequis : les Secrets `postgresql-credentials`, `redis-ocr-credentials` et `backend-credentials` (voir "Secrets").
 - Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
 - ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
 - Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
+- Le Pod tourne en utilisateur non-root (`runAsUser: 1000`) avec `fsGroup: 1000`, pour garder le droit d'écrire dans le volume partagé OCR sur tout type de stockage.
 
 ---
 ## Lancer les services (`deploy.sh`)
@@ -152,11 +155,39 @@ Vérifier : `kubectl exec -n development postgresql-0 -- psql -U collectionr -d 
 > En Beta, les migrations seront lancées automatiquement par un Job Kubernetes.
 
 ---
+
 ## Frontend
 
-> À venir (#16) : en attente du Dockerfile Frontend.
+Image construite en local, depuis la racine du repo (le contexte est `frontend/`, car le Dockerfile utilise `packages/shared`) :
+ 
+```bash
+docker build -f frontend/apps/web/Dockerfile -t collectionr-frontend:dev frontend/
+docker save collectionr-frontend:dev | sudo k3s ctr images import -
+./devops/scripts/deploy.sh          # le profil complet inclut le Frontend
+```
+ 
+> ⚠️ macOS (Rancher Desktop / OrbStack) : la commande d'import (`k3s ctr images import`) ne fonctionne pas. Les images Docker sont souvent visibles directement par Kubernetes.
+<!-- TODO : vérifier la procédure exacte sur le poste Mac de l'équipe. -->
+ 
+- Site : `http://collectionr.localhost` — l'API est appelée sur la même adresse (`/api/v1/...`, variable de build `VITE_API_BASE_URL`), l'Ingress envoie `/api` vers le Backend.
+- Seule l'appli **web** est déployée : l'appli mobile (`apps/mobile`) tourne sur téléphone/émulateur.
+- Port `8080`, utilisateur non-root (`nginx-unprivileged`, uid `101`).
+- Test : `curl -H "Host: collectionr.localhost" http://localhost/healthz`
+> ⚠️ **Windows/WSL2** : si le navigateur n'affiche rien, ouvrir un tunnel vers Traefik (terminal à laisser ouvert) :
+> `kubectl port-forward -n kube-system svc/traefik 8081:80`
+> puis ouvrir `http://collectionr.localhost:8081`.
 
 ---
+
+## Microservice TCG (`tcg`)
+
+Pas encore déployé : aucun `devops/k3s/tcg.yaml` pour l'instant. À prévoir dans ce manifest :
+
+- ⚠️ `APP_ENV=dev` sur le namespace `development` : l'image démarre avec `APP_ENV=staging` par défaut, ce qui désactive `/docs` et `/openapi.json` (même logique que `NODE_ENV=production` pour le Backend).
+- Port `8000`, `/health` hors de tout préfixe (même contrat que le Backend). Image et variables : voir `microservices/tcg/README.md`.
+
+---
+
 ## Volume partagé OCR (`shared-volume-ocr`)
 
 Volume d'échange d'images entre le Backend et le Worker OCR.
@@ -198,6 +229,7 @@ kubectl delete -f devops/k3s/tests/test-shared-volume-ocr.yaml
 > ⚠️ Pour modifier le fichier de test, supprimer d'abord les Pods (`kubectl delete -f ...`) : un Pod existant ne peut pas changer de montage.
 
 ---
+
 ## Convention de labels Kubernetes
 
 Toutes les ressources Kubernetes du projet appliquent la convention standard 
@@ -213,28 +245,12 @@ Toutes les ressources Kubernetes du projet appliquent la convention standard
 Cette convention permet aux NetworkPolicies, ServiceAccounts et Stern de sélectionner 
 les bons Pods sans ambiguïté.
 
-Exemple sur le namespace (`devops/k3s/namespace.yaml`) :
+Exemple :
 ```yaml
 metadata:
   labels:
-    app.kubernetes.io/name: collectionr
+    app.kubernetes.io/name: backend
     app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: api
     app.kubernetes.io/managed-by: kubectl
 ```
-
-Exemple sur un service (à partir de #11, PostgreSQL) :
-```yaml
-metadata:
-  labels:
-    app.kubernetes.io/name: collectionr
-    app.kubernetes.io/part-of: collectionr
-    app.kubernetes.io/managed-by: kubectl
-    app.kubernetes.io/component: database
-```
-
-## Microservice TCG (`tcg`)
-
-Pas encore déployé : aucun `devops/k3s/tcg.yaml` pour l'instant. À prévoir dans ce manifest :
-
-- ⚠️ `APP_ENV=dev` sur le namespace `development` : l'image démarre avec `APP_ENV=staging` par défaut, ce qui désactive `/docs` et `/openapi.json` (même logique que `NODE_ENV=production` pour le Backend).
-- Port `8000`, `/health` hors de tout préfixe (même contrat que le Backend). Image et variables : voir `tcg/README.md`.
