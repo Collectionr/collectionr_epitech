@@ -58,7 +58,7 @@ Toutes les commandes se lancent depuis `backend/`, contre la base pointée par `
 | `npx prisma validate` / `npx prisma format` | Vérifie / formate `schema.prisma` | Avant de commiter un changement de schéma |
 | `npx prisma migrate reset` | ⚠️ **Efface toute la base** puis rejoue les migrations | Dev uniquement |
 
-Comptes de démo (COLLR-688, créés par `prisma:seed` sauf si `NODE_ENV=production`) : `admin@collectionr.test` (rôle `ADMIN`) et `user1@collectionr.test` à `user9@collectionr.test` (rôle `USER`). Mot de passe commun : `Test!1234`, ou la valeur de `SEED_DEMO_PASSWORD` si elle est définie au lancement du seed. Chaque compte a une collection « Ma collection » de 150 à 500 cartes distinctes tirées du catalogue, de façon déterministe (mêmes données à chaque base neuve). Code dans `prisma/demo/`.
+Comptes de démo (créés par `prisma:seed` sauf si `NODE_ENV=production`) : `admin@collectionr.test` (rôle `ADMIN`) et `user1@collectionr.test` à `user9@collectionr.test` (rôle `USER`). Mot de passe commun : `Test!1234`, ou la valeur de `SEED_DEMO_PASSWORD` si elle est définie au lancement du seed. Chaque compte a une collection « Ma collection » de 150 à 500 cartes distinctes tirées du catalogue, de façon déterministe (mêmes données à chaque base neuve). Code dans `prisma/demo/`.
 
 Pièges :
 

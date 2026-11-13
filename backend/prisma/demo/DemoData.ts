@@ -1,6 +1,6 @@
 import type { RoleName } from '../../src/shared/config/AppConstants';
 
-// Demo accounts (COLLR-688), as plain data so DemoData.spec.ts can check them against the domain rules
+// Demo accounts, as plain data so DemoData.spec.ts can check them against the domain rules
 // without a database. Each account owns one collection, filled with cards of the catalogue by
 // DemoCollectionBuilder.ts.
 //
