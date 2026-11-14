@@ -14,13 +14,14 @@ import {
   fontWeights,
   motion,
   opacity,
+  sizing,
   spacing,
   typography,
 } from '../packages/shared/src/tokens';
 
 const require = createRequire(import.meta.url);
 const classes =
-  'text-display text-h1 text-data text-button-label bg-ecrin bg-lisere p-space-16 transition-opacity duration-snap focus-indicator font-bold font-sans font-mono font-sans-extrabold font-mono-semibold';
+  'text-display text-h1 text-data text-button-label bg-ecrin bg-lisere p-space-16 transition-opacity duration-snap focus-indicator font-bold font-sans font-mono font-sans-extrabold font-mono-semibold h-control p-control border-alerte/lisere-active';
 
 async function compile(platform: 'web' | 'mobile') {
   const config = require(
@@ -71,6 +72,17 @@ describe('raccordement du design system', () => {
       Number.parseInt(colors.archive.slice(offset, offset + 2), 16),
     );
     expect(lisere.replaceAll(' ', '')).toBe(`rgba(${rgb.join(',')},${opacity.lisere})`);
+    // La hauteur de contrôle n'élargit pas l'échelle d'espacement.
+    expect(css).toContain(`height: ${sizing.control}px`);
+    expect(css).not.toContain('.p-control');
+    // Les opacités de liséré s'appliquent aussi à une couleur pleine (Button danger).
+    let alerteActive = '';
+    root.walkRules('.border-alerte\\/lisere-active', (rule) => {
+      rule.walkDecls('border-color', (declaration) => {
+        alerteActive = declaration.value;
+      });
+    });
+    expect(alerteActive).toContain(`/ ${opacity['lisere-active']}`);
     let overrideIndex = -1;
     let bodyIndex = -1;
     let index = 0;
