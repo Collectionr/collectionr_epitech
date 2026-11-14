@@ -40,7 +40,7 @@ Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `
 
 Signal ne porte aucun texte inférieur à 18 px sur Écrin et ne sert jamais aux cotes. Les contrôles utilisent acier-texte pour leur bordure, pas le liséré faible d'une carte. Pas d'ombre sur fond sombre.
 
-Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`).
+Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`). Sur un contrôle, le liséré ne s'affaiblit jamais au survol ni au clic, et reste à 3:1 minimum sur Écrin : Button secondary passe d'acier-texte à `lisere-active` puis Archive ; danger passe d'Alerte à 90 % à Alerte pleine.
 
 ## Typographie et polices locales
 
@@ -69,6 +69,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Ratio : `aspectRatio.card` = 63/88.
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
+- Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
