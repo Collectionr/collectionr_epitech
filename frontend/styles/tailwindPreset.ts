@@ -11,6 +11,7 @@ import {
   motion,
   opacity,
   radius,
+  sizing,
   spacing,
   typography,
 } from '../packages/shared/src/tokens';
@@ -97,6 +98,10 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
       keyframes: {},
       aspectRatio,
       extend: {
+        // Hauteur seule (h-control) : l'échelle d'espacement reste inchangée.
+        height: Object.fromEntries(
+          Object.entries(sizing).map(([key, value]) => [key, `${value}px`]),
+        ),
         colors: {
           lisere: withOpacity(colors.archive, opacity.lisere),
           'lisere-hover': withOpacity(colors.archive, opacity['lisere-hover']),

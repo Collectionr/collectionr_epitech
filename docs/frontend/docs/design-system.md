@@ -1,5 +1,5 @@
 > **Maintenu par :** François Dubois (PO / Frontend Lead)
-> **Dernière mise à jour :** 2026-11-06
+> **Dernière mise à jour :** 2026-11-14
 > **Audience :** Toute l’équipe, en particulier les nouveaux contributeurs
 
 # Design system — Collectionr, thème Écrin
@@ -13,7 +13,7 @@ Cette version remplace l'ancienne charte provisoire (Inter, palette claire, avat
 Les valeurs vivent dans `frontend/packages/shared/src/tokens/`, sous forme d'objets TypeScript `as const`, sans JSX ni dépendance à React, Tailwind ou React Native. Import applicatif :
 
 ```ts
-import { colors, typography, spacing, radius, motion, opacity, breakpoints } from '@shared/tokens';
+import { colors, typography, spacing, sizing, radius, motion, opacity, breakpoints } from '@shared/tokens';
 ```
 
 Les tailles/espacements sont des nombres en pixels, les durées en millisecondes, les opacités entre 0 et 1, les interlignes des ratios et les crénages des nombres en em. Les unités CSS sont ajoutées par l'adaptateur. Les graisses sont définies dans `fontWeights` puis réutilisées par les variantes, les noms des fontes natives et le mapping Tailwind.
@@ -40,7 +40,7 @@ Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `
 
 Signal ne porte aucun texte inférieur à 18 px sur Écrin et ne sert jamais aux cotes. Les contrôles utilisent acier-texte pour leur bordure, pas le liséré faible d'une carte. Pas d'ombre sur fond sombre.
 
-Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %).
+Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`).
 
 ## Typographie et polices locales
 
@@ -68,6 +68,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Arrondis : `radius.card` = 6 px, `radius.none` = 0. Avatar et Badge sont carrés ; pas de `rounded-full`.
 - Ratio : `aspectRatio.card` = 63/88.
 - Bordure fine : `borders.thin` = 1 px.
+- Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
