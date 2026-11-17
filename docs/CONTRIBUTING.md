@@ -423,8 +423,9 @@ flowchart TD
         H2["Review : 1 approbation minimum"] --> I
         I -- "Non" --> J["❌ Merge bloqué"]
         I -- "Oui" --> K["✅ Merge dans dev"]
-        M ~~~ L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :\nLead Backend, Lead Frontend, Lead IA, Lead Devops"]
-end
+        anchor1[" "] ~~~ L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :\nLead Backend, Lead Frontend, Lead IA, Lead Devops"]
+        style anchor1 fill:none,stroke:none
+    end
 
     subgraph P3G["Phase 3 - Travail sur GitHub"]
         M["Branche : dev"] --> N["Création Pull Request vers main"]
@@ -435,7 +436,8 @@ end
         O2["Review : 1 approbation minimum"] --> P
         P -- "Non" --> Q["❌ Merge bloqué"]
         P -- "Oui" --> R["✅ Merge dans main"]
-        S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :\nAdmin Backend, Admin Devops, Admin Frontend"]
+        anchor2[" "] ~~~ S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :\nAdmin Backend, Admin Devops, Admin Frontend"]
+        style anchor2 fill:none,stroke:none
     end
 
     E --> F
