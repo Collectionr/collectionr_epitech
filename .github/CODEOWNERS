@@ -2,20 +2,20 @@
 # CODEOWNERS — CollectionR
 # ============================================
 
-*                              @collectionr-org/admins
+*                              @Collectionr/admins
 
-# Code applicatif et Intelligence Artificelle
-/frontend/                     @collectionr-org/frontend
-/backend/                      @collectionr-org/backend
-/microservices/worker-ocr/     @collectionr-org/ia
-/microservices/tcg/            @collectionr-org/backend
+# Code applicatif et Intelligence Artificielle
+/frontend/                     @Collectionr/frontend
+/backend/                      @Collectionr/backend
+/microservices/worker-ocr/     @Collectionr/ia
+/microservices/tcg/            @Collectionr/backend
 
 # Infrastructure et Automatisation
-/devops/                       @collectionr-org/devops
-/.github/workflows/            @collectionr-org/devops
+/devops/                       @Collectionr/devops
+/.github/workflows/            @Collectionr/devops
 
-/docs/                         @collectionr-org/admins
+/docs/                         @Collectionr/admins
 
-/.github/CODEOWNERS            @collectionr-org/admins
-/.github/settings.yml          @collectionr-org/admins
-/devops/secrets-templates/     @collectionr-org/admins
+/.github/CODEOWNERS            @Collectionr/admins
+/.github/settings.yml          @Collectionr/admins
+/devops/secrets-templates/     @Collectionr/admins
