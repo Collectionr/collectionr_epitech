@@ -408,7 +408,7 @@ Ce schéma décrit le parcours d'une modification, du poste local jusqu'à la br
 flowchart TD
     subgraph P1["Phase 1 - Environnement Local"]
         A["Développement"] --> B["git commit / push"]
-        B --> C{"Vérifications Husky\n(en cours de mise en place)"}
+        B --> C{"Vérifications Husky<br/>(en cours de mise en place)"}
         C -- "Nom/Format invalide" --> D["❌ Rejeté localement"]
         C -- "Échec tests" --> D
         C -- "Valide" --> E["✅ Push autorisé vers GitHub"]
@@ -423,7 +423,7 @@ flowchart TD
         H2["Review : 1 approbation minimum"] --> I
         I -- "Non" --> J["❌ Merge bloqué"]
         I -- "Oui" --> K["✅ Merge dans dev"]
-        anchor1[" "] ~~~ L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :\nLead Backend, Lead Frontend, Lead IA, Lead Devops"]
+        anchor1[" "] ~~~ L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :<br/>Lead Backend, Lead Frontend, Lead IA, Lead Devops"]
         style anchor1 fill:none,stroke:none
     end
 
@@ -436,7 +436,7 @@ flowchart TD
         O2["Review : 1 approbation minimum"] --> P
         P -- "Non" --> Q["❌ Merge bloqué"]
         P -- "Oui" --> R["✅ Merge dans main"]
-        anchor2[" "] ~~~ S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :\nAdmin Backend, Admin Devops, Admin Frontend"]
+        anchor2[" "] ~~~ S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :<br/>Admin Backend, Admin Devops, Admin Frontend"]
         style anchor2 fill:none,stroke:none
     end
 
@@ -472,16 +472,16 @@ Conformément aux critères d'acceptation du ticket **COLLR-554** (*Poser protec
 ### Configuration active des GitHub Rulesets
 
 - **Ruleset `dev`** (`refs/heads/dev`) :
-  - **Restrict deletions** et **Block force pushes** activés.
+  - **Restrict creations**, **Restrict updates**, **Restrict deletions** et **Block force pushes** activés.
   - **Require a pull request before merging** activé (1 approbation minimum requise).
   - **Allowed reviewers** : Leads uniquement (`Lead Backend`, `Lead Frontend`, `Lead IA`, `Lead DevOps`).
-  - **Require status checks to pass** : Pipelines CI correspondants (`Backend CI NestJs`, `Frontend CI React`).
+  - **Status checks** : Les pipelines CI (`Backend CI NestJs`, `Frontend CI React`, etc.) se déclenchent automatiquement de façon ciblée selon les dossiers modifiés. Aucun status check statique n'est exigé dans le Ruleset afin d'éviter le blocage fantôme (*Expected — Waiting for status*) des PRs ne touchant qu'un seul sous-domaine (`devops/`, `docs/`, `backend/` seul, etc.). La vérification du passage au vert de la CI ciblée est déléguée au Lead approbateur désigné par le CODEOWNERS.
 - **Ruleset `main`** (`refs/heads/main`) :
   - **Restrict deletions** et **Block force pushes** activés.
   - **Block direct pushes** activé (push direct strictement interdit, y compris pour les administrateurs sans bypass).
   - **Require a pull request before merging** activé (1 approbation minimum requise, PR issue exclusivement de `dev`).
   - **Allowed reviewers** : Admins uniquement (`Admin Backend`, `Admin DevOps`, `Admin Frontend`).
-  - **Require status checks to pass** : Tous les checks CI doivent être au vert.
+  - **Require status checks to pass** : Tous les checks CI doivent être au vert avant merge final.
 
 ### Preuve du test : Push direct sur `main` refusé
 
