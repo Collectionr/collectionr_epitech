@@ -2,29 +2,13 @@ import { useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Icon } from '../Icon';
+
 import { Button } from './Button';
 import type { ButtonVariant } from './Button';
 
-// Taille md de l'iconographie (20 px). À remplacer par l'atome Icon (COLLR-577) après le merge de la #96.
-const ICON_SIZE = 20;
-
-/** Glyphe d'exemple au trait de 1,5 px, couleur héritée du texte du bouton. */
-function ExampleIcon() {
-  return (
-    <svg
-      width={ICON_SIZE}
-      height={ICON_SIZE}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="butt"
-      strokeLinejoin="miter"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
+/** Icône d'exemple : Button reçoit l'icône de l'appelant et n'importe aucun atome. */
+const EXAMPLE_ICON = <Icon name="plus" />;
 
 const meta = {
   title: 'Button',
@@ -52,7 +36,7 @@ const VARIANTS: { variant: ButtonVariant; label: string; loadingLabel: string }[
 const STATES = ['Repos · survol · clic · Tab', 'Désactivé', 'Chargement'] as const;
 
 function Matrix({ hasIcon }: { hasIcon: boolean }) {
-  const icon = hasIcon ? <ExampleIcon /> : undefined;
+  const icon = hasIcon ? EXAMPLE_ICON : undefined;
   return (
     <div className="overflow-x-auto">
       <table className="border-separate border-spacing-x-space-24 border-spacing-y-space-16">
@@ -119,7 +103,7 @@ function LoadingDemo() {
   const [isLoading, setIsLoading] = useState(false);
   return (
     <div className="flex items-center gap-space-16">
-      <Button variant="primary" icon={<ExampleIcon />} loading={isLoading} loadingLabel="Envoi…">
+      <Button variant="primary" icon={EXAMPLE_ICON} loading={isLoading} loadingLabel="Envoi…">
         Créer mon compte
       </Button>
       <Button variant="ghost" onClick={() => setIsLoading((value) => !value)}>
@@ -145,7 +129,7 @@ export const PleineLargeur: Story = {
       <Button variant="primary" type="submit" fullWidth>
         Créer mon compte
       </Button>
-      <Button variant="secondary" fullWidth icon={<ExampleIcon />}>
+      <Button variant="secondary" fullWidth icon={EXAMPLE_ICON}>
         Ajouter une carte
       </Button>
       <Button variant="danger" fullWidth>
