@@ -55,6 +55,9 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
       platform === 'web' ? `var(--duration-${name})` : `${value}ms`,
     ]),
   );
+  const sizes = Object.fromEntries(
+    Object.entries(sizing).map(([key, value]) => [key, `${value}px`]),
+  );
   return {
     theme: {
       colors: {
@@ -94,14 +97,21 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
         ...durations,
       },
       transitionTimingFunction: { DEFAULT: `cubic-bezier(${motion.easing.join(',')})` },
-      animation: { none: 'none' },
-      keyframes: {},
+      // Seule animation autorisée : le fondu d'apparition (Badge). Ni spinner, ni shimmer.
+      animation: {
+        none: 'none',
+        ...(platform === 'web'
+          ? {
+              'fade-in': `fade-in var(--duration-snap) cubic-bezier(${motion.easing.join(',')})`,
+            }
+          : {}),
+      },
+      keyframes: platform === 'web' ? { 'fade-in': { from: { opacity: '0' } } } : {},
       aspectRatio,
       extend: {
-        // Hauteur seule (h-control) : l'échelle d'espacement reste inchangée.
-        height: Object.fromEntries(
-          Object.entries(sizing).map(([key, value]) => [key, `${value}px`]),
-        ),
+        // Hauteurs et largeurs minimales (h-control, min-w-badge) : l'échelle d'espacement reste inchangée.
+        height: sizes,
+        minWidth: sizes,
         colors: {
           lisere: withOpacity(colors.archive, opacity.lisere),
           'lisere-hover': withOpacity(colors.archive, opacity['lisere-hover']),

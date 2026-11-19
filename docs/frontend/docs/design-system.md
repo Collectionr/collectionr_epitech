@@ -1,5 +1,5 @@
 > **Maintenu par :** François Dubois (PO / Frontend Lead)
-> **Dernière mise à jour :** 2026-11-14
+> **Dernière mise à jour :** 2026-11-19
 > **Audience :** Toute l’équipe, en particulier les nouveaux contributeurs
 
 # Design system — Collectionr, thème Écrin
@@ -70,6 +70,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
+- Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
@@ -82,7 +83,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 | signature | 320 ms | Entrée de réticule, logo |
 | sequence | 400 ms | Balayage multi-cibles |
 
-Easing unique : `motion.easing` est le tuple `[0.2, 0, 0, 1]`. Le preset le convertit en `cubic-bezier(0.2,0,0,1)` ; Reanimated utilise `Easing.bezier(...motion.easing)`. Aucun ressort, rebond, scale de pression, spinner ou shimmer générique. Les animations génériques de Tailwind sont retirées.
+Easing unique : `motion.easing` est le tuple `[0.2, 0, 0, 1]`. Le preset le convertit en `cubic-bezier(0.2,0,0,1)` ; Reanimated utilise `Easing.bezier(...motion.easing)`. Aucun ressort, rebond, scale de pression, spinner ou shimmer générique. Les animations génériques de Tailwind sont retirées ; seul `animate-fade-in` (web, durée `snap`) est ajouté, pour l'apparition d'un élément sans transition possible, comme Badge.
 
 Sur le web, les durées utilisent des variables CSS mises à zéro dans `prefers-reduced-motion: reduce`. Une animation CSS spécifique doit également utiliser `var(--duration-...)`. Sur mobile, le preset produit les surcharges de durée à zéro pour les classes de transition et de durée, via la même media query reconnue par NativeWind (AccessibilityInfo).
 
