@@ -27,8 +27,8 @@ PostgreSQL/Redis ne sont **pas provisionnés par ce repo** — c'est l'équipe D
 
 ## Invariants absolus (backend NestJS)
 
-Ces invariants s'appliquent à `backend/`. Le microservice TCG (`tcg/`, Python) a son propre
-[`tcg/CLAUDE.md`](tcg/CLAUDE.md), qui précise lesquels il reprend. La section Git / Jira vaut pour tout
+Ces invariants s'appliquent à `backend/`. Le microservice TCG (`microservices/tcg/`, Python) a son propre
+[`microservices/tcg/CLAUDE.md`](microservices/tcg/CLAUDE.md), qui précise lesquels il reprend. La section Git / Jira vaut pour tout
 le dépôt.
 
 - **Fichiers en PascalCase** avec suffixe de type : `CarteController.ts`, `CreateCarteUseCase.ts`, `HealthModule.ts` — jamais de kebab-case.
@@ -52,8 +52,8 @@ le dépôt.
 
 | Besoin | Fichier |
 | --- | --- |
-| Conventions de code détaillées | `docs/backend/CONVENTIONS.md` |
-| Microservice TCG (Python) | `tcg/CLAUDE.md`, `tcg/README.md` |
+| Conventions de code détaillées | `docs/backend/conventions.md` |
+| Microservice TCG (Python) | `microservices/tcg/CLAUDE.md`, `microservices/tcg/README.md` |
 | Principes Clean Architecture | `docs/backend/clean-architecture.md` |
 | Décisions d'architecture (ADRs) | `.claude/contexts/architecture.md` |
 | État actuel du projet / tickets | `.claude/contexts/project_state.md` |

@@ -136,12 +136,12 @@ Pré-gradation (état/centrage) : le backend envoie l'image au **Microservice Gr
 Convention retenue (COLLR-672) et appliquée par le socle technique (COLLR-493), alignée sur la Clean
 Architecture du backend ([clean-architecture.md](../backend/clean-architecture.md)) : un seul package
 Python partagé par l'orchestrateur et les 3 workers, avec des points d'entrée séparés dans
-`interface/`. Le service vit dans `tcg/` à la racine du mono-repo (un dossier par unité déployable,
-comme `backend/` et `frontend/`). Les éléments déjà en place portent le socle `/health` ; les autres
+`interface/`. Le service vit dans `microservices/tcg/` (COLLR-687), à côté de `microservices/worker-ocr/` :
+un dossier par microservice déployable sous `microservices/`. Les éléments déjà en place portent le socle `/health` ; les autres
 sont la cible des tickets suivants.
 
 ```
-tcg/
+microservices/tcg/
 ├── pyproject.toml            # dépendances (fastapi, redis, httpx, pydantic, psycopg[binary], tenacity,
 │                             #   aiolimiter ; dev : pytest, pytest-cov, respx) + config Ruff (lint ET
 │                             #   format), Pytest, couverture
@@ -189,7 +189,7 @@ que dans `interface/api/`** (l'orchestrateur, `POST /sync`) ; les 3 workers dans
 n'en dépendent jamais, ils ne font que consommer Redis TCG et écrire en PostgreSQL.
 
 **Qualité** : **Ruff** pour le lint (`ruff check`) et le formatage (`ruff format`), lancés aussi par le
-hook Husky pre-commit sur `tcg/` ; **mypy** en mode strict pour le typage (équivalent du « zéro
+hook Husky pre-commit sur `microservices/tcg/` ; **mypy** en mode strict pour le typage (équivalent du « zéro
 `any` » du backend) ; **Pytest** pour les tests avec un seuil de couverture de **50 %** (périmètre
 Python, cf. Document QA). Les logs sortent en JSON sur stdout (S05).
 

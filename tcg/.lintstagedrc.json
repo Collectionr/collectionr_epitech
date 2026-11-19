@@ -1,3 +1,0 @@
-{
-  "*.py": ["node ../scripts/run-ruff.js check --fix", "node ../scripts/run-ruff.js format"]
-}

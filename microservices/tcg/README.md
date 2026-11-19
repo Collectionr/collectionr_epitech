@@ -18,10 +18,10 @@ tables de ce contrat (UPSERT idempotents). Pour l'instant il ne fait qu'un `SELE
 ## Structure
 
 Clean Architecture en 4 couches, alignée sur le backend (cf.
-[`docs/microservices/architecture-microservices.md`](../docs/microservices/architecture-microservices.md)).
+[`docs/microservices/architecture-microservices.md`](../../docs/microservices/architecture-microservices.md)).
 
 ```text
-tcg/
+microservices/tcg/
 ├── pyproject.toml                # dépendances + configuration Ruff / mypy / Pytest / couverture
 ├── requirements.txt              # versions épinglées (exécution), générées depuis pyproject.toml
 ├── requirements-dev.txt          # versions épinglées (exécution + outils de dev)
@@ -50,7 +50,7 @@ câblés dans `interface/api/app.py`.
 
 ## Installation
 
-Depuis le dossier `tcg/` :
+Depuis le dossier `microservices/tcg/` :
 
 ```bash
 python3.13 -m venv .venv             # Windows : py -3.13 -m venv .venv
@@ -153,8 +153,8 @@ un log d'accès au format inconnu est supprimé plutôt que d'exposer une IP.
 ## Docker
 
 ```bash
-docker build -t collectionr-tcg tcg/                                            # architecture locale
-docker buildx build --platform linux/amd64,linux/arm64 -t collectionr-tcg tcg/  # multi-arch
+docker build -t collectionr-tcg microservices/tcg/                                            # architecture locale
+docker buildx build --platform linux/amd64,linux/arm64 -t collectionr-tcg microservices/tcg/  # multi-arch
 docker run --rm -p 8000:8000 -e DATABASE_URL='postgresql://…' collectionr-tcg
 ```
 
@@ -176,9 +176,9 @@ pytest                       # tests unitaires (aucune base requise)
 pytest --cov                 # avec couverture (seuil 50 %, cf. Document QA)
 ```
 
-**Hook pre-commit** : quand un commit contient des fichiers `.py` de `tcg/`, Husky lance
-`ruff check --fix` puis `ruff format` dessus (`tcg/.lintstagedrc.json`). Le hook utilise le `ruff`
-du venv `tcg/.venv` : il faut donc avoir suivi l'[installation](#installation).
+**Hook pre-commit** : quand un commit contient des fichiers `.py` de `microservices/tcg/`, Husky lance
+`ruff check --fix` puis `ruff format` dessus (`microservices/tcg/.lintstagedrc.json`). Le hook utilise le `ruff`
+du venv `microservices/tcg/.venv` : il faut donc avoir suivi l'[installation](#installation).
 
 ## Vérifier la connexion PostgreSQL
 
