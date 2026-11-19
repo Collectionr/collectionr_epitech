@@ -1,5 +1,7 @@
 export { Avatar } from './Avatar';
 export type { AvatarProps, AvatarSize } from './Avatar';
+export { Badge } from './Badge';
+export type { BadgeProps } from './Badge';
 export { Button } from './Button';
 export type { ButtonProps, ButtonType, ButtonVariant } from './Button';
 export { Icon } from './Icon';
