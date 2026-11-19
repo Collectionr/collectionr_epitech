@@ -6,6 +6,8 @@ export { Button } from './Button';
 export type { ButtonProps, ButtonType, ButtonVariant } from './Button';
 export { Icon } from './Icon';
 export type { IconName, IconProps, IconSize } from './Icon';
+export { ProgressBar } from './ProgressBar';
+export type { ProgressBarProps } from './ProgressBar';
 export { Surface } from './Surface';
 export type { SurfaceElement, SurfacePadding, SurfaceProps } from './Surface';
 export { Text } from './Text';
