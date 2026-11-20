@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "job_id": "a3f8c1d2-4e56-7890-abcd-ef1234567890",
+  "produced_at": "2026-11-15T10:00:04.100Z",
+  "result": {
+    "name": "Octillery",
+    "set_code": null,
+    "set_number": "TG03/TG30",
+    "language": null,
+    "rarity": null,
+    "confidence": 0.71,
+    "model_version": "qwen2.5-vl-3b-1",
+    "processing_ms": 3120
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "job_id": "a3f8c1d2-4e56-7890-abcd-ef1234567890",
+  "image_path": "jobs/a3f8c1d2-4e56-7890-abcd-ef1234567890/input.jpg",
+  "image_mime_type": "image/jpeg",
+  "attempt": 1,
+  "submitted_at": "2026-11-15T10:00:00.000Z",
+  "expires_at": "2026-11-15T10:01:00.000Z"
+}
