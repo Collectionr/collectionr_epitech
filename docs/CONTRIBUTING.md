@@ -94,12 +94,31 @@ refactor(bullmq): simplification worker OCR pipeline
 
 ## Checklist avant PR
 
-- [ ] Tests unitaires passants (couverture ≥ 70 %)
+- [ ] Tests passants, couverture au-dessus du seuil du domaine (voir tableau ci-dessous)
 - [ ] ESLint et Prettier sans erreur
 - [ ] Aucun `any` TypeScript introduit
 - [ ] Branche à jour avec `dev`
 - [ ] Ticket Jira passé en "À valider / Tester"
 - [ ] PR référence le ticket (`Closes COLLR-XXX`)
+
+### Lancer la CI en local avant la PR
+
+La CI se déclenche selon le dossier modifié. Lance les **mêmes commandes** en local avant d'ouvrir ta PR :
+si elles passent chez toi, elles passent en CI. Le seuil de couverture est fixé dans la **configuration du projet**,
+pas dans la CI.
+
+| Dossier modifié | CI | Commandes à lancer en local | Seuil de couverture |
+|---|---|---|---|
+| `backend/` | `backend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run build` · `npm run test:cov` · `npm run test:e2e` | 70 % (`jest.config.js`) |
+| `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm test` · `npm run build` | 40 % (D03) — ⚠️ script `test:cov` à créer, les tests ne tournent pas encore en CI |
+| `microservices/tcg/` | `worker-tcg-ci.yaml` | `ruff check .` · `ruff format --check .` · `mypy` · `pytest --cov` | 50 % (`pyproject.toml`) |
+| `microservices/worker-ocr/` | `worker-ocr-ci.yaml` | Pas encore de code Python : mêmes commandes que le TCG à son arrivée | 50 % (D03) |
+| `devops/`, `docs/` | Aucune CI pour l'instant | Depuis la racine : `for f in devops/scripts/*.sh; do bash -n "$f" || echo "ERREUR $f"; done` | — |
+
+Les commandes se lancent depuis le dossier du domaine (sauf `devops/`). Détails : [`backend/README.md`](../backend/README.md),
+[`microservices/tcg/README.md`](../microservices/tcg/README.md), [Spécificités Frontend](#spécificités-frontend).
+
+> Toute modification d'un workflow `.github/workflows/` doit mettre ce tableau à jour.
 
 ---
 
