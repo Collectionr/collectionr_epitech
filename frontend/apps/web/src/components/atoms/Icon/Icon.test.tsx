@@ -20,6 +20,20 @@ describe('Icon', () => {
     expect(html).toContain('stroke-linecap="butt"');
     expect(html).toContain('stroke-linejoin="miter"');
     expect(html).not.toContain('rx=');
+    // Un segment quasi nul (h.01, v.01) disparaît avec des terminaisons nettes.
+    expect(html).not.toMatch(/[hv]\.01/);
+  });
+
+  it('dessine les 3 puces de la liste, visibles avec des terminaisons nettes', () => {
+    const html = renderToStaticMarkup(<Icon name="list" />);
+    const bullets = html.match(/<rect [^>]*>/g) ?? [];
+
+    expect(bullets).toHaveLength(3);
+    for (const bullet of bullets) {
+      expect(bullet).toContain('width="2"');
+      expect(bullet).toContain('height="2"');
+    }
+    expect(html).toContain('d="M8 5h13M8 12h13M8 19h13"');
   });
 
   it('rend la taille md par défaut', () => {

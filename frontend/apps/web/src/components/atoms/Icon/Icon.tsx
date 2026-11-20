@@ -1,4 +1,4 @@
-import { Bell, Eye, EyeOff, Icon as LucideIcon, List, Plus, Search } from 'lucide-react';
+import { Bell, Eye, EyeOff, Icon as LucideIcon, Plus, Search } from 'lucide-react';
 import type { LucideIcon as LucideIconComponent, LucideIconNode, LucideProps } from 'lucide-react';
 
 import { iconography } from '@shared/tokens';
@@ -31,11 +31,20 @@ const ICONS: Record<IconName, IconSource> = {
   search: { glyph: Search },
   bell: { glyph: Bell },
   plus: { glyph: Plus },
-  list: { glyph: List },
   // Dessinées ici parce que les grilles Lucide ont des rectangles arrondis (rx) et les étoiles
   // (sparkles) des pointes courbes, contraires à la règle des angles vifs du Gold Master §05.2.
+  // Les puces de la liste Lucide sont des segments de 0,01 : invisibles avec des terminaisons
+  // nettes (butt), d'où des carrés à angles vifs alignés sur les traits.
   grid: {
     node: [['path', { d: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z', key: 'grid' }]],
+  },
+  list: {
+    node: [
+      ['rect', { x: '3', y: '4', width: '2', height: '2', key: 'bullet-1' }],
+      ['rect', { x: '3', y: '11', width: '2', height: '2', key: 'bullet-2' }],
+      ['rect', { x: '3', y: '18', width: '2', height: '2', key: 'bullet-3' }],
+      ['path', { d: 'M8 5h13M8 12h13M8 19h13', key: 'lines' }],
+    ],
   },
   // Étoile à 4 branches, pointes vives : fonctions d'IA (QuickActionCard, COLLR-609).
   sparkle: { node: [['path', { d: 'M12 3l2 7 7 2-7 2-2 7-2-7-7-2 7-2z', key: 'sparkle' }]] },
