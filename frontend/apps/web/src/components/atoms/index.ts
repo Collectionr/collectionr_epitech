@@ -4,6 +4,8 @@ export { Badge } from './Badge';
 export type { BadgeProps } from './Badge';
 export { Button } from './Button';
 export type { ButtonProps, ButtonType, ButtonVariant } from './Button';
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
 export { Counter } from './Counter';
 export type { CounterProps } from './Counter';
 export { Icon } from './Icon';

@@ -40,7 +40,7 @@ Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `
 
 Signal ne porte aucun texte inférieur à 18 px sur Écrin et ne sert jamais aux cotes. Les contrôles utilisent acier-texte pour leur bordure, pas le liséré faible d'une carte. Pas d'ombre sur fond sombre.
 
-Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`). Sur un contrôle, le liséré ne s'affaiblit jamais au survol ni au clic, et reste à 3:1 minimum sur Écrin : Button secondary passe d'acier-texte à `lisere-active` puis Archive ; danger passe d'Alerte à 90 % à Alerte pleine. Input passe d'acier-texte à `lisere-active` au survol (et non à `lisere-hover`, 3,3:1 contre 5,6:1 au repos) ; en erreur, sa bordure reste Alerte, survol compris.
+Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`). Sur un contrôle, le liséré ne s'affaiblit jamais au survol ni au clic, et reste à 3:1 minimum sur Écrin : Button secondary passe d'acier-texte à `lisere-active` puis Archive ; danger passe d'Alerte à 90 % à Alerte pleine. Input passe d'acier-texte à `lisere-active` au survol (et non à `lisere-hover`, 3,3:1 contre 5,6:1 au repos) ; en erreur, sa bordure reste Alerte, survol compris. Checkbox suit la même règle sur une case non cochée ; cochée, elle est déjà bordée d'Archive.
 
 ## Typographie et polices locales
 
@@ -89,7 +89,7 @@ Sur le web, les durées utilisent des variables CSS mises à zéro dans `prefers
 
 `MotionAccessibility`, monté une fois dans `App.tsx`, synchronise également la préférence système avec la configuration globale de Reanimated, pour les animations programmées directement. Il suit les changements pendant l'utilisation, ignore une lecture initiale devenue obsolète et désactive les animations si cette lecture échoue. Les animations de l'application utilisent NativeWind ou Reanimated, avec les tokens de durée ; ne pas contourner cette configuration avec une surcharge locale `ReduceMotion.Never` ou un autre moteur d'animation.
 
-Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depuis `borders.focus`. Ne pas supprimer cet indicateur dans un composant. Sur mobile, les contrôles focusables portent la classe commune `focus-indicator` : le preset applique les mêmes tokens à l'état `:focus`, via les propriétés natives `outlineWidth`, `outlineOffset`, `outlineColor`, `outlineStyle`. Les propriétés outline sont disponibles dans la nouvelle architecture React Native utilisée ici. Aucun contrôle n'existe encore ; cette classe devra être ajoutée à chaque futur contrôle natif. Les valeurs et le comportement sont centralisés, pas réécrits dans chaque composant.
+Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depuis `borders.focus`. Ne pas supprimer cet indicateur dans un composant. Un contrôle redessiné reste l'élément natif lui-même, pour recevoir cette règle : la case de Checkbox est l'`<input type="checkbox">` en `appearance-none`, et non une case dessinée à côté d'un input masqué (le thème n'a pas de classe d'outline 1,5 px pour la reporter). Sur mobile, les contrôles focusables portent la classe commune `focus-indicator` : le preset applique les mêmes tokens à l'état `:focus`, via les propriétés natives `outlineWidth`, `outlineOffset`, `outlineColor`, `outlineStyle`. Les propriétés outline sont disponibles dans la nouvelle architecture React Native utilisée ici. Aucun contrôle n'existe encore ; cette classe devra être ajoutée à chaque futur contrôle natif. Les valeurs et le comportement sont centralisés, pas réécrits dans chaque composant.
 
 ## Décisions PO du 16/10/2026
 
@@ -119,7 +119,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 
