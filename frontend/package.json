@@ -24,6 +24,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run && npm run test -w @collectionr/mobile",
+    "test:cov": "vitest run --coverage && npm run test -w @collectionr/mobile",
     "test:watch": "vitest"
   },
   "devDependencies": {
