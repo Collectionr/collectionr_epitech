@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "job_id": "a3f8c1d2-4e56-7890-abcd-ef1234567890",
+  "status": "error",
+  "emitted_at": "2026-11-15T10:00:03.500Z",
+  "error": {
+    "code": "NO_CARD_DETECTED",
+    "message": "No card found in the image"
+  }
+}
