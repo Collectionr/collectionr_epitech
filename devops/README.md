@@ -42,6 +42,12 @@ Les mots de passe sont générés automatiquement : personne n'a besoin de les c
 
 ### Créer les Secrets
 
+Sur un cluster neuf, crée d'abord le namespace (sinon : `namespaces "development" not found`) :
+
+```bash
+kubectl apply -f devops/k3s/namespace.yaml
+```
+
 ```bash
 # PostgreSQL
 kubectl create secret generic postgresql-credentials --namespace development --from-literal=POSTGRES_USER=collectionr --from-literal=POSTGRES_PASSWORD="$(openssl rand -hex 16)" --from-literal=POSTGRES_DB=collectionr_dev
