@@ -5,22 +5,16 @@
 /** Carried by every message and file. A reader refuses any other value instead of guessing. */
 export const OCR_SCHEMA_VERSION = 1;
 
-/** Redis OCR streams. Jobs go backend -> worker, events (status only) go worker -> backend. */
-export const OCR_JOBS_STREAM = 'ocr:jobs';
-export const OCR_EVENTS_STREAM = 'ocr:events';
-export const OCR_WORKERS_GROUP = 'ocr-workers';
-export const OCR_BACKEND_GROUP = 'ocr-backend';
+// Redis stream names, consumer groups and trim lengths are deliberately absent: they belong to
+// the Redis adapter of COLLR-420 and are to be confirmed by a real test, not fixed by the contract.
 
-/** Every stream entry holds one field with the whole message as JSON. */
-export const OCR_PAYLOAD_FIELD = 'payload';
-
-/** Approximate trim length (`XADD MAXLEN ~`) so a stalled consumer cannot grow Redis without limit. */
-export const OCR_STREAM_MAX_LENGTH = 1000;
-
-/** A message or result file is a few hundred bytes; anything bigger is refused before `JSON.parse`. */
+/**
+ * Internal safety guard, not a contract term: the backend does not parse a worker document that is
+ * far larger than anything the contract can produce (a few hundred bytes).
+ */
 export const OCR_MESSAGE_MAX_BYTES = 16_384;
 
-/** Formats the backend accepts at POST /scan and the worker can decode. */
+/** Formats of the image handed to the worker (validated at POST /scan, COLLR-420). */
 export const OCR_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export type OcrImageMimeType = (typeof OCR_IMAGE_MIME_TYPES)[number];
 
