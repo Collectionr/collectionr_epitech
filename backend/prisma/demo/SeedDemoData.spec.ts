@@ -90,9 +90,34 @@ describe('shouldSeedDemoData', () => {
     expect(shouldSeedDemoData(nodeEnv)).toBe(true);
   });
 
-  it('never seeds in production', () => {
+  it('does not seed in production when the flag is not set', () => {
     expect(shouldSeedDemoData('production')).toBe(false);
+    expect(shouldSeedDemoData('production', undefined)).toBe(false);
+    expect(shouldSeedDemoData('production', '')).toBe(false);
+    expect(shouldSeedDemoData('production', '   ')).toBe(false);
   });
+
+  it('seeds when SEED_DEMO_DATA is "true", whatever NODE_ENV says (the dev cluster runs in production mode)', () => {
+    expect(shouldSeedDemoData('production', 'true')).toBe(true);
+    expect(shouldSeedDemoData('development', 'true')).toBe(true);
+    expect(shouldSeedDemoData(undefined, 'TRUE')).toBe(true);
+    expect(shouldSeedDemoData('production', ' true ')).toBe(true);
+  });
+
+  it('does not seed when SEED_DEMO_DATA is "false", even outside production', () => {
+    expect(shouldSeedDemoData('development', 'false')).toBe(false);
+    expect(shouldSeedDemoData(undefined, 'False')).toBe(false);
+    expect(shouldSeedDemoData('production', 'false')).toBe(false);
+  });
+
+  it.each(['1', 'yes', 'on', 'ture'])(
+    'refuses the unrecognised value %p instead of guessing',
+    (flag) => {
+      expect(() => shouldSeedDemoData('production', flag)).toThrow(
+        'SEED_DEMO_DATA must be "true" or "false"',
+      );
+    },
+  );
 });
 
 describe('seedDemoData', () => {

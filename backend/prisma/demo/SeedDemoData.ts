@@ -30,11 +30,27 @@ interface DemoCatalogue {
 }
 
 /**
- * Demo accounts share a publicly known password: they must never exist in production. The seed runs on
- * every environment (reference data), so this decides whether the demo part runs at all.
+ * Demo accounts share a publicly known password. The seed runs on every environment (reference data),
+ * so this decides whether the demo part runs at all.
+ *
+ * SEED_DEMO_DATA, when set, is the explicit choice: "true" or "false" (case-insensitive). NODE_ENV is
+ * only a fallback for when it is unset, because it says nothing reliable about the environment: the
+ * development cluster runs with NODE_ENV=production (the log formatter needs it). The fallback is
+ * the safe default: no demo accounts in production. Any other value is refused rather than guessed,
+ * so that a typo cannot silently create (or skip) accounts with a known password.
  */
-export function shouldSeedDemoData(nodeEnv: string | undefined): boolean {
-  return nodeEnv !== 'production';
+export function shouldSeedDemoData(nodeEnv: string | undefined, flag?: string): boolean {
+  const choice = flag?.trim().toLowerCase();
+  if (choice === undefined || choice === '') {
+    return nodeEnv !== 'production';
+  }
+  if (choice === 'true') {
+    return true;
+  }
+  if (choice === 'false') {
+    return false;
+  }
+  throw new Error('SEED_DEMO_DATA must be "true" or "false" when set');
 }
 
 async function loadCatalogue(prismaClient: PrismaClient): Promise<DemoCatalogue> {
