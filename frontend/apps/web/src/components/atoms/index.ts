@@ -10,6 +10,8 @@ export { Icon } from './Icon';
 export type { IconName, IconProps, IconSize } from './Icon';
 export { Input } from './Input';
 export type { InputProps, InputType } from './Input';
+export { Label } from './Label';
+export type { LabelProps } from './Label';
 export { ProgressBar } from './ProgressBar';
 export type { ProgressBarProps } from './ProgressBar';
 export { Surface } from './Surface';
