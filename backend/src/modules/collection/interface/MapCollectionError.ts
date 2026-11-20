@@ -3,6 +3,7 @@ import {
   CardEntryNotFoundError,
   CardNotFoundError,
   CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
   CollectionNotFoundError,
   LicenceNotFoundError,
 } from '../application/errors/CollectionErrors';
@@ -31,7 +32,10 @@ export function mapCollectionError(error: unknown): void {
   ) {
     throw new NotFoundException(error.message);
   }
-  if (error instanceof CollectionLimitReachedError) {
+  if (
+    error instanceof CollectionLimitReachedError ||
+    error instanceof CollectionNameAlreadyUsedError
+  ) {
     throw new ConflictException(error.message);
   }
 }

@@ -86,7 +86,9 @@ export class CollectionsController {
   @ApiCreatedResponse({ description: 'Collection created', type: CollectionResponseDto })
   @ApiBadRequestResponse({ description: 'Invalid payload or collection name' })
   @ApiNotFoundResponse({ description: 'Unknown licence' })
-  @ApiConflictResponse({ description: 'The user already owns 10 collections' })
+  @ApiConflictResponse({
+    description: 'The user already owns 10 collections, or already has one with this name',
+  })
   async create(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: CreateCollectionDto,
@@ -135,6 +137,7 @@ export class CollectionsController {
   @ApiOkResponse({ description: 'Collection renamed', type: CollectionResponseDto })
   @ApiBadRequestResponse({ description: 'Malformed collection id, invalid payload or name' })
   @ApiNotFoundResponse({ description: 'No such collection, or it belongs to someone else' })
+  @ApiConflictResponse({ description: 'The user already has another collection with this name' })
   async rename(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('id') id: string,
