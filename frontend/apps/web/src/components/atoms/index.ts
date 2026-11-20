@@ -8,6 +8,8 @@ export { Counter } from './Counter';
 export type { CounterProps } from './Counter';
 export { Icon } from './Icon';
 export type { IconName, IconProps, IconSize } from './Icon';
+export { Input } from './Input';
+export type { InputProps, InputType } from './Input';
 export { ProgressBar } from './ProgressBar';
 export type { ProgressBarProps } from './ProgressBar';
 export { Surface } from './Surface';
