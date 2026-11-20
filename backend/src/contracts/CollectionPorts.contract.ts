@@ -12,6 +12,7 @@ import {
   CardEntryNotFoundError,
   CardNotFoundError,
   CollectionLimitReachedError,
+  CollectionNameAlreadyUsedError,
   CollectionNotFoundError,
   LicenceNotFoundError,
 } from '../modules/collection/application/errors/CollectionErrors';
@@ -140,6 +141,44 @@ export function collectionRepositoryContract(
         expect(await harness.repository.findByUserId(owner)).toHaveLength(10);
       });
 
+      it('refuses a second collection with the same name for the same owner, but lets another owner use it', async () => {
+        const harness = await make();
+        const owner = await harness.newOwnerId();
+        await newCollection(harness, owner, 'Doubles');
+
+        await expect(newCollection(harness, owner, 'Doubles')).rejects.toBeInstanceOf(
+          CollectionNameAlreadyUsedError,
+        );
+        await expect(newCollection(harness, owner, 'doubles')).resolves.toBeDefined();
+        await expect(newCollection(harness, undefined, 'Doubles')).resolves.toBeDefined();
+        expect(await harness.repository.findByUserId(owner)).toHaveLength(2);
+      });
+
+      it('lets an owner reuse the name of a collection they deleted', async () => {
+        const harness = await make();
+        const owner = await harness.newOwnerId();
+        const first = await newCollection(harness, owner, 'Doubles');
+        await harness.repository.delete(first.id);
+
+        await expect(newCollection(harness, owner, 'Doubles')).resolves.toBeDefined();
+      });
+
+      it('under concurrent creations of the same name: exactly one wins, all others get CollectionNameAlreadyUsedError', async () => {
+        const harness = await make();
+        const owner = await harness.newOwnerId();
+
+        const results = await Promise.allSettled(
+          Array.from({ length: 5 }, () => newCollection(harness, owner, 'Race')),
+        );
+
+        const unexpected = results.filter(
+          (r) => r.status === 'rejected' && !(r.reason instanceof CollectionNameAlreadyUsedError),
+        );
+        expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+        expect(unexpected).toHaveLength(0);
+        expect(await harness.repository.findByUserId(owner)).toHaveLength(1);
+      });
+
       it('rejects an unknown licence with LicenceNotFoundError', async () => {
         const harness = await make();
         await expect(
@@ -166,6 +205,22 @@ export function collectionRepositoryContract(
         expect(stored?.userId).toBe(created.userId);
         expect(stored?.licenceTCGId).toBe(created.licenceTCGId);
         expect(stored?.createdAt.getTime()).toBe(created.createdAt.getTime());
+      });
+
+      it('refuses to rename onto another collection of the same owner (CollectionNameAlreadyUsedError), but keeping its own name is fine', async () => {
+        const harness = await make();
+        const owner = await harness.newOwnerId();
+        const doubles = await newCollection(harness, owner, 'Doubles');
+        const wishlist = await newCollection(harness, owner, 'Wishlist');
+
+        await expect(harness.repository.rename(wishlist.rename('Doubles'))).rejects.toBeInstanceOf(
+          CollectionNameAlreadyUsedError,
+        );
+        expect((await harness.repository.findById(wishlist.id))?.name).toBe('Wishlist');
+        await expect(harness.repository.rename(doubles.rename('Doubles'))).resolves.toBeDefined();
+        // Another owner's collection is not in the way.
+        const other = await newCollection(harness, undefined, 'Free');
+        await expect(harness.repository.rename(other.rename('Doubles'))).resolves.toBeDefined();
       });
 
       it('never brings a deleted collection back by renaming it (CollectionNotFoundError)', async () => {

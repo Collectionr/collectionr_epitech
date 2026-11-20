@@ -4,6 +4,37 @@
 
 ---
 
+## Statut du Repository et Sécurité : Passage Temporaire en Public (Phases Alpha & Bêta)
+
+> [!IMPORTANT]
+> **Décision actée (Septembre 2026)** : Suite à un arbitrage commun entre le Lead Tech et les deux Chefs de Projet (Lead Front/PO et Lead Back/PM), le repository GitHub **Collectionr** passe temporairement du statut **Privé** à **Public** pour la durée des phases de développement actif (**Alpha et Bêta**).
+> 
+> **Retour en privé planifié** : Une fois la chaîne CI/CD pleinement opérationnelle, stabilisée et éprouvée en tout point, le repository **repassera en Privé à l'issue de la phase Bêta** afin de protéger définitivement la confidentialité et la propriété intellectuelle du code source pour la suite du projet.
+
+### 1. Pourquoi ce passage temporaire en public ?
+- **Protection des branches (Rulesets) à coût 0 €** : Sur l'offre gratuite de GitHub, les règles avancées de protection des branches (interdiction stricte du push direct, revue obligatoire par un pair, passage obligatoire de la CI avant merge) ne sont actives que sur les dépôts publics. Cela permet de verrouiller efficacement l'intégrité de `main` et `dev` dès maintenant.
+- **Levée temporaire du plafond CI/CD (2 000 min/mois)** : Le quota mensuel des dépôts privés représentait un goulot d'étranglement critique pour une équipe de 8 développeurs en phase d'écriture, de test et de rodage des workflows. Sur un dépôt public, l'exécution des workflows GitHub Actions est **gratuite et illimitée**, permettant de calibrer sereinement la CI/CD (backend, frontend, workers OCR/TCG, infra k3d, multi-arch) sans risque de blocage.
+
+### 2. Conséquences immédiates et règles de sécurité strictes
+La visibilité publique temporaire du code source impose une vigilance accrue à chaque contributeur :
+
+1. **Tolérance ZÉRO pour les secrets dans Git** :
+   - Tout commit poussé est immédiatement public et indexé.
+   - **Il est strictement interdit de commiter** des fichiers `.env`, des clés d'API tierces, des identifiants/mots de passe de base de données, des secrets JWT ou des certificats.
+   - Vos fichiers d'environnement locaux (`.env`, `.env.local`) doivent impérativement rester listés dans le `.gitignore`.
+   - L'outil **Gitleaks** est exécuté en tête de pipeline CI sur `backend/**` et `frontend/**` pour bloquer toute Pull Request introduisant un secret. Il n'est pas intégré en pre-commit Husky local.
+2. **Gestion des variables sensibles en CI/CD** :
+   - Tout secret requis pour les builds ou les tests doit être enregistré exclusivement dans les **GitHub Actions Secrets** (`Settings > Secrets and variables > Actions`). Ils ne doivent jamais apparaître en clair dans les manifests YAML ou les scripts.
+3. **Protection contre les Pull Requests externes** :
+   - Le repository étant accessible à tous, les règles de protection interdisent tout merge non validé par l'équipe.
+   - Les workflows GitHub Actions sont configurés pour ne pas propager de secrets sur des PRs issues d'éventuels forks.
+4. **Professionnalisme et traçabilité** :
+   - Le code, les descriptions de PR, les commentaires et les messages de commit sont publiquement consultables. Le respect des conventions de nommage et un ton professionnel sont requis sur l'ensemble des échanges.
+5. **Préparation rigoureuse du retour en privé** :
+   - Même si les minutes d'exécution sont gratuites aujourd'hui, les pipelines doivent être conçus de manière sobre et optimisée dès le départ (caching agressif, filtrage par chemins `paths`, annulation des builds obsolètes via `concurrency`). Cette rigueur garantira que, lors du repassage en privé à la fin de la Bêta, l'équipe ne subira aucun blocage de quota.
+
+---
+
 ## Format des Branches
 
 ```
@@ -54,7 +85,7 @@ refactor(bullmq): simplification worker OCR pipeline
 ## Règles essentielles
 
 - Un ticket = une branche
-- Jamais de push direct sur `main` ou `develop`
+- Jamais de push direct sur `main` ou `dev`
 - Toute modification passe par une Pull Request
 - Deux yeux minimum : toute PR doit être approuvée par au moins un pair
 - La branche est supprimée après merge
@@ -63,19 +94,38 @@ refactor(bullmq): simplification worker OCR pipeline
 
 ## Checklist avant PR
 
-- [ ] Tests unitaires passants (couverture ≥ 70 %)
+- [ ] Tests passants, couverture au-dessus du seuil du domaine (voir tableau ci-dessous)
 - [ ] ESLint et Prettier sans erreur
 - [ ] Aucun `any` TypeScript introduit
-- [ ] Branche à jour avec `develop`
+- [ ] Branche à jour avec `dev`
 - [ ] Ticket Jira passé en "À valider / Tester"
 - [ ] PR référence le ticket (`Closes COLLR-XXX`)
+
+### Lancer la CI en local avant la PR
+
+La CI se déclenche selon le dossier modifié. Lance les **mêmes commandes** en local avant d'ouvrir ta PR :
+si elles passent chez toi, elles passent en CI. Le seuil de couverture est fixé dans la **configuration du projet**,
+pas dans la CI.
+
+| Dossier modifié | CI | Commandes à lancer en local | Seuil de couverture |
+|---|---|---|---|
+| `backend/` | `backend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run build` · `npm run test:cov` · `npm run test:e2e` | 70 % (`jest.config.js`) |
+| `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm test` · `npm run build` | 40 % (D03) — ⚠️ script `test:cov` à créer, les tests ne tournent pas encore en CI |
+| `microservices/tcg/` | `worker-tcg-ci.yaml` | `ruff check .` · `ruff format --check .` · `mypy` · `pytest --cov` | 50 % (`pyproject.toml`) |
+| `microservices/worker-ocr/` | `worker-ocr-ci.yaml` | Pas encore de code Python : mêmes commandes que le TCG à son arrivée | 50 % (D03) |
+| `devops/`, `docs/` | Aucune CI pour l'instant | Depuis la racine : `for f in devops/scripts/*.sh; do bash -n "$f" || echo "ERREUR $f"; done` | — |
+
+Les commandes se lancent depuis le dossier du domaine (sauf `devops/`). Détails : [`backend/README.md`](../backend/README.md),
+[`microservices/tcg/README.md`](../microservices/tcg/README.md), [Spécificités Frontend](#spécificités-frontend).
+
+> Toute modification d'un workflow `.github/workflows/` doit mettre ce tableau à jour.
 
 ---
 
 ## Workflow
 
 ```bash
-# 1. Créer une branche depuis develop
+# 1. Créer une branche depuis dev
 git checkout -b COLLR-<NUM>/<type>/<description>
 
 # 2. Commiter
@@ -368,6 +418,112 @@ npm run test:e2e:web
 ```
 
 ---
+
+# Workflow Git : protections et validations
+
+Ce schéma décrit le parcours d'une modification, du poste local jusqu'à la branche `main`.
+
+```mermaid
+flowchart TD
+    subgraph P1["Phase 1 - Environnement Local"]
+        A["Développement"] --> B["git commit / push"]
+        B --> C{"Vérifications Husky<br/>(en cours de mise en place)"}
+        C -- "Nom/Format invalide" --> D["❌ Rejeté localement"]
+        C -- "Échec tests" --> D
+        C -- "Valide" --> E["✅ Push autorisé vers GitHub"]
+    end
+
+    subgraph P2G["Phase 2 - Travail sur GitHub"]
+        F["Branche : COLLR-xxx/type/description"] --> G["Création Pull Request vers dev"]
+    end
+
+    subgraph P2D["Phase 2 - Protections Branche dev"]
+        H["CI/CD : Tests au vert"] --> I{"Conditions remplies ?"}
+        H2["Review : 1 approbation minimum"] --> I
+        I -- "Non" --> J["❌ Merge bloqué"]
+        I -- "Oui" --> K["✅ Merge dans dev"]
+        anchor1[" "] ~~~ L["⚠️ Seuls les LEADS peuvent valider la PR vers dev :<br/>Lead Backend, Lead Frontend, Lead IA, Lead Devops"]
+        style anchor1 fill:none,stroke:none
+    end
+
+    subgraph P3G["Phase 3 - Travail sur GitHub"]
+        M["Branche : dev"] --> N["Création Pull Request vers main"]
+    end
+
+    subgraph P3M["Phase 3 - Protections Branche main"]
+        O["CI/CD : Tests au vert"] --> P{"Condition remplie ?"}
+        O2["Review : 1 approbation minimum"] --> P
+        P -- "Non" --> Q["❌ Merge bloqué"]
+        P -- "Oui" --> R["✅ Merge dans main"]
+        anchor2[" "] ~~~ S["⚠️ Seuls les ADMINS peuvent valider la PR vers main :<br/>Admin Backend, Admin Devops, Admin Frontend"]
+        style anchor2 fill:none,stroke:none
+    end
+
+    E --> F
+    G --> H
+    G --> H2
+    K --> M
+    N --> O
+    N --> O2
+
+    X["🚫 Interdit"]
+    K -.->|"Push direct interdit"| X
+```
+
+> Le push direct vers `main` est **interdit** : toute modification doit passer par une Pull Request depuis `dev`.
+
+---
+
+## Résumé des règles
+
+| Étape | Règle |
+|---|---|
+| **Local (Husky)** | *(En cours de mise en place)* Nom/format valides et tests au vert avant tout push |
+| **Branche `dev`** | CI au vert et 1 approbation minimum (Lead obligatoire) |
+| **Branche `main`** | CI au vert et 1 approbation minimum (Admin obligatoire) + push direct interdit |
+
+---
+
+## Preuve de validation des protections (DoD Ticket COLLR-554)
+
+Conformément aux critères d'acceptation du ticket **COLLR-554** (*Poser protections des branches*), les Rulesets GitHub interdisent formellement tout push direct sur les branches protégées (`main` et `dev`). Toute modification doit obligatoirement transiter par une Pull Request validée.
+
+### Configuration active des GitHub Rulesets
+
+- **Ruleset `dev`** (`refs/heads/dev`) :
+  - **Restrict creations**, **Restrict updates**, **Restrict deletions** et **Block force pushes** activés.
+  - **Require a pull request before merging** activé (1 approbation minimum requise).
+  - **Allowed reviewers** : Leads uniquement (`Lead Backend`, `Lead Frontend`, `Lead IA`, `Lead DevOps`).
+  - **Status checks** : Les pipelines CI (`Backend CI NestJs`, `Frontend CI React`, etc.) se déclenchent automatiquement de façon ciblée selon les dossiers modifiés. Aucun status check statique n'est exigé dans le Ruleset afin d'éviter le blocage fantôme (*Expected — Waiting for status*) des PRs ne touchant qu'un seul sous-domaine (`devops/`, `docs/`, `backend/` seul, etc.). La vérification du passage au vert de la CI ciblée est déléguée au Lead approbateur désigné par le CODEOWNERS.
+- **Ruleset `main`** (`refs/heads/main`) :
+  - **Restrict deletions** et **Block force pushes** activés.
+  - **Block direct pushes** activé (push direct strictement interdit, y compris pour les administrateurs sans bypass).
+  - **Require a pull request before merging** activé (1 approbation minimum requise, PR issue exclusivement de `dev`).
+  - **Allowed reviewers** : Admins uniquement (`Admin Backend`, `Admin DevOps`, `Admin Frontend`).
+  - **Require status checks to pass** : Tous les checks CI doivent être au vert avant merge final.
+
+### Preuve du test : Push direct sur `main` refusé
+
+Test de tentative d'un push direct depuis le poste local vers la branche distante `main` :
+
+```bash
+$ git checkout -b test-direct-push
+$ git commit --allow-empty -m "test: tentative push direct sur main"
+$ git push origin test-direct-push:main
+Total 0 (delta 0), reused 0 (delta 0)
+remote: Resolving deltas: 100% (0/0)
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: - Changes must be made through a pull request.
+remote: - Direct pushes to protected branches are disabled.
+To github.com:Collectionr/collectionr_epitech.git
+ ! [remote rejected] test-direct-push -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'github.com:Collectionr/collectionr_epitech.git'
+```
+
+> **Résultat** : La tentative est immédiatement interceptée et rejetée par le pré-receive hook de GitHub (`GH013`). Le DoD « Push direct sur `main` refusé, testé » est validé.
+
+---
+
 
 ## Contacts
 
