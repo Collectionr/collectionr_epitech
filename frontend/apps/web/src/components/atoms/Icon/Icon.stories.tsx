@@ -27,6 +27,7 @@ const NAMES: { name: IconName; usage: string }[] = [
   { name: 'search', usage: 'Recherche' },
   { name: 'bell', usage: 'Notifications' },
   { name: 'plus', usage: 'Ajouter' },
+  { name: 'sparkle', usage: 'QuickActionCard (IA)' },
   { name: 'grid', usage: 'Catalogue' },
   { name: 'list', usage: 'Classeurs' },
 ];

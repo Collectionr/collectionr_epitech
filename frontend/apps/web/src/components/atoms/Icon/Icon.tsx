@@ -4,7 +4,7 @@ import type { LucideIcon as LucideIconComponent, LucideIconNode, LucideProps } f
 import { iconography } from '@shared/tokens';
 
 /** Icônes disponibles. Set ouvert : en ajouter au fil des besoins. */
-export type IconName = 'eye' | 'eye-off' | 'search' | 'bell' | 'plus' | 'grid' | 'list';
+export type IconName = 'eye' | 'eye-off' | 'search' | 'bell' | 'plus' | 'sparkle' | 'grid' | 'list';
 
 /** Tailles standard, issues des tokens d'iconographie. */
 export type IconSize = keyof typeof iconography.sizes;
@@ -32,11 +32,13 @@ const ICONS: Record<IconName, IconSource> = {
   bell: { glyph: Bell },
   plus: { glyph: Plus },
   list: { glyph: List },
-  // Dessinée ici parce que les grilles Lucide ont des rectangles arrondis (rx), contraires à la
-  // règle des angles vifs du Gold Master §05.2.
+  // Dessinées ici parce que les grilles Lucide ont des rectangles arrondis (rx) et les étoiles
+  // (sparkles) des pointes courbes, contraires à la règle des angles vifs du Gold Master §05.2.
   grid: {
     node: [['path', { d: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z', key: 'grid' }]],
   },
+  // Étoile à 4 branches, pointes vives : fonctions d'IA (QuickActionCard, COLLR-609).
+  sparkle: { node: [['path', { d: 'M12 3l2 7 7 2-7 2-2 7-2-7-7-2 7-2z', key: 'sparkle' }]] },
 };
 
 /**

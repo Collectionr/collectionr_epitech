@@ -105,7 +105,7 @@ Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depu
 
 Utiliser Lucide Icons (`lucide-react` / `lucide-react-native`), avec une taille explicite et un libellé accessible. Les icônes renforcent la compréhension sans remplacer le texte.
 
-Sur le web, passer par l'atome Icon (COLLR-577) plutôt que par Lucide directement. Il applique les règles du Gold Master §05.2 : trait constant de 1,5 px à toutes les tailles, terminaisons nettes, angles vifs, sans remplissage, couleur héritée du texte. Les glyphes Lucide dessinés avec des angles arrondis (grilles à rectangles arrondis) sont remplacés par des tracés dessinés dans l'atome. Valeurs dans le token `iconography`.
+Sur le web, passer par l'atome Icon (COLLR-577) plutôt que par Lucide directement. Il applique les règles du Gold Master §05.2 : trait constant de 1,5 px à toutes les tailles, terminaisons nettes, angles vifs, sans remplissage, couleur héritée du texte. Les glyphes Lucide dessinés avec des angles arrondis (grilles à rectangles arrondis, étoiles à pointes courbes) sont remplacés par des tracés dessinés dans l'atome. Valeurs dans le token `iconography`.
 
 | Taille | Valeur | Usage |
 | --- | --- | --- |
