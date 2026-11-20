@@ -34,31 +34,12 @@ spec:
               containerPort: 3000
           securityContext:
             allowPrivilegeEscalation: false
+          # Réglages non secrets : ConfigMap backend-config (devops/k3s/backend-config.yaml).
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          # Secrets, et URLs assemblées à partir des Secrets ($(…) ne fonctionne que dans env).
           env:
-            - name: NODE_ENV
-              value: "production"
-            - name: PORT
-              value: "3000"
-            - name: LOG_LEVEL
-              value: "debug"
-            - name: SWAGGER_ENABLED
-              value: "true"
-            - name: CORS_ORIGINS
-              value: "http://collectionr.localhost"
-            - name: DATABASE_POOL_MAX
-              value: "10"
-            - name: THROTTLE_TTL
-              value: "60"
-            - name: THROTTLE_LIMIT
-              value: "100"
-            - name: AUDIT_LOG_RETENTION_DAYS
-              value: "90"
-            - name: PASSWORD_MIN_LENGTH
-              value: "8"
-            - name: TERMS_VERSION
-              value: "1"
-            - name: OCR_SHARED_DIR
-              value: "/data/ocr"
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
