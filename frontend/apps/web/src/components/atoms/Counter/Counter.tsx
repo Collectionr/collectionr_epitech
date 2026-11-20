@@ -30,6 +30,8 @@ export type CounterProps = CounterBaseProps & CounterFailureProps;
 
 /** Une carte de plus par pas : le compteur ne saute jamais plusieurs valeurs d'un coup. */
 const STEP_MS = motion.duration.snap;
+/** Durée maximale d'un rattrapage, celle d'une carte au balayage : les pas raccourcissent au-delà. */
+const CATCH_UP_MS = motion.duration.sequence;
 
 /** Espace de la largeur d'un chiffre : la largeur du compteur reste fixe pendant l'incrément. */
 const FIGURE_SPACE = '\u2007';
@@ -42,7 +44,8 @@ const SECONDS = new Intl.NumberFormat('fr-FR', {
 });
 
 const COUNTER_CLASSES = 'inline-flex items-center gap-space-8';
-const STATUS_CLASSES = 'whitespace-nowrap';
+const VISIBLE_CLASSES = 'whitespace-nowrap';
+const ANNOUNCEMENT_CLASSES = 'sr-only';
 
 function clamp(value: number, max: number): number {
   return Number.isNaN(value) ? 0 : Math.min(Math.max(Math.floor(value), 0), max);
@@ -55,16 +58,31 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-/** Valeur affichée : avance d'une unité par pas vers la cible, recule ou saute sans délai sinon. */
+/** Durée d'un pas pour un écart donné : `snap`, ou moins pour que tout l'écart tienne en `sequence`. */
+function stepDuration(gap: number): number {
+  return Math.min(STEP_MS, CATCH_UP_MS / gap);
+}
+
+function formatDuration(durationMs: number): string {
+  return `${SECONDS.format(durationMs / 1000)}${NO_BREAK_SPACE}s`;
+}
+
+/**
+ * Valeur affichée : avance d'une unité par pas vers la cible, recule ou saute sans délai sinon.
+ * La durée du pas est recalculée à chaque nouvelle cible, depuis la valeur affichée.
+ */
 function useSteppedValue(target: number): number {
   const [displayed, setDisplayed] = useState(target);
   const [previousTarget, setPreviousTarget] = useState(target);
+  const [step, setStep] = useState<number>(STEP_MS);
 
   // Ajustement pendant le rendu (et non dans un effet) : pas de rendu intermédiaire périmé.
   if (target !== previousTarget) {
     setPreviousTarget(target);
     if (target < displayed || prefersReducedMotion()) {
       setDisplayed(target);
+    } else {
+      setStep(stepDuration(target - displayed));
     }
   }
 
@@ -72,9 +90,9 @@ function useSteppedValue(target: number): number {
     if (displayed >= target) {
       return undefined;
     }
-    const timer = window.setTimeout(() => setDisplayed((value) => value + 1), STEP_MS);
+    const timer = window.setTimeout(() => setDisplayed((value) => value + 1), step);
     return () => window.clearTimeout(timer);
-  }, [displayed, target]);
+  }, [displayed, target, step]);
 
   return displayed;
 }
@@ -82,6 +100,8 @@ function useSteppedValue(target: number): number {
 /**
  * Compteur de progression d'un traitement par lot (scan multi-cartes) : remplace tout spinner.
  * Format Data-Mono `[ 2 / 3 prêtes ]`, puis la durée totale ou les échecs et leur reprise.
+ * L'incrément visible est masqué aux lecteurs d'écran : la région annoncée ne contient que les
+ * vraies valeurs, pour une seule annonce par changement et non une par pas.
  */
 export function Counter({ ready, total, durationMs, failed = 0, retryAction }: CounterProps) {
   const safeTotal = clamp(total, Number.MAX_SAFE_INTEGER);
@@ -89,11 +109,19 @@ export function Counter({ ready, total, durationMs, failed = 0, retryAction }: C
   const safeFailed = clamp(failed, safeTotal - safeReady);
   const displayed = useSteppedValue(safeReady);
 
-  const width = String(safeTotal).length;
-  const progress = `[ ${String(displayed).padStart(width, FIGURE_SPACE)} / ${safeTotal} prêtes ]`;
-  const isResolved = displayed === safeTotal && safeTotal > 0;
   const hasFailure = safeFailed > 0;
   const failureLabel = `${safeFailed}${NO_BREAK_SPACE}échec${safeFailed > 1 ? 's' : ''}`;
+  const isDone = (value: number) => value === safeTotal && safeTotal > 0;
+
+  const announcement = [
+    `[ ${safeReady} / ${safeTotal} prêtes ]`,
+    ...(isDone(safeReady) && durationMs !== undefined ? [formatDuration(durationMs)] : []),
+    ...(hasFailure ? [failureLabel] : []),
+  ].join(' · ');
+
+  const width = String(safeTotal).length;
+  const progress = `[ ${String(displayed).padStart(width, FIGURE_SPACE)} / ${safeTotal} prêtes ]`;
+  const showDuration = isDone(displayed) && durationMs !== undefined;
 
   return (
     <span className={COUNTER_CLASSES}>
@@ -101,12 +129,15 @@ export function Counter({ ready, total, durationMs, failed = 0, retryAction }: C
         role="status"
         aria-live={hasFailure ? 'assertive' : 'polite'}
         aria-atomic="true"
-        className={STATUS_CLASSES}
+        className={ANNOUNCEMENT_CLASSES}
       >
+        {announcement}
+      </span>
+      <span aria-hidden="true" className={VISIBLE_CLASSES}>
         <Text variant="data">{progress}</Text>
-        {isResolved && durationMs !== undefined && (
+        {showDuration && (
           <Text variant="data" color="acier-texte">
-            {` · ${SECONDS.format(durationMs / 1000)}${NO_BREAK_SPACE}s`}
+            {` · ${formatDuration(durationMs)}`}
           </Text>
         )}
         {hasFailure && (
@@ -115,8 +146,7 @@ export function Counter({ ready, total, durationMs, failed = 0, retryAction }: C
               {' · '}
             </Text>
             <Text variant="data" color="alerte">
-              <span aria-hidden="true">{`${FAILURE_GLYPH} `}</span>
-              {failureLabel}
+              {`${FAILURE_GLYPH} ${failureLabel}`}
             </Text>
           </>
         )}

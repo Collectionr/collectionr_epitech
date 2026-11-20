@@ -102,3 +102,32 @@ export const Balayage: Story = {
   args: { ready: 0, total: TOTAL },
   render: () => <ScanDemo />,
 };
+
+const BATCH = 40;
+
+function CatchUpDemo() {
+  const [ready, setReady] = useState(0);
+
+  return (
+    <div className="space-y-space-16">
+      <Counter ready={ready} total={BATCH} durationMs={BATCH * CARD_MS} />
+      <div className="flex gap-space-8">
+        <Button variant="secondary" onClick={() => setReady(BATCH)}>
+          Arrivée de 40 cartes
+        </Button>
+        <Button variant="ghost" onClick={() => setReady(0)}>
+          Remettre à zéro
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Grand écart d'un coup (0 → 40) : le compteur passe par chaque valeur mais rattrape en 400 ms
+ * au plus (token `sequence`). Les lecteurs d'écran n'entendent que la valeur finale.
+ */
+export const Rattrapage: Story = {
+  args: { ready: 0, total: BATCH },
+  render: () => <CatchUpDemo />,
+};
