@@ -23,7 +23,7 @@ export default defineConfig({
         test: {
           name: 'web',
           root: './apps/web',
-          environment: 'node',
+          environment: 'jsdom',
           include: ['src/**/*.test.{ts,tsx}'],
         },
       },
