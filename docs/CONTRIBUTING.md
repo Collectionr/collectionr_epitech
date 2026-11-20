@@ -110,7 +110,7 @@ pas dans la CI.
 | Dossier modifié | CI | Commandes à lancer en local | Seuil de couverture |
 |---|---|---|---|
 | `backend/` | `backend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run build` · `npm run test:cov` · `npm run test:e2e` | 70 % (`jest.config.js`) |
-| `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm test` · `npm run build` | 40 % (D03) — ⚠️ script `test:cov` à créer, les tests ne tournent pas encore en CI |
+| `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm run test:cov` · `npm run build` | 40 % lignes et branches (`vitest.config.ts`, `apps/mobile/jest.config.js`) |
 | `microservices/tcg/` | `worker-tcg-ci.yaml` | `ruff check .` · `ruff format --check .` · `mypy` · `pytest --cov` | 50 % (`pyproject.toml`) |
 | `microservices/worker-ocr/` | `worker-ocr-ci.yaml` | Pas encore de code Python : mêmes commandes que le TCG à son arrivée | 50 % (D03) |
 | `devops/`, `docs/` | Aucune CI pour l'instant | Depuis la racine : `for f in devops/scripts/*.sh; do bash -n "$f" || echo "ERREUR $f"; done` | — |
@@ -403,9 +403,8 @@ npm test
 # Mode watch (Vitest)
 npm run test:watch
 
-# Tests avec couverture
-npx vitest run --coverage
-npm run test -w @collectionr/mobile -- --coverage
+# Tests avec couverture et seuil de 40 % (Vitest puis Jest mobile), comme en CI
+npm run test:cov
 
 # Un seul projet Vitest (ex. : shared)
 npx vitest run --project shared
