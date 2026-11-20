@@ -1,7 +1,7 @@
 """Redis keys of the OCR pipeline (docs/stack-technique.md §8).
 
-They are the contract between the producer (the API) and the worker: fixed names,
-not configuration.
+They are the contract between the producer (the backend) and the worker: fixed
+names, not configuration.
 """
 
 # Jobs waiting for a worker, oldest at the tail.

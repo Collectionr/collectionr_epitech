@@ -1,4 +1,4 @@
-"""Job contract shared by the producer (the API) and the worker."""
+"""Job contract shared by the producer (the backend) and the worker."""
 
 from datetime import datetime
 from enum import StrEnum

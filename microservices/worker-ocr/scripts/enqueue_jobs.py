@@ -1,9 +1,9 @@
-"""Manual test of the queue, without any API: pushes jobs and follows them.
+"""Manual test of the queue, without any backend: pushes jobs and follows them.
 
     python -m scripts.enqueue_jobs --count 5 --failures 1
 
-Plays the producer's part (what the API will do): sets each job to `pending`, pushes
-it in the queue, then reads the statuses and the results written by the worker.
+Plays the producer's part (what the backend will do): sets each job to `pending`,
+pushes it in the queue, then reads the statuses and the results written by the worker.
 Exit code: 0 if every job ended as expected and in FIFO order, 1 otherwise, 2 if
 Redis is unreachable.
 """

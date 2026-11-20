@@ -3,17 +3,18 @@
 Worker Python du pipeline OCR de Collectionr (COLLR-729). Il consomme les jobs d'une file Redis,
 exécute l'inférence sur chacun, puis publie le statut et le résultat dans Redis.
 
-Il est **indépendant de l'API** : il n'expose aucune route HTTP et ne connaît que Redis. Si l'API
-s'arrête, il continue de vider la file ; s'il s'arrête, les jobs attendent dans la file.
+Il est **indépendant du backend**, qui dépose les jobs : il n'expose aucune route HTTP et ne connaît
+que Redis. Si le backend s'arrête, il continue de vider la file ; s'il s'arrête, les jobs attendent
+dans la file.
 
 > **État actuel** : socle et file d'attente. L'inférence est simulée par un moteur factice (`stub`),
-> qui n'ouvre pas l'image. Le modèle réel (COLLR-736), l'API FastAPI (COLLR-742) et la
-> conteneurisation (COLLR-749) font l'objet de tickets dédiés.
+> qui n'ouvre pas l'image. Le modèle réel (COLLR-736) et la conteneurisation (COLLR-749) font
+> l'objet de tickets dédiés.
 
 ## Fonctionnement
 
 ```text
-Producteur (API)                    Redis OCR                         Worker OCR
+Producteur (backend)                Redis OCR                         Worker OCR
       │                                                                    │
       ├─ SET   task:ocr:{job_id}:status = pending                          │
       ├─ LPUSH queue:ocr:pending  {job_id, image_path}                     │
@@ -79,6 +80,8 @@ En cas d'échec, `status` vaut `error`, `data` vaut `null` et `error` contient `
 | `max_attempts_exceeded` | le worker s'est arrêté trop de fois sur ce job |
 
 Le contenu de `data` sera défini avec le modèle réel et le contrat backend ↔ Worker OCR (COLLR-622).
+Ce contrat fixera aussi l'emplacement du résultat : il est publié dans Redis à ce stade, alors que le
+CDC prévoit un fichier JSON dans le Shared Volume.
 
 ## Structure
 
@@ -94,7 +97,7 @@ microservices/worker-ocr/
 │   ├── jobs/                 # contrat des jobs, file FIFO, statut/résultat, boucle de traitement
 │   └── inference/            # interface du moteur d'inférence + moteur factice
 ├── scripts/
-│   └── enqueue_jobs.py       # test manuel de la file, sans API
+│   └── enqueue_jobs.py       # test manuel de la file, sans backend
 ├── tests/                    # miroir de app/ et scripts/ (Redis en mémoire, aucune infra requise)
 └── Models/                   # notebooks d'évaluation des modèles OCR (COLLR-532)
 ```
@@ -151,7 +154,7 @@ Le worker démarre même si Redis est indisponible : il le signale dans les logs
 
 ## Tester la file avec le script
 
-Le script joue le rôle du producteur (ce que fera l'API) : il pousse des jobs, puis suit leur statut
+Le script joue le rôle du producteur (ce que fera le backend) : il pousse des jobs, puis suit leur statut
 et affiche leur résultat. Il faut un Redis ; en local, par exemple :
 
 ```bash
