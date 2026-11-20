@@ -1,5 +1,5 @@
 > **Maintenu par :** François Dubois (PO / Frontend Lead)
-> **Dernière mise à jour :** 2026-11-06
+> **Dernière mise à jour :** 2026-11-19
 > **Audience :** Toute l’équipe, en particulier les nouveaux contributeurs
 
 # Design system — Collectionr, thème Écrin
@@ -13,7 +13,7 @@ Cette version remplace l'ancienne charte provisoire (Inter, palette claire, avat
 Les valeurs vivent dans `frontend/packages/shared/src/tokens/`, sous forme d'objets TypeScript `as const`, sans JSX ni dépendance à React, Tailwind ou React Native. Import applicatif :
 
 ```ts
-import { colors, typography, spacing, radius, motion, opacity, breakpoints } from '@shared/tokens';
+import { colors, typography, spacing, sizing, radius, motion, opacity, breakpoints } from '@shared/tokens';
 ```
 
 Les tailles/espacements sont des nombres en pixels, les durées en millisecondes, les opacités entre 0 et 1, les interlignes des ratios et les crénages des nombres en em. Les unités CSS sont ajoutées par l'adaptateur. Les graisses sont définies dans `fontWeights` puis réutilisées par les variantes, les noms des fontes natives et le mapping Tailwind.
@@ -22,7 +22,7 @@ Les tailles/espacements sont des nombres en pixels, les durées en millisecondes
 
 Exemples de classes : `bg-ecrin`, `bg-ecrin-elevated`, `text-archive`, `border-lisere`, `p-space-16`, `gap-space-8`, `rounded-card`, `rounded-none`, `aspect-card`, `opacity-disabled`, `duration-instant`.
 
-Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Les futurs composants passent par l'atome Text, sauf Button qui utilise directement `text-button-label`. Les écrans de démarrage utilisent provisoirement ces classes en attendant Text (COLLR-575).
+Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Sur le web, les composants passent par l'atome Text (COLLR-575), sauf Button qui utilise directement `text-button-label`. Text ne rend jamais de `<label>` : un libellé de champ passe par l'atome Label (COLLR-579), qui impose `htmlFor`. Les écrans de démarrage (`apps/web/src/App.tsx`, `HomeScreen` et `TokensPreviewScreen` sur mobile) utilisent encore ces classes directement ; le mobile n'a pas encore d'atome Text.
 
 ## Couleurs
 
@@ -40,7 +40,7 @@ Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `
 
 Signal ne porte aucun texte inférieur à 18 px sur Écrin et ne sert jamais aux cotes. Les contrôles utilisent acier-texte pour leur bordure, pas le liséré faible d'une carte. Pas d'ombre sur fond sombre.
 
-Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %).
+Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`). Sur un contrôle, le liséré ne s'affaiblit jamais au survol ni au clic, et reste à 3:1 minimum sur Écrin : Button secondary passe d'acier-texte à `lisere-active` puis Archive ; danger passe d'Alerte à 90 % à Alerte pleine.
 
 ## Typographie et polices locales
 
@@ -68,6 +68,9 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Arrondis : `radius.card` = 6 px, `radius.none` = 0. Avatar et Badge sont carrés ; pas de `rounded-full`.
 - Ratio : `aspectRatio.card` = 63/88.
 - Bordure fine : `borders.thin` = 1 px.
+- Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
+- Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
+- Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
@@ -80,7 +83,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 | signature | 320 ms | Entrée de réticule, logo |
 | sequence | 400 ms | Balayage multi-cibles |
 
-Easing unique : `motion.easing` est le tuple `[0.2, 0, 0, 1]`. Le preset le convertit en `cubic-bezier(0.2,0,0,1)` ; Reanimated utilise `Easing.bezier(...motion.easing)`. Aucun ressort, rebond, scale de pression, spinner ou shimmer générique. Les animations génériques de Tailwind sont retirées.
+Easing unique : `motion.easing` est le tuple `[0.2, 0, 0, 1]`. Le preset le convertit en `cubic-bezier(0.2,0,0,1)` ; Reanimated utilise `Easing.bezier(...motion.easing)`. Aucun ressort, rebond, scale de pression, spinner ou shimmer générique. Les animations génériques de Tailwind sont retirées ; seul `animate-fade-in` (web, durée `snap`) est ajouté, pour l'apparition d'un élément sans transition possible, comme Badge.
 
 Sur le web, les durées utilisent des variables CSS mises à zéro dans `prefers-reduced-motion: reduce`. Une animation CSS spécifique doit également utiliser `var(--duration-...)`. Sur mobile, le preset produit les surcharges de durée à zéro pour les classes de transition et de durée, via la même media query reconnue par NativeWind (AccessibilityInfo).
 
@@ -102,11 +105,13 @@ Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depu
 
 Utiliser Lucide Icons (`lucide-react` / `lucide-react-native`), avec une taille explicite et un libellé accessible. Les icônes renforcent la compréhension sans remplacer le texte.
 
+Sur le web, passer par l'atome Icon (COLLR-577) plutôt que par Lucide directement. Il applique les règles du Gold Master §05.2 : trait constant de 1,5 px à toutes les tailles, terminaisons nettes, angles vifs, sans remplissage, couleur héritée du texte. Les glyphes Lucide dessinés avec des angles arrondis (grilles à rectangles arrondis, étoiles à pointes courbes) et ceux qui deviennent invisibles avec des terminaisons nettes (puces de liste en segments de 0,01) sont remplacés par des tracés dessinés dans l'atome. Valeurs dans le token `iconography`.
+
 | Taille | Valeur | Usage |
 | --- | --- | --- |
-| Small | 16 px | Icônes inline, badges |
-| Medium | 20 px | Boutons, navigation |
-| Large | 24 px | Tab bar, actions principales |
+| Small (`sm`) | 16 px | Icônes inline, badges |
+| Medium (`md`, défaut) | 20 px | Boutons, navigation |
+| Large (`lg`) | 24 px | Tab bar, actions principales |
 
 ## Prix et valeurs monétaires
 
@@ -114,7 +119,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens**, `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 

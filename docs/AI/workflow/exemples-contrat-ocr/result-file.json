@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "job_id": "a3f8c1d2-4e56-7890-abcd-ef1234567890",
+  "produced_at": "2026-11-15T10:00:04.100Z",
+  "result": {
+    "name": "Funécire",
+    "set_code": "TWM FR",
+    "set_number": "036/167",
+    "language": "fr",
+    "rarity": "Common",
+    "confidence": 0.94,
+    "model_version": "qwen2.5-vl-3b-1",
+    "processing_ms": 2840
+  }
+}
