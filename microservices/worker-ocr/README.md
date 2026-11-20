@@ -258,6 +258,9 @@ mypy                         # typage statique strict (app/, scripts/ et tests/)
 pytest --cov                 # tests unitaires + couverture (seuil 50 %, périmètre Python)
 ```
 
+La CI (`.github/workflows/worker-ocr-ci.yaml`) lance ces mêmes commandes sur chaque PR qui touche
+ce dossier.
+
 Le code (identifiants, commentaires, messages de log) est en anglais ; la documentation en français.
 
 ## Limites connues
