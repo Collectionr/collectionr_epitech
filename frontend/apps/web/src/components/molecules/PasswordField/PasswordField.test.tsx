@@ -1,0 +1,355 @@
+import { createRef } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { Icon } from '@/components/atoms';
+
+import { FormField } from '../FormField';
+
+import { PasswordField } from './PasswordField';
+
+const SHOW_LABEL = 'Afficher le mot de passe';
+const HIDE_LABEL = 'Masquer le mot de passe';
+
+function getInput(): HTMLInputElement {
+  const input = document.querySelector('input');
+  if (!input) {
+    throw new Error('Champ non rendu');
+  }
+  return input;
+}
+
+function getToggle(name: string): HTMLButtonElement {
+  return screen.getByRole('button', { name });
+}
+
+/**
+ * jsdom conserve la sélection quand le type d'un input change ; un navigateur peut la perdre.
+ * Simule ce cas pour que les tests prouvent la restauration faite par PasswordField.
+ */
+function resetSelectionOnTypeChange(input: HTMLInputElement) {
+  const typeProperty = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'type');
+  Object.defineProperty(input, 'type', {
+    configurable: true,
+    get(this: HTMLInputElement) {
+      return typeProperty?.get?.call(this);
+    },
+    set(this: HTMLInputElement, value: string) {
+      typeProperty?.set?.call(this, value);
+      this.setSelectionRange(0, 0);
+    },
+  });
+}
+
+describe('PasswordField', () => {
+  it('masque le mot de passe par défaut, avec un bouton « Afficher » relié au champ', () => {
+    render(<PasswordField id="motdepasse" />);
+
+    expect(getInput().type).toBe('password');
+    const toggle = getToggle(SHOW_LABEL);
+    expect(toggle.type).toBe('button');
+    expect(toggle.getAttribute('aria-controls')).toBe('motdepasse');
+    expect(toggle.hasAttribute('aria-pressed')).toBe(false);
+  });
+
+  it('affiche puis masque le mot de passe, avec un libellé et une icône qui suivent l’état', () => {
+    render(<PasswordField id="motdepasse" />);
+
+    expect(getToggle(SHOW_LABEL).innerHTML).toBe(renderToStaticMarkup(<Icon name="eye" />));
+
+    fireEvent.click(getToggle(SHOW_LABEL));
+    expect(getInput().type).toBe('text');
+    expect(getToggle(HIDE_LABEL).innerHTML).toBe(renderToStaticMarkup(<Icon name="eye-off" />));
+    expect(getToggle(HIDE_LABEL).hasAttribute('aria-pressed')).toBe(false);
+
+    fireEvent.click(getToggle(HIDE_LABEL));
+    expect(getInput().type).toBe('password');
+    expect(screen.queryByRole('button', { name: HIDE_LABEL })).toBeNull();
+  });
+
+  it('empêche le bouton de prendre le focus à la souris : le champ ne perd pas le focus', () => {
+    render(<PasswordField id="motdepasse" />);
+
+    const isNotPrevented = fireEvent.mouseDown(getToggle(SHOW_LABEL));
+
+    expect(isNotPrevented).toBe(false);
+  });
+
+  it('garde le focus et la sélection dans le champ après une bascule à la souris', () => {
+    render(<PasswordField id="motdepasse" defaultValue="Pikachu2026" />);
+    const input = getInput();
+    resetSelectionOnTypeChange(input);
+    input.focus();
+    input.setSelectionRange(2, 7, 'backward');
+
+    fireEvent.mouseDown(getToggle(SHOW_LABEL));
+    fireEvent.click(getToggle(SHOW_LABEL));
+
+    expect(document.activeElement).toBe(input);
+    expect(input.type).toBe('text');
+    expect([input.selectionStart, input.selectionEnd, input.selectionDirection]).toEqual([
+      2,
+      7,
+      'backward',
+    ]);
+  });
+
+  it('restaure la sélection après une bascule au clavier, le focus étant sur le bouton', () => {
+    render(<PasswordField id="motdepasse" defaultValue="Pikachu2026" />);
+    const input = getInput();
+    resetSelectionOnTypeChange(input);
+    input.setSelectionRange(4, 4);
+    getToggle(SHOW_LABEL).focus();
+
+    fireEvent.click(getToggle(SHOW_LABEL));
+    fireEvent.click(getToggle(HIDE_LABEL));
+
+    expect(document.activeElement).toBe(getToggle(SHOW_LABEL));
+    expect(input.type).toBe('password');
+    expect([input.selectionStart, input.selectionEnd]).toEqual([4, 4]);
+  });
+
+  it('conserve la valeur saisie à la bascule', () => {
+    render(<PasswordField id="motdepasse" />);
+    fireEvent.change(getInput(), { target: { value: 'Pikachu2026' } });
+
+    fireEvent.click(getToggle(SHOW_LABEL));
+
+    expect(getInput().value).toBe('Pikachu2026');
+  });
+
+  it('transmet les propriétés d’Input au champ natif', () => {
+    const handleChange = vi.fn();
+    const handleBlur = vi.fn();
+    render(
+      <PasswordField
+        id="motdepasse"
+        name="password"
+        autoComplete="new-password"
+        placeholder="8 caractères minimum"
+        required
+        onChange={handleChange}
+        onBlur={handleBlur}
+      />,
+    );
+
+    const input = getInput();
+    expect(input.id).toBe('motdepasse');
+    expect(input.name).toBe('password');
+    expect(input.getAttribute('autocomplete')).toBe('new-password');
+    expect(input.placeholder).toBe('8 caractères minimum');
+    expect(input.required).toBe(true);
+
+    fireEvent.change(input, { target: { value: 'Pikachu2026' } });
+    fireEvent.blur(input);
+    expect(handleChange).toHaveBeenCalledTimes(1);
+    expect(handleBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it('affiche l’erreur par Input, reliée au champ', () => {
+    render(
+      <PasswordField
+        id="motdepasse"
+        error="Au moins 8 caractères, dont une lettre et un chiffre."
+      />,
+    );
+
+    expect(getInput().getAttribute('aria-invalid')).toBe('true');
+    expect(getInput().getAttribute('aria-describedby')).toBe('motdepasse-error');
+    expect(document.getElementById('motdepasse-error')?.textContent).toBe(
+      'Au moins 8 caractères, dont une lettre et un chiffre.',
+    );
+  });
+
+  it('désactivé : champ et bouton désactivés, sans retour au survol', () => {
+    render(<PasswordField id="motdepasse" disabled />);
+
+    expect(getInput().disabled).toBe(true);
+    expect(getToggle(SHOW_LABEL).disabled).toBe(true);
+    expect(getToggle(SHOW_LABEL).className).toContain('enabled:hover:text-archive');
+  });
+
+  describe('retour automatique en mode masqué', () => {
+    it('repasse en masqué à l’envoi du formulaire parent, valeur et ref intactes', () => {
+      const objectRef = createRef<HTMLInputElement>();
+      render(
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+          }}
+        >
+          <PasswordField id="motdepasse" ref={objectRef} />
+          <button type="submit">Créer mon compte</button>
+        </form>,
+      );
+      fireEvent.change(getInput(), { target: { value: 'Pikachu2026' } });
+      fireEvent.click(getToggle(SHOW_LABEL));
+      expect(getInput().type).toBe('text');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Créer mon compte' }));
+
+      expect(getInput().type).toBe('password');
+      expect(getInput().value).toBe('Pikachu2026');
+      expect(objectRef.current).toBe(getInput());
+      expect(getToggle(SHOW_LABEL)).toBeTruthy();
+    });
+
+    it('repasse en masqué quand il est désactivé, valeur intacte', () => {
+      const { rerender } = render(<PasswordField id="motdepasse" />);
+      fireEvent.change(getInput(), { target: { value: 'Pikachu2026' } });
+      fireEvent.click(getToggle(SHOW_LABEL));
+
+      rerender(<PasswordField id="motdepasse" disabled />);
+
+      expect(getInput().type).toBe('password');
+      expect(getInput().value).toBe('Pikachu2026');
+      expect(getToggle(SHOW_LABEL).disabled).toBe(true);
+    });
+
+    it('reste masqué une fois réactivé : le mot de passe ne réapparaît jamais seul', () => {
+      const { rerender } = render(<PasswordField id="motdepasse" />);
+      fireEvent.click(getToggle(SHOW_LABEL));
+      rerender(<PasswordField id="motdepasse" disabled />);
+
+      rerender(<PasswordField id="motdepasse" />);
+
+      expect(getInput().type).toBe('password');
+      expect(getToggle(SHOW_LABEL).disabled).toBe(false);
+    });
+
+    it('retire l’écoute de l’envoi quand le champ est démonté, le formulaire restant', () => {
+      function renderForm(hasPasswordField: boolean) {
+        return (
+          <form aria-label="Inscription">
+            {hasPasswordField && <PasswordField id="motdepasse" />}
+          </form>
+        );
+      }
+      const { rerender } = render(renderForm(false));
+      const form = screen.getByRole('form');
+      const addListener = vi.spyOn(form, 'addEventListener');
+      const removeListener = vi.spyOn(form, 'removeEventListener');
+      function getSubmitListeners(spy: typeof addListener | typeof removeListener) {
+        return spy.mock.calls.filter(([type]) => type === 'submit').map(([, listener]) => listener);
+      }
+
+      rerender(renderForm(true));
+      const addedListeners = getSubmitListeners(addListener);
+      expect(addedListeners).toHaveLength(1);
+
+      rerender(renderForm(false));
+      expect(getSubmitListeners(removeListener)).toEqual(addedListeners);
+    });
+  });
+
+  it('transmet la ref à l’input natif, objet ou fonction', () => {
+    const objectRef = createRef<HTMLInputElement>();
+    const { unmount } = render(<PasswordField id="motdepasse" ref={objectRef} />);
+    expect(objectRef.current).toBe(getInput());
+    unmount();
+
+    const callbackRef = vi.fn();
+    render(<PasswordField id="motdepasse" ref={callbackRef} />);
+    expect(callbackRef).toHaveBeenCalledWith(getInput());
+  });
+
+  describe('nettoyage de la ref (React 19)', () => {
+    type CallbackRef = (node: HTMLInputElement | null) => (() => void) | undefined;
+
+    it('callback avec nettoyage : nettoyage appelé au démontage, callback jamais rappelée avec null', () => {
+      const cleanup = vi.fn();
+      const callbackRef = vi.fn<CallbackRef>(() => cleanup);
+      const { unmount } = render(<PasswordField id="motdepasse" ref={callbackRef} />);
+      const input = getInput();
+
+      unmount();
+
+      expect(callbackRef.mock.calls).toEqual([[input]]);
+      expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('callback avec nettoyage : nettoyage de l’ancienne ref appelé à son remplacement', () => {
+      const firstCleanup = vi.fn();
+      const firstRef = vi.fn<CallbackRef>(() => firstCleanup);
+      const secondCleanup = vi.fn();
+      const secondRef = vi.fn<CallbackRef>(() => secondCleanup);
+      const { rerender } = render(<PasswordField id="motdepasse" ref={firstRef} />);
+      const input = getInput();
+
+      rerender(<PasswordField id="motdepasse" ref={secondRef} />);
+
+      expect(firstRef.mock.calls).toEqual([[input]]);
+      expect(firstCleanup).toHaveBeenCalledTimes(1);
+      expect(secondRef.mock.calls).toEqual([[input]]);
+      expect(secondCleanup).not.toHaveBeenCalled();
+    });
+
+    it('callback classique : rappelée avec null au démontage', () => {
+      const callbackRef = vi.fn<CallbackRef>();
+      const { unmount } = render(<PasswordField id="motdepasse" ref={callbackRef} />);
+      const input = getInput();
+
+      unmount();
+
+      expect(callbackRef.mock.calls).toEqual([[input], [null]]);
+    });
+
+    it('callback classique : ancienne ref rappelée avec null à son remplacement', () => {
+      const firstRef = vi.fn<CallbackRef>();
+      const secondRef = vi.fn<CallbackRef>();
+      const { rerender } = render(<PasswordField id="motdepasse" ref={firstRef} />);
+      const input = getInput();
+
+      rerender(<PasswordField id="motdepasse" ref={secondRef} />);
+
+      expect(firstRef.mock.calls).toEqual([[input], [null]]);
+      expect(secondRef.mock.calls).toEqual([[input]]);
+    });
+
+    it('ref objet : remise à null au démontage', () => {
+      const objectRef = createRef<HTMLInputElement>();
+      const { unmount } = render(<PasswordField id="motdepasse" ref={objectRef} />);
+      expect(objectRef.current).toBe(getInput());
+
+      unmount();
+
+      expect(objectRef.current).toBeNull();
+    });
+
+    it('ref objet : ancienne ref remise à null à son remplacement', () => {
+      const firstRef = createRef<HTMLInputElement>();
+      const secondRef = createRef<HTMLInputElement>();
+      const { rerender } = render(<PasswordField id="motdepasse" ref={firstRef} />);
+      const input = getInput();
+
+      rerender(<PasswordField id="motdepasse" ref={secondRef} />);
+
+      expect(firstRef.current).toBeNull();
+      expect(secondRef.current).toBe(input);
+    });
+  });
+
+  it('se compose avec FormField : intitulé, requis et erreur unique', () => {
+    const { container } = render(
+      <FormField
+        label="Mot de passe"
+        id="motdepasse"
+        required
+        error="Au moins 8 caractères, dont une lettre et un chiffre."
+        renderControl={(control) => (
+          <PasswordField {...control} name="password" autoComplete="new-password" />
+        )}
+      />,
+    );
+
+    const label = getInput().labels?.[0];
+    expect(label?.htmlFor).toBe('motdepasse');
+    expect(label?.textContent).toContain('Mot de passe');
+    expect(getInput().required).toBe(true);
+    expect(getInput().getAttribute('aria-describedby')).toBe('motdepasse-error');
+    expect(container.querySelectorAll('[id$="-error"]')).toHaveLength(1);
+    expect(getToggle(SHOW_LABEL)).toBeTruthy();
+  });
+});
