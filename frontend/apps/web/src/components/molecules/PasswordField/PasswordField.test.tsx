@@ -182,6 +182,82 @@ describe('PasswordField', () => {
     expect(callbackRef).toHaveBeenCalledWith(getInput());
   });
 
+  describe('nettoyage de la ref (React 19)', () => {
+    type CallbackRef = (node: HTMLInputElement | null) => (() => void) | undefined;
+
+    it('callback avec nettoyage : nettoyage appelé au démontage, callback jamais rappelée avec null', () => {
+      const cleanup = vi.fn();
+      const callbackRef = vi.fn<CallbackRef>(() => cleanup);
+      const { unmount } = render(<PasswordField id="motdepasse" ref={callbackRef} />);
+      const input = getInput();
+
+      unmount();
+
+      expect(callbackRef.mock.calls).toEqual([[input]]);
+      expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('callback avec nettoyage : nettoyage de l’ancienne ref appelé à son remplacement', () => {
+      const firstCleanup = vi.fn();
+      const firstRef = vi.fn<CallbackRef>(() => firstCleanup);
+      const secondCleanup = vi.fn();
+      const secondRef = vi.fn<CallbackRef>(() => secondCleanup);
+      const { rerender } = render(<PasswordField id="motdepasse" ref={firstRef} />);
+      const input = getInput();
+
+      rerender(<PasswordField id="motdepasse" ref={secondRef} />);
+
+      expect(firstRef.mock.calls).toEqual([[input]]);
+      expect(firstCleanup).toHaveBeenCalledTimes(1);
+      expect(secondRef.mock.calls).toEqual([[input]]);
+      expect(secondCleanup).not.toHaveBeenCalled();
+    });
+
+    it('callback classique : rappelée avec null au démontage', () => {
+      const callbackRef = vi.fn<CallbackRef>();
+      const { unmount } = render(<PasswordField id="motdepasse" ref={callbackRef} />);
+      const input = getInput();
+
+      unmount();
+
+      expect(callbackRef.mock.calls).toEqual([[input], [null]]);
+    });
+
+    it('callback classique : ancienne ref rappelée avec null à son remplacement', () => {
+      const firstRef = vi.fn<CallbackRef>();
+      const secondRef = vi.fn<CallbackRef>();
+      const { rerender } = render(<PasswordField id="motdepasse" ref={firstRef} />);
+      const input = getInput();
+
+      rerender(<PasswordField id="motdepasse" ref={secondRef} />);
+
+      expect(firstRef.mock.calls).toEqual([[input], [null]]);
+      expect(secondRef.mock.calls).toEqual([[input]]);
+    });
+
+    it('ref objet : remise à null au démontage', () => {
+      const objectRef = createRef<HTMLInputElement>();
+      const { unmount } = render(<PasswordField id="motdepasse" ref={objectRef} />);
+      expect(objectRef.current).toBe(getInput());
+
+      unmount();
+
+      expect(objectRef.current).toBeNull();
+    });
+
+    it('ref objet : ancienne ref remise à null à son remplacement', () => {
+      const firstRef = createRef<HTMLInputElement>();
+      const secondRef = createRef<HTMLInputElement>();
+      const { rerender } = render(<PasswordField id="motdepasse" ref={firstRef} />);
+      const input = getInput();
+
+      rerender(<PasswordField id="motdepasse" ref={secondRef} />);
+
+      expect(firstRef.current).toBeNull();
+      expect(secondRef.current).toBe(input);
+    });
+  });
+
   it('se compose avec FormField : intitulé, requis et erreur unique', () => {
     const { container } = render(
       <FormField

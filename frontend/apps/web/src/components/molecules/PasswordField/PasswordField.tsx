@@ -24,12 +24,27 @@ const HIDE_LABEL = 'Masquer le mot de passe';
 const TOGGLE_CLASSES =
   'flex flex-1 items-center justify-center rounded-none text-acier-texte transition-colors duration-instant enabled:hover:text-archive';
 
-function assignRef<T>(ref: Ref<T> | undefined, node: T | null) {
+/**
+ * Attache `node` à la ref reçue et renvoie de quoi l'en détacher, selon la règle de React 19 :
+ * le nettoyage renvoyé par une ref callback s'il existe, sinon `ref(null)` pour une callback
+ * classique ; `current` remis à null pour une ref objet.
+ */
+function attachRef<T>(ref: Ref<T> | undefined, node: T): () => void {
   if (typeof ref === 'function') {
-    ref(node);
-  } else if (ref) {
-    ref.current = node;
+    const cleanup = ref(node);
+    return typeof cleanup === 'function'
+      ? cleanup
+      : () => {
+          ref(null);
+        };
   }
+  if (ref) {
+    ref.current = node;
+    return () => {
+      ref.current = null;
+    };
+  }
+  return () => {};
 }
 
 /**
@@ -44,10 +59,16 @@ export function PasswordField({ ref, id, disabled = false, ...inputProps }: Pass
   const inputRef = useRef<HTMLInputElement | null>(null);
   const selectionRef = useRef<TextSelection | null>(null);
 
+  // Ref callback avec nettoyage (React 19) : React appelle ce nettoyage au démontage ou au
+  // remplacement de la ref, et n'appelle plus jamais setInputRef(null).
   const setInputRef = useCallback(
-    (node: HTMLInputElement | null) => {
+    (node: HTMLInputElement) => {
       inputRef.current = node;
-      assignRef(ref, node);
+      const detachRef = attachRef(ref, node);
+      return () => {
+        inputRef.current = null;
+        detachRef();
+      };
     },
     [ref],
   );
