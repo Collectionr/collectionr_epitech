@@ -85,7 +85,7 @@ erDiagram
     SESSION {
         uuid id PK
         uuid userId FK
-        string refreshToken
+        string refreshTokenHash
         string ipAddress
         boolean isRevoked
         datetime expiresAt
