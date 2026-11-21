@@ -25,6 +25,10 @@ export interface InputProps {
   defaultValue?: string;
   /** Exemple de saisie, visible tant que le champ est vide (« email@exemple.com »). */
   placeholder?: string;
+  /** Nom accessible quand le champ n'est pas associé à un Label visible. */
+  'aria-label'?: string;
+  /** Hauteur du champ. La variante compacte affiche un message seulement en cas d'erreur. */
+  size?: 'default' | 'compact';
   /** Indice d'autocomplétion du navigateur (`email`, `given-name`, `new-password`…). */
   autoComplete?: InputHTMLAttributes<HTMLInputElement>['autoComplete'];
   /** Champ obligatoire (attribut natif) ; l'astérisque visible est porté par Label. */
@@ -39,10 +43,9 @@ export interface InputProps {
   onBlur?: FocusEventHandler<HTMLInputElement>;
   /** Référence vers l'`<input>` natif (bibliothèque de formulaire, focus programmé). */
   ref?: Ref<HTMLInputElement>;
-  /**
-   * Élément placé dans le champ, à droite, sur une largeur `space-48` retirée à la zone de texte.
-   * Réservé à PasswordField (bouton afficher/masquer).
-   */
+  /** Décoration non interactive placée à gauche du champ. */
+  leading?: ReactNode;
+  /** Élément interactif placé à droite, avec un espace réservé dans le champ. */
   trailing?: ReactNode;
 }
 
@@ -54,7 +57,7 @@ const EMPTY_MESSAGE = '\u00A0';
 
 const ROOT_CLASSES = 'flex w-full flex-col gap-space-4';
 
-/** `group` : survoler l'élément intégré (trailing) compte comme survoler le champ. */
+/** Le survol d'un élément intégré compte comme survol du champ. */
 const FIELD_CLASSES = 'group relative';
 
 /**
@@ -62,7 +65,7 @@ const FIELD_CLASSES = 'group relative';
  * PasswordField fournit le sien, sinon deux boutons s'afficheraient côte à côte.
  */
 const INPUT_CLASSES =
-  'h-control w-full rounded-none border bg-ecrin-elevated px-space-12 text-body text-archive placeholder:text-acier-texte transition-colors duration-instant [&::-ms-reveal]:hidden';
+  'w-full rounded-none border bg-ecrin-elevated px-space-12 text-body text-archive placeholder:text-acier-texte transition-colors duration-instant [&::-ms-reveal]:hidden';
 
 const BORDER_CLASSES = 'border-acier-texte';
 
@@ -74,9 +77,10 @@ const ERROR_CLASSES = 'border-alerte';
 
 const DISABLED_CLASSES = 'opacity-disabled';
 
-/** Même token des deux côtés : le texte saisi ne passe jamais sous l'élément intégré. */
-const TRAILING_SPACE_CLASSES = 'pr-space-48';
-const TRAILING_CLASSES = 'absolute inset-y-0 right-0 flex w-space-48';
+/** Le même espacement réserve la place du contenu intégré et décale le texte. */
+const LEADING_CLASSES =
+  'pointer-events-none absolute inset-y-0 left-0 flex w-space-32 items-center justify-center text-acier-texte';
+const TRAILING_CLASSES = 'absolute inset-y-0 right-0 flex';
 
 /** En flex, la ligne prend l'interligne de caption et non celui de body, hérité du parent. */
 const MESSAGE_CLASSES = 'flex transition-opacity duration-instant';
@@ -85,8 +89,7 @@ const MESSAGE_HIDDEN_CLASSES = `${MESSAGE_CLASSES} opacity-0`;
 
 /**
  * Champ de saisie texte du design system, rendu par un `<input>` natif.
- * Affiche l'erreur qu'on lui passe, reliée par `aria-describedby`, dans une place réservée :
- * l'apparition du message, en fondu, ne décale pas la mise en page.
+ * Relie l'erreur au champ par `aria-describedby`. En taille standard, sa place est réservée.
  * Le focus visible reste celui de la règle globale `:focus-visible`.
  */
 export function Input({
@@ -96,6 +99,8 @@ export function Input({
   value,
   defaultValue,
   placeholder,
+  'aria-label': ariaLabel,
+  size = 'default',
   autoComplete,
   required = false,
   disabled = false,
@@ -103,18 +108,23 @@ export function Input({
   onChange,
   onBlur,
   ref,
+  leading,
   trailing,
 }: InputProps) {
   const hasError = error !== undefined && error !== '';
+  const compact = size === 'compact';
+  const hasLeading = leading !== undefined;
   const hasTrailing = trailing !== undefined;
   const errorId = `${id}-error`;
 
   const fieldClassName = [FIELD_CLASSES, disabled && DISABLED_CLASSES].filter(Boolean).join(' ');
   const inputClassName = [
     INPUT_CLASSES,
+    compact ? 'h-control-compact' : 'h-control',
     hasError ? ERROR_CLASSES : BORDER_CLASSES,
     !hasError && !disabled && HOVER_CLASSES,
-    hasTrailing && TRAILING_SPACE_CLASSES,
+    hasLeading && 'pl-space-32',
+    hasTrailing && (compact ? 'pr-space-32' : 'pr-space-48'),
   ]
     .filter(Boolean)
     .join(' ');
@@ -122,6 +132,11 @@ export function Input({
   return (
     <div className={ROOT_CLASSES}>
       <div className={fieldClassName}>
+        {hasLeading && (
+          <span aria-hidden="true" className={LEADING_CLASSES}>
+            {leading}
+          </span>
+        )}
         <input
           ref={ref}
           id={id}
@@ -133,23 +148,30 @@ export function Input({
           autoComplete={autoComplete}
           required={required}
           disabled={disabled}
+          aria-label={ariaLabel}
           aria-invalid={hasError || undefined}
           aria-describedby={hasError ? errorId : undefined}
           onChange={onChange}
           onBlur={onBlur}
           className={inputClassName}
         />
-        {hasTrailing && <div className={TRAILING_CLASSES}>{trailing}</div>}
+        {hasTrailing && (
+          <div className={`${TRAILING_CLASSES} ${compact ? 'w-space-32' : 'w-space-48'}`}>
+            {trailing}
+          </div>
+        )}
       </div>
-      <p
-        id={errorId}
-        aria-hidden={hasError ? undefined : true}
-        className={hasError ? MESSAGE_VISIBLE_CLASSES : MESSAGE_HIDDEN_CLASSES}
-      >
-        <Text variant="caption" color="alerte">
-          {hasError ? error : EMPTY_MESSAGE}
-        </Text>
-      </p>
+      {(hasError || !compact) && (
+        <p
+          id={errorId}
+          aria-hidden={hasError ? undefined : true}
+          className={hasError ? MESSAGE_VISIBLE_CLASSES : MESSAGE_HIDDEN_CLASSES}
+        >
+          <Text variant="caption" color="alerte">
+            {hasError ? error : EMPTY_MESSAGE}
+          </Text>
+        </p>
+      )}
     </div>
   );
 }

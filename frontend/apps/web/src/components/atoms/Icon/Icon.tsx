@@ -1,10 +1,11 @@
-import { Bell, Eye, EyeOff, Icon as LucideIcon, Plus, Search } from 'lucide-react';
+import { Bell, Eye, EyeOff, Icon as LucideIcon, Plus, Search, X } from 'lucide-react';
 import type { LucideIcon as LucideIconComponent, LucideIconNode, LucideProps } from 'lucide-react';
 
 import { iconography } from '@shared/tokens';
 
 /** Icônes disponibles. Set ouvert : en ajouter au fil des besoins. */
-export type IconName = 'eye' | 'eye-off' | 'search' | 'bell' | 'plus' | 'sparkle' | 'grid' | 'list';
+export type IconName =
+  'eye' | 'eye-off' | 'search' | 'bell' | 'plus' | 'sparkle' | 'grid' | 'list' | 'x';
 
 /** Tailles standard, issues des tokens d'iconographie. */
 export type IconSize = keyof typeof iconography.sizes;
@@ -29,6 +30,7 @@ const ICONS: Record<IconName, IconSource> = {
   eye: { glyph: Eye },
   'eye-off': { glyph: EyeOff },
   search: { glyph: Search },
+  x: { glyph: X },
   bell: { glyph: Bell },
   plus: { glyph: Plus },
   // Dessinées ici parce que les grilles Lucide ont des rectangles arrondis (rx) et les étoiles
