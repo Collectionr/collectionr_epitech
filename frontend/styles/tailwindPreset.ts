@@ -109,9 +109,11 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
       keyframes: platform === 'web' ? { 'fade-in': { from: { opacity: '0' } } } : {},
       aspectRatio,
       extend: {
-        // Hauteurs et largeurs minimales (h-control, min-w-badge) : l'échelle d'espacement reste inchangée.
+        // Hauteurs, largeurs minimales et maximales (h-control, min-w-badge, max-w-form) :
+        // l'échelle d'espacement reste inchangée.
         height: sizes,
         minWidth: sizes,
+        maxWidth: sizes,
         colors: {
           lisere: withOpacity(colors.archive, opacity.lisere),
           'lisere-hover': withOpacity(colors.archive, opacity['lisere-hover']),

@@ -72,6 +72,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
 - Messages d'erreur des champs : ils tiennent sur une ligne à la largeur minimale de la colonne formulaire. La place réservée sous Input et Checkbox couvre une ligne caption. Un message plus long n'est jamais tronqué : il passe à la ligne et décale le contenu, c'est une exception acceptée.
 - Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
+- Colonne formulaire : `sizing.form` = 480 px (`max-w-form`), largeur maximale de la colonne formulaire d'AuthLayout. Valeur provisoire (décision PO du 21/11), à confirmer dans Figma. Le preset génère aussi les largeurs maximales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
