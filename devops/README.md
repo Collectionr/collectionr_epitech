@@ -334,5 +334,7 @@ Les lignes de plusieurs Pods s'entremêlent : c'est normal, Stern les lit en par
 Redis (`… * Ready to accept connections`), PostgreSQL (`… UTC [1] LOG: …`), nginx pour le Frontend (`… [notice] …`) ;
 seul le Backend écrit en **JSON** (`{"level":"info","service":"backend",…}`).
 
-> **Limite connue** : le Backend ne journalise pas encore ses requêtes HTTP (seulement son démarrage). C'est signalé au lead Back ;
-> les logs JSON corrélés par `job_id` (Backend + Worker OCR) arrivent en Beta.
+> **Pour tester, utilise une route `/api/v1/...`** (ex. `curl -s -H "Host: api.collectionr.localhost" http://localhost/api/v1/nope`) :
+> chaque requête y produit une ligne JSON. `/health` n'est **volontairement pas journalisé** (il est hors de `/api/v1`) :
+> les sondes de K3s l'appellent toutes les quelques secondes et noieraient les logs.
+
