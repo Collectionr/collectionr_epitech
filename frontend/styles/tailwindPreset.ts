@@ -116,6 +116,7 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
         // Hauteurs et largeurs minimales (h-control, min-w-badge) : l'échelle d'espacement reste inchangée.
         height: sizes,
         minWidth: sizes,
+        width: { sidebar: sizes.sidebar },
         colors: {
           lisere: withOpacity(colors.archive, opacity.lisere),
           'lisere-hover': withOpacity(colors.archive, opacity['lisere-hover']),

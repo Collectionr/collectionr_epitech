@@ -1,10 +1,33 @@
-import { Bell, Eye, EyeOff, Icon as LucideIcon, Plus, Search } from 'lucide-react';
+import {
+  Bell,
+  ChartNoAxesColumn,
+  Eye,
+  EyeOff,
+  House,
+  Icon as LucideIcon,
+  Plus,
+  Search,
+  Settings,
+  UserRound,
+} from 'lucide-react';
 import type { LucideIcon as LucideIconComponent, LucideIconNode, LucideProps } from 'lucide-react';
 
 import { iconography } from '@shared/tokens';
 
 /** Icônes disponibles. Set ouvert : en ajouter au fil des besoins. */
-export type IconName = 'eye' | 'eye-off' | 'search' | 'bell' | 'plus' | 'sparkle' | 'grid' | 'list';
+export type IconName =
+  | 'eye'
+  | 'eye-off'
+  | 'search'
+  | 'bell'
+  | 'plus'
+  | 'sparkle'
+  | 'grid'
+  | 'list'
+  | 'house'
+  | 'chart-no-axes-column'
+  | 'user-round'
+  | 'settings';
 
 /** Tailles standard, issues des tokens d'iconographie. */
 export type IconSize = keyof typeof iconography.sizes;
@@ -31,6 +54,10 @@ const ICONS: Record<IconName, IconSource> = {
   search: { glyph: Search },
   bell: { glyph: Bell },
   plus: { glyph: Plus },
+  house: { glyph: House },
+  'chart-no-axes-column': { glyph: ChartNoAxesColumn },
+  'user-round': { glyph: UserRound },
+  settings: { glyph: Settings },
   // Dessinées ici parce que les grilles Lucide ont des rectangles arrondis (rx) et les étoiles
   // (sparkles) des pointes courbes, contraires à la règle des angles vifs du Gold Master §05.2.
   // Les puces de la liste Lucide sont des segments de 0,01 : invisibles avec des terminaisons

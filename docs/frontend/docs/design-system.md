@@ -72,6 +72,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
 - Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - NavItem utilise la hauteur `sizing.control` et la largeur de son conteneur. L’indicateur de la page courante utilise `borders['nav-indicator']` (3 px) et la couleur Signal. Le libellé actif est en Archive.
+- Sidebar utilise `sizing.sidebar` (220 px), exposé par la classe `w-sidebar`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
@@ -120,7 +121,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter) et **Molecules** (NavItem), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter), **Molecules** (NavItem) et **Organisms** (Sidebar), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 
