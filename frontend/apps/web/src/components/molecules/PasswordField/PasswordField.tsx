@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { MouseEvent, Ref } from 'react';
 
 import { Icon, Input } from '@/components/atoms';
@@ -52,12 +52,37 @@ function attachRef<T>(ref: Ref<T> | undefined, node: T): () => void {
  * Le libellé du bouton change avec l'état (pas d'`aria-pressed`, qui l'annoncerait deux fois).
  * Basculer ne perd ni le curseur ni la sélection : à la souris, le champ garde le focus
  * (et la validation au blur ne se déclenche pas) ; dans tous les cas, la sélection est restaurée
- * après le changement de type. À placer dans FormField avec `renderControl`.
+ * après le changement de type. Repasse en masqué à l'envoi du formulaire parent et à la
+ * désactivation, et le reste à la réactivation : le mot de passe ne réapparaît jamais seul en clair ;
+ * la valeur saisie est conservée. À placer dans FormField avec `renderControl`.
  */
 export function PasswordField({ ref, id, disabled = false, ...inputProps }: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const selectionRef = useRef<TextSelection | null>(null);
+
+  // Ajustement pendant le rendu, sans effet : un champ désactivé n'est jamais peint en clair.
+  // Le bouton étant désactivé lui aussi, le champ reste masqué jusqu'à une nouvelle bascule.
+  if (disabled && isVisible) {
+    setIsVisible(false);
+  }
+
+  // Pas de tableau de dépendances : le formulaire du champ (`input.form`) n'est pas une valeur
+  // React. Relu après chaque rendu, il suit un changement de formulaire : le nettoyage retire
+  // l'écoute de l'ancien formulaire avant chaque nouvelle lecture, et au démontage.
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) {
+      return undefined;
+    }
+    function hide() {
+      setIsVisible(false);
+    }
+    form.addEventListener('submit', hide);
+    return () => {
+      form.removeEventListener('submit', hide);
+    };
+  });
 
   // Ref callback avec nettoyage (React 19) : React appelle ce nettoyage au démontage ou au
   // remplacement de la ref, et n'appelle plus jamais setInputRef(null).

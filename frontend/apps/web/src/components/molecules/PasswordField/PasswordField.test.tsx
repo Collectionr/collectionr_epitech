@@ -171,6 +171,79 @@ describe('PasswordField', () => {
     expect(getToggle(SHOW_LABEL).className).toContain('enabled:hover:text-archive');
   });
 
+  describe('retour automatique en mode masqué', () => {
+    it('repasse en masqué à l’envoi du formulaire parent, valeur et ref intactes', () => {
+      const objectRef = createRef<HTMLInputElement>();
+      render(
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+          }}
+        >
+          <PasswordField id="motdepasse" ref={objectRef} />
+          <button type="submit">Créer mon compte</button>
+        </form>,
+      );
+      fireEvent.change(getInput(), { target: { value: 'Pikachu2026' } });
+      fireEvent.click(getToggle(SHOW_LABEL));
+      expect(getInput().type).toBe('text');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Créer mon compte' }));
+
+      expect(getInput().type).toBe('password');
+      expect(getInput().value).toBe('Pikachu2026');
+      expect(objectRef.current).toBe(getInput());
+      expect(getToggle(SHOW_LABEL)).toBeTruthy();
+    });
+
+    it('repasse en masqué quand il est désactivé, valeur intacte', () => {
+      const { rerender } = render(<PasswordField id="motdepasse" />);
+      fireEvent.change(getInput(), { target: { value: 'Pikachu2026' } });
+      fireEvent.click(getToggle(SHOW_LABEL));
+
+      rerender(<PasswordField id="motdepasse" disabled />);
+
+      expect(getInput().type).toBe('password');
+      expect(getInput().value).toBe('Pikachu2026');
+      expect(getToggle(SHOW_LABEL).disabled).toBe(true);
+    });
+
+    it('reste masqué une fois réactivé : le mot de passe ne réapparaît jamais seul', () => {
+      const { rerender } = render(<PasswordField id="motdepasse" />);
+      fireEvent.click(getToggle(SHOW_LABEL));
+      rerender(<PasswordField id="motdepasse" disabled />);
+
+      rerender(<PasswordField id="motdepasse" />);
+
+      expect(getInput().type).toBe('password');
+      expect(getToggle(SHOW_LABEL).disabled).toBe(false);
+    });
+
+    it('retire l’écoute de l’envoi quand le champ est démonté, le formulaire restant', () => {
+      function renderForm(hasPasswordField: boolean) {
+        return (
+          <form aria-label="Inscription">
+            {hasPasswordField && <PasswordField id="motdepasse" />}
+          </form>
+        );
+      }
+      const { rerender } = render(renderForm(false));
+      const form = screen.getByRole('form');
+      const addListener = vi.spyOn(form, 'addEventListener');
+      const removeListener = vi.spyOn(form, 'removeEventListener');
+      function getSubmitListeners(spy: typeof addListener | typeof removeListener) {
+        return spy.mock.calls.filter(([type]) => type === 'submit').map(([, listener]) => listener);
+      }
+
+      rerender(renderForm(true));
+      const addedListeners = getSubmitListeners(addListener);
+      expect(addedListeners).toHaveLength(1);
+
+      rerender(renderForm(false));
+      expect(getSubmitListeners(removeListener)).toEqual(addedListeners);
+    });
+  });
+
   it('transmet la ref à l’input natif, objet ou fonction', () => {
     const objectRef = createRef<HTMLInputElement>();
     const { unmount } = render(<PasswordField id="motdepasse" ref={objectRef} />);
