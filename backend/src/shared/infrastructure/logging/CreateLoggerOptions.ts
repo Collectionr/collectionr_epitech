@@ -1,8 +1,11 @@
+import { RequestMethod } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { Params } from 'nestjs-pino';
 import { stdTimeFunctions } from 'pino';
 import { LOG_SERVICE_NAME } from '../../config/AppConstants';
 import { NodeEnvironment } from '../../config/EnvironmentVariables';
+
+const LOGGER_ROUTE_PATH = '{*path}';
 
 /**
  * Structured logger options (pino via nestjs-pino).
@@ -29,6 +32,8 @@ export function createLoggerOptions(configService: ConfigService): Params {
       };
 
   return {
+    // Named wildcard: the default `*` becomes `/api/*` under the global prefix and triggers a boot warning.
+    forRoutes: [{ path: LOGGER_ROUTE_PATH, method: RequestMethod.ALL }],
     pinoHttp: {
       ...jsonLineShape,
       level: configService.get<string>('LOG_LEVEL', 'info'),

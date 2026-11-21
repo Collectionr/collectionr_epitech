@@ -1,3 +1,4 @@
+import { RequestMethod } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import pino, { type LoggerOptions } from 'pino';
 import { LOG_SERVICE_NAME } from '../../config/AppConstants';
@@ -16,6 +17,12 @@ describe('createLoggerOptions', () => {
     );
 
     expect(options.pinoHttp).toMatchObject({ level: 'warn' });
+  });
+
+  it('mounts the logger on a named wildcard (path-to-regexp v8), not on a bare `*`', () => {
+    const options = createLoggerOptions(buildConfigService({ NODE_ENV: 'production' }));
+
+    expect(options.forRoutes).toEqual([{ path: '{*path}', method: RequestMethod.ALL }]);
   });
 
   it('emits raw JSON (no pretty transport) outside development', () => {
