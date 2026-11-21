@@ -46,7 +46,10 @@ export interface InputProps {
   trailing?: ReactNode;
 }
 
-/** Une ligne caption insécable : la place du message est réservée même sans erreur. */
+/**
+ * Une ligne caption insécable : la place du message est réservée même sans erreur.
+ * Une seule ligne : voir « Messages d'erreur des champs » dans design-system.md.
+ */
 const EMPTY_MESSAGE = '\u00A0';
 
 const ROOT_CLASSES = 'flex w-full flex-col gap-space-4';

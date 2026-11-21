@@ -11,7 +11,7 @@ import { Checkbox } from './Checkbox';
 const CGU_LABEL = 'J’accepte les Conditions Générales d’Utilisation';
 
 /** Message d'exemple : en production, il vient toujours du formulaire. */
-const CGU_ERROR = 'Acceptez les Conditions Générales d’Utilisation pour continuer.';
+const CGU_ERROR = 'Acceptez les CGU pour continuer.';
 
 const meta = {
   title: 'Checkbox',
