@@ -102,6 +102,10 @@ kubectl apply -f devops/k3s/backend.yaml
 - Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
 - ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
 - Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
+- **Réglages non secrets** (niveau de logs, CORS, limites…) : ConfigMap `backend-config`, dans `devops/k3s/backend-config.yaml`.
+  Pour en changer un : modifier le fichier, `kubectl apply -f devops/k3s/backend-config.yaml`, puis
+  `kubectl rollout restart deployment/backend --namespace development` (un Pod ne relit pas son ConfigMap tout seul).
+  `deploy.sh` l'applique automatiquement. Les mots de passe restent dans les Secrets.
 - Le Pod tourne en utilisateur non-root (`runAsUser: 1000`) avec `fsGroup: 1000`, pour garder le droit d'écrire dans le volume partagé OCR sur tout type de stockage.
 
 ---

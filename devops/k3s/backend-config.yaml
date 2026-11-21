@@ -1,0 +1,35 @@
+# Configuration NON SECRÈTE du Backend, environnement development.
+# Les mots de passe et clés restent dans les Secrets (voir backend.yaml et devops/README.md, « Secrets »).
+# Chaque clé devient une variable d'environnement du conteneur (envFrom dans backend.yaml).
+# Liste et valeurs autorisées : backend/src/shared/config/EnvironmentVariables.ts et backend/.env.example.
+#
+# Après une modification : kubectl apply -f devops/k3s/backend-config.yaml
+# puis kubectl rollout restart deployment/backend --namespace development
+# (un Pod ne relit pas son ConfigMap tout seul).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: development
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: collectionr
+    app.kubernetes.io/component: config
+    app.kubernetes.io/managed-by: kubectl
+data:
+  # Obligatoire dans le conteneur : sinon le Backend cherche pino-pretty (absent de l'image) et plante.
+  NODE_ENV: "production"
+  PORT: "3000"
+  LOG_LEVEL: "debug"
+  SWAGGER_ENABLED: "true"
+  CORS_ORIGINS: "http://collectionr.localhost"
+  DATABASE_POOL_MAX: "10"
+  THROTTLE_TTL: "60"
+  THROTTLE_LIMIT: "100"
+  AUDIT_LOG_RETENTION_DAYS: "90"
+  PASSWORD_MIN_LENGTH: "8"
+  TERMS_VERSION: "1"
+  OCR_SHARED_DIR: "/data/ocr"
+  # Plage d'adresses des Pods K3s (Traefik compris) : le Backend croit l'en-tête X-Forwarded-For qu'ils envoient.
+  # Sans elle, derrière l'Ingress, tous les clients partagent l'adresse de Traefik, donc une seule limite de connexion.
+  TRUSTED_PROXIES: "10.42.0.0/16"
