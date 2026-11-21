@@ -37,6 +37,16 @@ describe('AuthLayout', () => {
     expect(classes.contains('desktop:w-1/2')).toBe(true);
   });
 
+  it('borne la largeur de la colonne formulaire par le token sizing.form, centrée', () => {
+    renderLayout();
+
+    const column = screen.getByRole('main').firstElementChild;
+    expect(column?.contains(screen.getByRole('form'))).toBe(true);
+    expect(column?.classList.contains('w-full')).toBe(true);
+    expect(column?.classList.contains('max-w-form')).toBe(true);
+    expect(column?.classList.contains('mx-auto')).toBe(true);
+  });
+
   it('occupe au moins la hauteur de l’écran', () => {
     const { container } = renderLayout();
 

@@ -25,10 +25,10 @@ const FORM_PANEL_CLASSES =
   'flex flex-1 flex-col justify-center px-space-24 py-space-48 desktop:px-space-64';
 
 /**
- * Colonne du formulaire, provisoirement sans largeur maximale : le futur token `sizing.form`
- * (valeur à relever dans Figma, ajoutée dans un commit dédié) bornera cette largeur.
+ * Colonne du formulaire : toute la largeur disponible jusqu'au token `sizing.form` (`max-w-form`),
+ * centrée dans son panneau au-delà.
  */
-const FORM_COLUMN_CLASSES = 'w-full';
+const FORM_COLUMN_CLASSES = 'mx-auto w-full max-w-form';
 
 /**
  * Mise en page commune à l'inscription et à la connexion (Inscription V2, node Figma 684:7) :

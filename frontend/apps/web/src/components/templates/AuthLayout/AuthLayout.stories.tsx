@@ -29,7 +29,7 @@ const BRAND_PANEL = (
 );
 
 const FORM_PANEL = (
-  <Slot name="FormPanel" description="SignupForm ou LoginForm, sans largeur max (sizing.form)" />
+  <Slot name="FormPanel" description="SignupForm ou LoginForm, largeur max sizing.form (480 px)" />
 );
 
 /** Formulaire plus haut que la fenêtre : la page défile, le panneau de marque suit sa hauteur. */
