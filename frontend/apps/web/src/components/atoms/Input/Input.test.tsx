@@ -128,6 +128,29 @@ describe('Input', () => {
     expect(getInput().className).toContain('pr-space-48');
   });
 
+  it('en taille compacte, réserve la place des éléments intégrés et affiche seulement les erreurs présentes', () => {
+    const { rerender, container } = render(
+      <Input
+        id="recherche"
+        size="compact"
+        leading="Loupe"
+        trailing={<button type="button">Effacer</button>}
+      />,
+    );
+
+    const input = getInput();
+    expect(input.classList.contains('h-control-compact')).toBe(true);
+    expect(input.classList.contains('h-control')).toBe(false);
+    expect(input.className).toContain('pl-space-32');
+    expect(input.className).toContain('pr-space-32');
+    expect(screen.getByText('Loupe').getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('#recherche-error')).toBeNull();
+
+    rerender(<Input id="recherche" size="compact" error="Recherche invalide." />);
+    expect(input.getAttribute('aria-describedby')).toBe('recherche-error');
+    expect(screen.getByText('Recherche invalide.')).toBeTruthy();
+  });
+
   it('sans élément intégré, garde le padding horizontal symétrique', () => {
     render(<Input id="prenom" />);
 

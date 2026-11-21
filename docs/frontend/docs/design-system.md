@@ -69,8 +69,9 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Ratio : `aspectRatio.card` = 63/88.
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
+- SearchBar utilise la variante compacte d’Input (`sizing['control-compact']`, 32 px). Sa largeur suit son conteneur. Elle affiche une loupe décorative à gauche et un bouton d’effacement à droite quand elle contient du texte.
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
-- Messages d'erreur des champs : ils tiennent sur une ligne à la largeur minimale de la colonne formulaire. La place réservée sous Input et Checkbox couvre une ligne caption. Un message plus long n'est jamais tronqué : il passe à la ligne et décale le contenu, c'est une exception acceptée.
+- Messages d'erreur des champs : ils tiennent sur une ligne à la largeur minimale de la colonne formulaire. La place réservée sous Input standard et Checkbox couvre une ligne caption. Input compact affiche une ligne uniquement en cas d’erreur. Un message plus long n'est jamais tronqué : il passe à la ligne et décale le contenu, c'est une exception acceptée.
 - Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - Colonne formulaire : `sizing.form` = 480 px (`max-w-form`), largeur maximale de la colonne formulaire d'AuthLayout. Valeur provisoire (décision PO du 21/11), à confirmer dans Figma. Le preset génère aussi les largeurs maximales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
@@ -121,7 +122,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (FormField, PasswordField, PasswordStrength, Stepper) et **Templates** (AuthLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (FormField, PasswordField, PasswordStrength, SearchBar, Stepper) et **Templates** (AuthLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 
