@@ -57,8 +57,12 @@ const ROOT_CLASSES = 'flex w-full flex-col gap-space-4';
 /** `group` : survoler l'élément intégré (trailing) compte comme survoler le champ. */
 const FIELD_CLASSES = 'group relative';
 
+/**
+ * `[&::-ms-reveal]:hidden` masque le bouton œil natif de Microsoft Edge dans un champ mot de passe :
+ * PasswordField fournit le sien, sinon deux boutons s'afficheraient côte à côte.
+ */
 const INPUT_CLASSES =
-  'h-control w-full rounded-none border bg-ecrin-elevated px-space-12 text-body text-archive placeholder:text-acier-texte transition-colors duration-instant';
+  'h-control w-full rounded-none border bg-ecrin-elevated px-space-12 text-body text-archive placeholder:text-acier-texte transition-colors duration-instant [&::-ms-reveal]:hidden';
 
 const BORDER_CLASSES = 'border-acier-texte';
 

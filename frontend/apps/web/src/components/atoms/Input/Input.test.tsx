@@ -29,6 +29,14 @@ describe('Input', () => {
     expect(getInput().type).toBe('email');
   });
 
+  it('en type password, masque le bouton œil natif de Microsoft Edge', () => {
+    const { container } = render(<Input id="motdepasse" type="password" />);
+
+    const input = container.querySelector('input');
+    expect(input?.type).toBe('password');
+    expect(input?.className).toContain('[&::-ms-reveal]:hidden');
+  });
+
   it('affiche le placeholder fourni', () => {
     render(<Input id="email" placeholder="email@exemple.com" />);
 
