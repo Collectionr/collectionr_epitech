@@ -66,11 +66,8 @@ jobs:
       - name: Run typescript type checking
         run: npm run typecheck
 
-      - name: Run unit tests with coverage
-        run: npm run test:cov --if-present
-
-      - name: Run E2E / API integration tests
-        run: npm run test:e2e --if-present
+      - name: Run unit tests with coverage (>= 40%)
+        run: npm run test:cov
       
       - name: Build application 
         run: npm run build

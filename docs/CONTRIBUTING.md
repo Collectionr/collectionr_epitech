@@ -416,6 +416,9 @@ npm run test -w @collectionr/mobile
 npm run test:e2e:web
 ```
 
+> ⚠️ **Pas encore disponible** : aucun test E2E ni configuration Playwright n'existe pour l'instant (le script `test:e2e:web`
+> renvoie `Missing script`). La CI Frontend ne lance donc que `test:cov` ; l'étape E2E y sera ajoutée avec les premiers tests.
+
 ---
 
 # Workflow Git : protections et validations
