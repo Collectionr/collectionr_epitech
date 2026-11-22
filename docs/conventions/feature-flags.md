@@ -4,7 +4,8 @@
 **merger le code dans `dev` sans le montrer**, l'activer sur un poste ou un environnement pour le tester, et le couper
 sans redéployer de code.
 
-> Proposée par le DevOps, à valider par le lead Back et le lead Front.
+> Proposée par le DevOps, validée par le lead Back et le lead Front (novembre 2026).
+> Usage prévu : principalement en **Beta**, pour les fonctionnalités qui passent par une revue produit (ex. le scan).
 
 ---
 
@@ -36,8 +37,12 @@ sans redéployer de code.
    l'image), et n'importe qui peut le contourner dans son navigateur. Il sert à cacher un bouton ou un écran ;
    **la vraie protection est côté Backend** (la route renvoie `404` tant que son flag est à `false`).
 5. **Les tests couvrent les 2 positions** : flag activé (la fonctionnalité marche) et désactivé (`404` côté Backend, élément caché côté Front).
-6. **Un flag est temporaire** : une fois la fonctionnalité activée partout, on le supprime **au plus tard au jalon suivant**,
-   partout où il apparaît : code, tests, `.env.example`, ConfigMap, `vite-env.d.ts` / `env.d.ts`, `Dockerfile` web.
+6. **Un flag vit jusqu'à la validation de sa fonctionnalité** :
+   1. la fonctionnalité est développée et mergée **derrière son flag** (`false`) ;
+   2. elle passe **obligatoirement par une revue produit**, qui vérifie qu'elle fait exactement ce qui est attendu
+      (le flag est mis à `true` sur l'environnement de la revue) ;
+   3. une fois validée, le flag passe à `true` partout, puis **il est supprimé**, partout où il apparaît : code, tests,
+      `.env.example`, ConfigMap, `vite-env.d.ts` / `env.d.ts`, `Dockerfile` web.
    On crée le ticket de nettoyage **en même temps** que le flag.
 7. **Chaque flag est listé** dans le tableau du §4, avec son ticket de nettoyage.
 
@@ -61,7 +66,8 @@ sans redéployer de code.
 FEATURE_SCAN=false
 ```
 
-**Dans le code** : si `FEATURE_SCAN` vaut `false`, la route répond `404`, comme si elle n'existait pas.
+**Dans le code** : un **guard** NestJS (décision du lead Back) bloque la route tant que `FEATURE_SCAN` vaut `false`,
+et elle répond `404`, comme si elle n'existait pas.
 
 **Pour l'activer dans le cluster** (`devops/k3s/backend-config.yaml`) :
 ```yaml
