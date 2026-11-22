@@ -48,6 +48,13 @@ model User {
   role            Role         @relation(fields: [roleId], references: [id])
   /// A deactivated account (admin action, CDC §3.5) cannot log in.
   isActive        Boolean      @default(true)
+  /// When the user asked for the erasure of their account (RGPD Art. 17): the account is deactivated at
+  /// that moment and anonymized once the grace period is over (ADR-018). NULL = no erasure requested.
+  /// An admin deactivation (CDC §3.5) leaves it NULL: it blocks the account, it does not erase it.
+  deletedAt       DateTime?    @db.Timestamptz(6)
+  /// The personal data of the row has been replaced (email, username, password hash) and the account's own data
+  /// erased. The row itself stays, so the audit trail's `userId` keeps pointing at something until it expires.
+  isAnonymized    Boolean      @default(false)
   /// Optimistic lock (User.version): incremented by every update, which must match the version the
   /// caller loaded, or a stale copy would overwrite a concurrent password change/deactivation.
   version         Int          @default(0)
@@ -64,6 +71,7 @@ model User {
   collections     Collection[]
 
   @@index([roleId])
+  @@index([deletedAt])
   @@map("users")
 }
 
