@@ -26,6 +26,8 @@ function recordOf(user: User, overrides: Record<string, unknown> = {}): Record<s
     passwordHash: user.passwordHash,
     username: user.username,
     isActive: user.isActive,
+    deletedAt: user.deletedAt,
+    isAnonymized: user.isAnonymized,
     version: user.version,
     termsAcceptedAt: user.termsAcceptedAt,
     termsVersion: user.termsVersion,
@@ -42,6 +44,7 @@ interface Harness {
   update: jest.Mock;
   revokeSessions: jest.Mock;
   findUnique: jest.Mock;
+  findMany: jest.Mock;
 }
 
 /** `lock` is the `SELECT ... FOR UPDATE` row (or none) the transaction reads before writing. */
@@ -54,10 +57,11 @@ function harness(
   const update = jest.fn().mockResolvedValue(saved);
   const revokeSessions = jest.fn().mockResolvedValue({ count: 1 });
   const findUnique = jest.fn();
+  const findMany = jest.fn().mockResolvedValue([]);
   const tx = { $queryRaw: lock, user: { create, update }, session: { updateMany: revokeSessions } };
   const prismaClient = {
     $transaction: (callback: (client: unknown) => Promise<unknown>) => callback(tx),
-    user: { findUnique },
+    user: { findUnique, findMany },
   } as unknown as PrismaClient;
 
   return {
@@ -66,6 +70,7 @@ function harness(
     create,
     update,
     revokeSessions,
+    findMany,
     findUnique,
   };
 }
@@ -107,6 +112,8 @@ describe('PrismaUserRepository', () => {
         termsAcceptedAt: stale.termsAcceptedAt,
         termsVersion: stale.termsVersion,
         isActive: true,
+        deletedAt: null,
+        isAnonymized: false,
         version: 3,
         createdAt: stale.createdAt,
         updatedAt: stale.updatedAt,
@@ -289,6 +296,65 @@ describe('PrismaUserRepository', () => {
       await expect(
         h.repository.findByEmail(Email.create('nobody@example.com')),
       ).resolves.toBeNull();
+    });
+  });
+  describe('erasure fields', () => {
+    const requestedAt = new Date('2026-11-01T10:00:00.000Z');
+
+    it('writes deletedAt and isAnonymized when an account is saved anonymized', async () => {
+      const user = buildUser().requestDeletion(requestedAt);
+      const anonymized = user.anonymize(new Date('2026-12-02T10:00:00.000Z'));
+      const h = harness(
+        { version: 0, passwordHash: user.passwordHash, isActive: false },
+        recordOf(anonymized, { version: 1 }),
+      );
+
+      const saved = await h.repository.save(anonymized);
+
+      expect(h.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: anonymized.email.value,
+            username: anonymized.username,
+            usernameKey: anonymized.username,
+            deletedAt: requestedAt,
+            isAnonymized: true,
+            isActive: false,
+          }) as unknown,
+        }),
+      );
+      expect(saved.isAnonymized).toBe(true);
+      expect(saved.deletedAt).toEqual(requestedAt);
+    });
+
+    it('revokes the sessions when the erasure request deactivates an active account', async () => {
+      const user = buildUser();
+      const requested = user.requestDeletion(requestedAt);
+      const h = harness(
+        { version: 0, passwordHash: user.passwordHash, isActive: true },
+        recordOf(requested, { version: 1 }),
+      );
+
+      await h.repository.save(requested);
+
+      expect(h.revokeSessions).toHaveBeenCalledTimes(1);
+    });
+
+    it('lists the due accounts, oldest request first, without the anonymized ones', async () => {
+      const user = buildUser().requestDeletion(requestedAt);
+      const h = harness(null);
+      h.findMany.mockResolvedValue([recordOf(user, { deletedAt: requestedAt, isActive: false })]);
+      const cutoff = new Date('2026-11-15T10:00:00.000Z');
+
+      const due = await h.repository.findDeletionDue(cutoff, 50);
+
+      expect(h.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: { lte: cutoff }, isAnonymized: false },
+        orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+        take: 50,
+      });
+      expect(due.map((found) => found.id)).toEqual([user.id]);
+      expect(due[0]?.deletedAt).toEqual(requestedAt);
     });
   });
 });

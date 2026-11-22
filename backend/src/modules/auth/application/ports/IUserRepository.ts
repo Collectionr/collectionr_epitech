@@ -28,4 +28,11 @@ export interface IUserRepository {
   findByEmail(email: Email): Promise<User | null>;
   /** Looks up on User.usernameKey(username): case and spacing variants find the same user. */
   findByUsername(username: string): Promise<User | null>;
+
+  /**
+   * The accounts whose erasure was requested at or before `cutoff` and that are not anonymized yet,
+   * oldest request first, at most `limit` of them. Accounts without a request, anonymized ones and
+   * those requested after `cutoff` are never returned. Feeds AnonymizeDueAccountsUseCase.
+   */
+  findDeletionDue(cutoff: Date, limit: number): Promise<User[]>;
 }
