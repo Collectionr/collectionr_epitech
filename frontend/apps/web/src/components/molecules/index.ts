@@ -1,3 +1,5 @@
+export { NavItem } from './NavItem';
+export type { NavItemProps } from './NavItem';
 export { FormField } from './FormField';
 export type { FormFieldControlProps, FormFieldProps } from './FormField';
 export { PasswordField } from './PasswordField';

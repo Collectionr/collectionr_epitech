@@ -73,7 +73,11 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
       borderRadius: Object.fromEntries(
         Object.entries(radius).map(([key, value]) => [key, `${value}px`]),
       ),
-      borderWidth: { DEFAULT: `${borders.thin}px`, 0: '0px' },
+      borderWidth: {
+        DEFAULT: `${borders.thin}px`,
+        0: '0px',
+        'nav-indicator': `${borders['nav-indicator']}px`,
+      },
       boxShadow: { none: 'none' },
       opacity: {
         0: '0',
