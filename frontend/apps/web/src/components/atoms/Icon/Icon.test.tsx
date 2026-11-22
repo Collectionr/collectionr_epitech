@@ -6,7 +6,17 @@ import { iconography } from '@shared/tokens';
 import { Icon } from './Icon';
 import type { IconName, IconSize } from './Icon';
 
-const NAMES: IconName[] = ['eye', 'eye-off', 'search', 'bell', 'plus', 'sparkle', 'grid', 'list'];
+const NAMES: IconName[] = [
+  'eye',
+  'eye-off',
+  'search',
+  'bell',
+  'plus',
+  'sparkle',
+  'grid',
+  'list',
+  'x',
+];
 
 const SIZES = Object.keys(iconography.sizes) as IconSize[];
 
