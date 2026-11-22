@@ -55,6 +55,14 @@ Les rapports HTML sont écrits dans `frontend/coverage/` (ignoré par Git) :
 | web + shared | `frontend/coverage/web-shared/index.html` |
 | mobile       | `frontend/coverage/mobile/index.html`     |
 
+## Documentation d'équipe
+
+| Besoin | Où |
+|---|---|
+| Installer l'environnement local (nouveau membre) | [devops/ONBOARDING.md](./devops/ONBOARDING.md) |
+| Contribuer : branches, commits, PR, CI | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) |
+| Cacher une fonctionnalité pas finie | [docs/conventions/feature-flags.md](./docs/conventions/feature-flags.md) |
+
 ## Licence
 
 Code source consultable sous [PolyForm Strict 1.0.0](./LICENSE) — **ce n'est pas une licence open source**.
