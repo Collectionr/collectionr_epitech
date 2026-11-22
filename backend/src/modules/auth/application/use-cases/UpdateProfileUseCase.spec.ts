@@ -22,7 +22,13 @@ describe('UpdateProfileUseCase', () => {
   let existingUser: User;
 
   function build(): UpdateProfileUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const userRepository: IUserRepository = {
+      save,
+      findById,
+      findByEmail,
+      findByUsername,
+      findDeletionDue: jest.fn(),
+    };
     return new UpdateProfileUseCase(userRepository);
   }
 
@@ -58,6 +64,8 @@ describe('UpdateProfileUseCase', () => {
         termsVersion: '1',
         id: existingUser.id,
         isActive: false,
+        deletedAt: null,
+        isAnonymized: false,
         version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),

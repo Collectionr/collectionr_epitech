@@ -81,6 +81,8 @@ describe('User', () => {
         ...buildProps(),
         id: 'fixed-id',
         isActive: true,
+        deletedAt: null,
+        isAnonymized: false,
         version: 0,
         createdAt,
         updatedAt,
@@ -98,6 +100,8 @@ describe('User', () => {
           username: 'ab',
           id: 'fixed-id',
           isActive: true,
+          deletedAt: null,
+          isAnonymized: false,
           version: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -110,6 +114,8 @@ describe('User', () => {
         ...buildProps(),
         id: 'fixed-id',
         isActive: false,
+        deletedAt: null,
+        isAnonymized: false,
         version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -124,6 +130,8 @@ describe('User', () => {
       ...buildProps(),
       id: 'fixed-id',
       isActive: false,
+      deletedAt: null,
+      isAnonymized: false,
       version: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -146,6 +154,115 @@ describe('User', () => {
       expect(deactivated.id).toBe(user.id);
       expect(deactivated.passwordHash).toBe(user.passwordHash);
       expect(deactivated.updatedAt.getTime()).toBeGreaterThanOrEqual(user.updatedAt.getTime());
+    });
+  });
+
+  describe('requestDeletion', () => {
+    const requestedAt = new Date('2026-11-01T10:00:00.000Z');
+
+    it('deactivates the account and records when the erasure was requested', () => {
+      const user = User.register(buildProps());
+
+      const requested = user.requestDeletion(requestedAt);
+
+      expect(requested.isActive).toBe(false);
+      expect(requested.deletedAt).toEqual(requestedAt);
+      expect(requested.isAnonymized).toBe(false);
+      expect(user.deletedAt).toBeNull();
+      expect(user.isActive).toBe(true);
+    });
+
+    it('does not restart the grace period when asked again', () => {
+      const requested = User.register(buildProps()).requestDeletion(requestedAt);
+
+      const again = requested.requestDeletion(new Date('2026-11-20T10:00:00.000Z'));
+
+      expect(again).toBe(requested);
+      expect(again.deletedAt).toEqual(requestedAt);
+    });
+
+    it('is not what an admin deactivation does: that one leaves deletedAt empty', () => {
+      expect(User.register(buildProps()).deactivate().deletedAt).toBeNull();
+    });
+
+    it('refuses an anonymized account', () => {
+      const anonymized = User.register(buildProps())
+        .requestDeletion(requestedAt)
+        .anonymize(new Date('2026-12-01T10:00:00.000Z'));
+
+      expect(() => anonymized.requestDeletion()).toThrow('anonymized');
+    });
+  });
+
+  describe('isDeletionDueAt', () => {
+    const requestedAt = new Date('2026-11-01T10:00:00.000Z');
+    const requested = User.register(buildProps()).requestDeletion(requestedAt);
+
+    it('is false without an erasure request', () => {
+      expect(User.register(buildProps()).isDeletionDueAt(new Date('2030-01-01'))).toBe(false);
+    });
+
+    it('is false one millisecond before day 30 and true at the exact instant', () => {
+      const dueAt = new Date('2026-12-01T10:00:00.000Z');
+
+      expect(requested.isDeletionDueAt(new Date(dueAt.getTime() - 1))).toBe(false);
+      expect(requested.isDeletionDueAt(dueAt)).toBe(true);
+    });
+  });
+
+  describe('anonymize', () => {
+    const requestedAt = new Date('2026-11-01T10:00:00.000Z');
+    const due = new Date('2026-12-01T10:00:00.000Z');
+
+    it('replaces the personal data with values derived from the id alone', () => {
+      const user = User.register(buildProps()).requestDeletion(requestedAt);
+
+      const anonymized = user.anonymize(due);
+
+      const handle = user.id.replaceAll('-', '');
+      expect(anonymized.email.value).toBe(`deleted-${handle}@anonymized.invalid`);
+      expect(anonymized.username).toBe(`deleted-${handle}`);
+      expect(anonymized.passwordHash).not.toBe('hashed-password');
+      expect(anonymized.isAnonymized).toBe(true);
+      expect(anonymized.isActive).toBe(false);
+      expect(anonymized.deletedAt).toEqual(requestedAt);
+      expect(anonymized.updatedAt).toEqual(due);
+    });
+
+    it('keeps what identifies nobody: the id, the terms acceptance and the creation date', () => {
+      const user = User.register(buildProps()).requestDeletion(requestedAt);
+
+      const anonymized = user.anonymize(due);
+
+      expect(anonymized.id).toBe(user.id);
+      expect(anonymized.termsAcceptedAt).toEqual(termsAcceptedAt);
+      expect(anonymized.termsVersion).toBe(termsVersion);
+      expect(anonymized.createdAt).toEqual(user.createdAt);
+      expect(anonymized.version).toBe(user.version);
+    });
+
+    it('gives two accounts two different usernames and emails', () => {
+      const a = User.register(buildProps()).requestDeletion(requestedAt).anonymize(due);
+      const b = User.register(buildProps()).requestDeletion(requestedAt).anonymize(due);
+
+      expect(a.username).not.toBe(b.username);
+      expect(a.email.value).not.toBe(b.email.value);
+    });
+
+    it('refuses an account whose erasure was never requested', () => {
+      expect(() => User.register(buildProps()).anonymize(due)).toThrow('not requested');
+    });
+
+    it('refuses an account still inside its grace period', () => {
+      const user = User.register(buildProps()).requestDeletion(requestedAt);
+
+      expect(() => user.anonymize(new Date(due.getTime() - 1))).toThrow('grace period');
+    });
+
+    it('returns an already anonymized account unchanged', () => {
+      const anonymized = User.register(buildProps()).requestDeletion(requestedAt).anonymize(due);
+
+      expect(anonymized.anonymize(new Date('2027-01-01'))).toBe(anonymized);
     });
   });
 

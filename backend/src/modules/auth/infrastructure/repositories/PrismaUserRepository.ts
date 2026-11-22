@@ -79,6 +79,15 @@ export class PrismaUserRepository implements IUserRepository {
     return found === null ? null : toDomain(found);
   }
 
+  async findDeletionDue(cutoff: Date, limit: number): Promise<User[]> {
+    const found = await this.prismaClient.user.findMany({
+      where: { deletedAt: { lte: cutoff }, isAnonymized: false },
+      orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return found.map(toDomain);
+  }
+
   /**
    * One transaction, one row lock. `SELECT ... FOR UPDATE` serialises every writer of this user
    * (this save, a token rotation, a bulk revocation — they all take the same lock), which is what
@@ -105,6 +114,8 @@ export class PrismaUserRepository implements IUserRepository {
           termsAcceptedAt: user.termsAcceptedAt,
           termsVersion: user.termsVersion,
           isActive: user.isActive,
+          deletedAt: user.deletedAt,
+          isAnonymized: user.isAnonymized,
           version: 0,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
@@ -125,6 +136,8 @@ export class PrismaUserRepository implements IUserRepository {
         username: user.username,
         usernameKey: User.usernameKey(user.username),
         isActive: user.isActive,
+        deletedAt: user.deletedAt,
+        isAnonymized: user.isAnonymized,
         updatedAt: user.updatedAt,
         version: { increment: 1 },
       } satisfies Prisma.UserUncheckedUpdateInput,
@@ -178,6 +191,8 @@ function toDomain(record: PrismaUser): User {
     termsAcceptedAt: record.termsAcceptedAt,
     termsVersion: record.termsVersion,
     isActive: record.isActive,
+    deletedAt: record.deletedAt,
+    isAnonymized: record.isAnonymized,
     version: record.version,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,

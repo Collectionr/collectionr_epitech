@@ -38,6 +38,8 @@ interface StoredUser {
   termsAcceptedAt: Date;
   termsVersion: string;
   isActive: boolean;
+  deletedAt: Date | null;
+  isAnonymized: boolean;
   version: number;
   createdAt: Date;
   updatedAt: Date;
@@ -93,6 +95,18 @@ export class InMemoryUserRepository implements IUserRepository {
     return Promise.resolve(found === undefined ? null : toDomain(found));
   }
 
+  findDeletionDue(cutoff: Date, limit: number): Promise<User[]> {
+    const due = [...this.store.users.values()]
+      .filter((row) => row.deletedAt !== null && row.deletedAt <= cutoff && !row.isAnonymized)
+      .sort(
+        (a, b) =>
+          (a.deletedAt as Date).getTime() - (b.deletedAt as Date).getTime() ||
+          a.id.localeCompare(b.id),
+      )
+      .slice(0, limit);
+    return Promise.resolve(due.map(toDomain));
+  }
+
   findByUsername(username: string): Promise<User | null> {
     const key = User.usernameKey(username);
     const found = [...this.store.users.values()].find(
@@ -141,6 +155,8 @@ export class InMemoryUserRepository implements IUserRepository {
       termsAcceptedAt: user.termsAcceptedAt,
       termsVersion: user.termsVersion,
       isActive: user.isActive,
+      deletedAt: user.deletedAt,
+      isAnonymized: user.isAnonymized,
       version,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

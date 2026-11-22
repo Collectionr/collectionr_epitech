@@ -22,7 +22,13 @@ describe('GetCurrentUserUseCase', () => {
   let existingUser: User;
 
   function build(): GetCurrentUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const userRepository: IUserRepository = {
+      save,
+      findById,
+      findByEmail,
+      findByUsername,
+      findDeletionDue: jest.fn(),
+    };
     return new GetCurrentUserUseCase(userRepository);
   }
 

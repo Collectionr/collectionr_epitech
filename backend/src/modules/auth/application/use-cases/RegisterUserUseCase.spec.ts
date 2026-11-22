@@ -47,7 +47,13 @@ describe('RegisterUserUseCase', () => {
     maxPasswordBytes = HASHER_MAX_PASSWORD_BYTES,
     currentTermsVersion = CURRENT_TERMS_VERSION,
   ): RegisterUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const userRepository: IUserRepository = {
+      save,
+      findById,
+      findByEmail,
+      findByUsername,
+      findDeletionDue: jest.fn(),
+    };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes, hash, verify, getDummyHash };
     return new RegisterUserUseCase(
       userRepository,

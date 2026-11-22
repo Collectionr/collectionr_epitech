@@ -32,7 +32,13 @@ describe('LoginUserUseCase', () => {
   const revokeAllRefreshTokens = jest.fn();
 
   function build(): LoginUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const userRepository: IUserRepository = {
+      save,
+      findById,
+      findByEmail,
+      findByUsername,
+      findDeletionDue: jest.fn(),
+    };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes: 72, hash, verify, getDummyHash };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
@@ -112,6 +118,8 @@ describe('LoginUserUseCase', () => {
         termsVersion: '1',
         id: 'fixed-id',
         isActive: false,
+        deletedAt: null,
+        isAnonymized: false,
         version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
