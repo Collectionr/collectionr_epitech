@@ -13,6 +13,8 @@ import { ChangePasswordUseCase } from './application/use-cases/ChangePasswordUse
 import { UpdateProfileUseCase } from './application/use-cases/UpdateProfileUseCase';
 import { GetCurrentUserUseCase } from './application/use-cases/GetCurrentUserUseCase';
 import { DeactivateUserUseCase } from './application/use-cases/DeactivateUserUseCase';
+import { RequestAccountDeletionUseCase } from './application/use-cases/RequestAccountDeletionUseCase';
+import { AnonymizeDueAccountsUseCase } from './application/use-cases/AnonymizeDueAccountsUseCase';
 import { PurgeExpiredSessionsUseCase } from './application/use-cases/PurgeExpiredSessionsUseCase';
 import { ACCESS_TOKEN_VERIFIER } from './application/ports/IAccessTokenVerifier';
 import { USER_REPOSITORY } from './application/ports/IUserRepository';
@@ -20,10 +22,14 @@ import { USER_ROLE_RESOLVER } from './application/ports/IUserRoleResolver';
 import { PrismaUserRoleResolver } from './infrastructure/repositories/PrismaUserRoleResolver';
 import { PASSWORD_HASHER } from './application/ports/IPasswordHasher';
 import { AUTH_TOKEN_SERVICE } from './application/ports/IAuthTokenService';
+import { ACCOUNT_ERASURE_AUDIT } from './application/ports/IAccountErasureAudit';
+import { ACCOUNT_DATA_ERASER } from './application/ports/IAccountDataEraser';
 import { SESSION_PURGER } from './application/ports/ISessionPurger';
 import { PASSWORD_MIN_LENGTH } from './application/ports/PasswordPolicy';
 import { CURRENT_TERMS_VERSION } from './application/ports/TermsPolicy';
+import { PrismaAccountDataEraser } from './infrastructure/repositories/PrismaAccountDataEraser';
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository';
+import { AuditAccountErasureTrail } from './infrastructure/services/AuditAccountErasureTrail';
 import { AccessTokenVerifier } from './infrastructure/services/AccessTokenVerifier';
 import { BcryptPasswordHasher } from './infrastructure/services/BcryptPasswordHasher';
 import {
@@ -33,6 +39,7 @@ import {
   SESSION_MAX_LIFETIME_SECONDS,
 } from './infrastructure/services/JwtAuthTokenService';
 import { JwtTokenCodec } from './infrastructure/services/JwtTokenCodec';
+import { AuditModule } from '../audit/AuditModule';
 import { PrismaModule } from '../../shared/infrastructure/database/PrismaModule';
 import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
 
@@ -42,7 +49,7 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
  * Redis-backed rate limiting on the auth routes (ADR-008).
  */
 @Module({
-  imports: [PrismaModule, RedisModule],
+  imports: [PrismaModule, RedisModule, AuditModule],
   controllers: [AuthController, UsersController],
   providers: [
     RegisterUserUseCase,
@@ -53,12 +60,16 @@ import { RedisModule } from '../../shared/infrastructure/redis/RedisModule';
     UpdateProfileUseCase,
     GetCurrentUserUseCase,
     DeactivateUserUseCase,
+    RequestAccountDeletionUseCase,
+    AnonymizeDueAccountsUseCase,
     PurgeExpiredSessionsUseCase,
     JwtTokenCodec,
     JwtAuthGuard,
     RedisRateLimitGuard,
     RolesGuard,
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
+    { provide: ACCOUNT_DATA_ERASER, useClass: PrismaAccountDataEraser },
+    { provide: ACCOUNT_ERASURE_AUDIT, useClass: AuditAccountErasureTrail },
     { provide: USER_ROLE_RESOLVER, useClass: PrismaUserRoleResolver },
     { provide: PASSWORD_HASHER, useClass: BcryptPasswordHasher },
     { provide: AUTH_TOKEN_SERVICE, useClass: JwtAuthTokenService },
