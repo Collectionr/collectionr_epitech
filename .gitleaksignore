@@ -2,3 +2,12 @@
 177f7d84b670434161925d556839df966a978f70:backend/src/modules/auth/infrastructure/services/JwtTokenCodec.spec.ts:generic-api-key:6
 9a722ea31efb803ddd58d01ea9b57be4b7547bc2:backend/src/shared/config/ValidateEnvironment.spec.ts:generic-api-key:93
 9a722ea31efb803ddd58d01ea9b57be4b7547bc2:backend/src/shared/config/ValidateEnvironment.spec.ts:generic-api-key:120
+
+0a7ff1cb973813c4e99d4fe2215aea50a79cb1f3:backend/src/modules/auth/application/use-cases/RegisterUserUseCase.spec.ts:generic-api-key:128
+0a7ff1cb973813c4e99d4fe2215aea50a79cb1f3:backend/src/modules/auth/application/use-cases/ChangePasswordUseCase.spec.ts:generic-api-key:159
+d9a7061814fe11339a003a99863d19ada4d27ab1:backend/src/modules/audit/interface/interceptors/ReadAuditContext.spec.ts:jwt:77
+0278f0b6aa7ab29da308d04df84d4cfce89abcbf:backend/.env.example:generic-api-key:12
+
+b75c2ebfb344893b3cf65c1a3cd3503b85a7880d:docs/CONTRIBUTING.md:github-pat:569
+b75c2ebfb344893b3cf65c1a3cd3503b85a7880d:docs/CONTRIBUTING.md:github-pat:570
+134ddcd5b766c798f3e19f6d23a94b44e5de5675:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
