@@ -21,7 +21,7 @@ import {
 
 const require = createRequire(import.meta.url);
 const classes =
-  'text-display text-h1 text-data text-button-label bg-ecrin bg-lisere p-space-16 transition-opacity duration-snap focus-indicator font-bold font-sans font-mono font-sans-extrabold font-mono-semibold h-control p-control border-alerte/lisere-active h-badge min-w-badge w-sidebar animate-fade-in animate-spin animate-pulse';
+  'text-display text-h1 text-data text-button-label bg-ecrin bg-lisere p-space-16 transition-opacity duration-snap focus-indicator font-bold font-sans font-mono font-sans-extrabold font-mono-semibold h-control h-control-compact p-control border-alerte/lisere-active h-badge min-w-badge max-w-form w-sidebar animate-fade-in animate-spin animate-pulse';
 
 async function compile(platform: 'web' | 'mobile') {
   const config = require(
@@ -74,8 +74,10 @@ describe('raccordement du design system', () => {
     expect(lisere.replaceAll(' ', '')).toBe(`rgba(${rgb.join(',')},${opacity.lisere})`);
     // La hauteur de contrôle n'élargit pas l'échelle d'espacement.
     expect(css).toContain(`height: ${sizing.control}px`);
+    expect(css).toContain(`height: ${sizing['control-compact']}px`);
     expect(css).not.toContain('.p-control');
     expect(css).toContain(`min-width: ${sizing.badge}px`);
+    expect(css).toContain(`max-width: ${sizing.form}px`);
     expect(css).toContain(`width: ${sizing.sidebar}px`);
     // Seul le fondu d'apparition est généré, à la durée snap des tokens.
     expect(css).toContain('@keyframes fade-in');

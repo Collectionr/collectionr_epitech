@@ -15,6 +15,7 @@ const NAMES: IconName[] = [
   'sparkle',
   'grid',
   'list',
+  'x',
   'house',
   'chart-no-axes-column',
   'user-round',

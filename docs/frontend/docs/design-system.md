@@ -22,7 +22,7 @@ Les tailles/espacements sont des nombres en pixels, les durées en millisecondes
 
 Exemples de classes : `bg-ecrin`, `bg-ecrin-elevated`, `text-archive`, `border-lisere`, `p-space-16`, `gap-space-8`, `rounded-card`, `rounded-none`, `aspect-card`, `opacity-disabled`, `duration-instant`.
 
-Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Sur le web, les composants passent par l'atome Text (COLLR-575), sauf Button qui utilise directement `text-button-label`. Text ne rend jamais de `<label>` : un libellé de champ passe par l'atome Label (COLLR-579), qui impose `htmlFor`. Les écrans de démarrage (`apps/web/src/App.tsx`, `HomeScreen` et `TokensPreviewScreen` sur mobile) utilisent encore ces classes directement ; le mobile n'a pas encore d'atome Text.
+Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `text-data` et `text-button-label` appliquent la famille, la taille, l'interligne, le crénage et la graisse ensemble. Sur le web, les composants passent par l'atome Text (COLLR-575), sauf Button qui utilise directement `text-button-label`, et Input qui applique `text-body` à l'`<input>` natif (un champ de saisie ne peut pas être rendu par Text). Text ne rend jamais de `<label>` : un libellé de champ passe par l'atome Label (COLLR-579), qui impose `htmlFor`. Les écrans de démarrage (`apps/web/src/App.tsx`, `HomeScreen` et `TokensPreviewScreen` sur mobile) utilisent encore ces classes directement ; le mobile n'a pas encore d'atome Text.
 
 ## Couleurs
 
@@ -40,7 +40,7 @@ Les classes `text-display`, `text-h1`, `text-h2`, `text-body`, `text-caption`, `
 
 Signal ne porte aucun texte inférieur à 18 px sur Écrin et ne sert jamais aux cotes. Les contrôles utilisent acier-texte pour leur bordure, pas le liséré faible d'une carte. Pas d'ombre sur fond sombre.
 
-Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`). Sur un contrôle, le liséré ne s'affaiblit jamais au survol ni au clic, et reste à 3:1 minimum sur Écrin : Button secondary passe d'acier-texte à `lisere-active` puis Archive ; danger passe d'Alerte à 90 % à Alerte pleine.
+Les couleurs de liséré sont dérivées d'Archive et des opacités communes : `lisere` (15 %), `lisere-hover` (40 %) et `lisere-active` (90 %). Ces opacités s'appliquent aussi à une autre couleur par le modificateur Tailwind (`border-alerte/lisere-active`). Sur un contrôle, le liséré ne s'affaiblit jamais au survol ni au clic, et reste à 3:1 minimum sur Écrin : Button secondary passe d'acier-texte à `lisere-active` puis Archive ; danger passe d'Alerte à 90 % à Alerte pleine. Input passe d'acier-texte à `lisere-active` au survol (et non à `lisere-hover`, 3,3:1 contre 5,6:1 au repos) ; en erreur, sa bordure reste Alerte, survol compris. Checkbox suit la même règle sur une case non cochée ; cochée, elle est déjà bordée d'Archive.
 
 ## Typographie et polices locales
 
@@ -69,10 +69,13 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Ratio : `aspectRatio.card` = 63/88.
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
+- SearchBar utilise la variante compacte d’Input (`sizing['control-compact']`, 32 px). Sa largeur suit son conteneur. Elle affiche une loupe décorative à gauche et un bouton d’effacement à droite quand elle contient du texte.
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
+- Messages d'erreur des champs : ils tiennent sur une ligne à la largeur minimale de la colonne formulaire. La place réservée sous Input standard et Checkbox couvre une ligne caption. Input compact affiche une ligne uniquement en cas d’erreur. Un message plus long n'est jamais tronqué : il passe à la ligne et décale le contenu, c'est une exception acceptée.
 - Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - NavItem utilise la hauteur `sizing.control` et la largeur de son conteneur. L’indicateur de la page courante utilise `borders['nav-indicator']` (3 px) et la couleur Signal. Le libellé actif est en Archive.
 - Sidebar utilise `sizing.sidebar` (220 px), exposé par la classe `w-sidebar`.
+- Colonne formulaire : `sizing.form` = 480 px (`max-w-form`), largeur maximale de la colonne formulaire d'AuthLayout. Valeur provisoire (décision PO du 21/11), à confirmer dans Figma. Le preset génère aussi les largeurs maximales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
 
@@ -91,7 +94,7 @@ Sur le web, les durées utilisent des variables CSS mises à zéro dans `prefers
 
 `MotionAccessibility`, monté une fois dans `App.tsx`, synchronise également la préférence système avec la configuration globale de Reanimated, pour les animations programmées directement. Il suit les changements pendant l'utilisation, ignore une lecture initiale devenue obsolète et désactive les animations si cette lecture échoue. Les animations de l'application utilisent NativeWind ou Reanimated, avec les tokens de durée ; ne pas contourner cette configuration avec une surcharge locale `ReduceMotion.Never` ou un autre moteur d'animation.
 
-Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depuis `borders.focus`. Ne pas supprimer cet indicateur dans un composant. Sur mobile, les contrôles focusables portent la classe commune `focus-indicator` : le preset applique les mêmes tokens à l'état `:focus`, via les propriétés natives `outlineWidth`, `outlineOffset`, `outlineColor`, `outlineStyle`. Les propriétés outline sont disponibles dans la nouvelle architecture React Native utilisée ici. Aucun contrôle n'existe encore ; cette classe devra être ajoutée à chaque futur contrôle natif. Les valeurs et le comportement sont centralisés, pas réécrits dans chaque composant.
+Focus web global sur `:focus-visible` : outline 1,5 px Signal, offset 2 px, depuis `borders.focus`. Ne pas supprimer cet indicateur dans un composant. Un contrôle redessiné reste l'élément natif lui-même, pour recevoir cette règle : la case de Checkbox est l'`<input type="checkbox">` en `appearance-none`, et non une case dessinée à côté d'un input masqué (le thème n'a pas de classe d'outline 1,5 px pour la reporter). Sur mobile, les contrôles focusables portent la classe commune `focus-indicator` : le preset applique les mêmes tokens à l'état `:focus`, via les propriétés natives `outlineWidth`, `outlineOffset`, `outlineColor`, `outlineStyle`. Les propriétés outline sont disponibles dans la nouvelle architecture React Native utilisée ici. Aucun contrôle n'existe encore ; cette classe devra être ajoutée à chaque futur contrôle natif. Les valeurs et le comportement sont centralisés, pas réécrits dans chaque composant.
 
 ## Décisions PO du 16/10/2026
 
@@ -121,7 +124,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter), **Molecules** (NavItem) et **Organisms** (Sidebar), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper), **Organisms** (Sidebar) et **Templates** (AuthLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 

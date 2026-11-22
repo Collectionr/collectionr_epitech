@@ -9,6 +9,7 @@ import {
   Search,
   Settings,
   UserRound,
+  X,
 } from 'lucide-react';
 import type { LucideIcon as LucideIconComponent, LucideIconNode, LucideProps } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export type IconName =
   | 'sparkle'
   | 'grid'
   | 'list'
+  | 'x'
   | 'house'
   | 'chart-no-axes-column'
   | 'user-round'
@@ -52,6 +54,7 @@ const ICONS: Record<IconName, IconSource> = {
   eye: { glyph: Eye },
   'eye-off': { glyph: EyeOff },
   search: { glyph: Search },
+  x: { glyph: X },
   bell: { glyph: Bell },
   plus: { glyph: Plus },
   house: { glyph: House },
