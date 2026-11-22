@@ -118,6 +118,7 @@ export function createDesignPreset(platform: Platform): Partial<Config> {
         height: sizes,
         minWidth: sizes,
         maxWidth: sizes,
+        width: { sidebar: `${sizing.sidebar}px` },
         colors: {
           lisere: withOpacity(colors.archive, opacity.lisere),
           'lisere-hover': withOpacity(colors.archive, opacity['lisere-hover']),

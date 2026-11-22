@@ -16,6 +16,10 @@ const NAMES: IconName[] = [
   'grid',
   'list',
   'x',
+  'house',
+  'chart-no-axes-column',
+  'user-round',
+  'settings',
 ];
 
 const SIZES = Object.keys(iconography.sizes) as IconSize[];
