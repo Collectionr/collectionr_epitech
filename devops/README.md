@@ -339,8 +339,11 @@ seul le Backend écrit en **JSON** (`{"level":"info","service":"backend",…}`).
 > chaque requête y produit une ligne JSON. `/health` n'est **volontairement pas journalisé** (il est hors de `/api/v1`) :
 > les sondes de K3s l'appellent toutes les quelques secondes et noieraient les logs.
 ## Sécurité CI/CD — Gitleaks et Fail-Fast
-
-Afin de garantir qu'aucun secret ne puisse être mergé dans le dépôt (GitHub public temporaire pour l'Alpha), tous les workflows CI (`backend-ci.yaml`, `frontend-ci.yaml`, `worker-ocr-ci.yaml`, `worker-tcg-ci.yaml`) exécutent **Gitleaks** en première étape avec `fetch-depth: 0`.
+    
+Afin de garantir qu'aucun secret ne puisse être mergé dans le dépôt (GitHub public temporaire pour l'Alpha), la sécurité repose sur deux niveaux :
+1. **Workflow global `security-ci.yaml`** : exécuté sur **toutes les Pull Requests** sans restriction de chemin (couvre `devops/`, `docs/` et la racine).
+2. **Workflows applicatifs** (`backend-ci.yaml`, `frontend-ci.yaml`, `worker-ocr-ci.yaml`, `worker-tcg-ci.yaml`) : exécutent Gitleaks en premier job
+(`fetch-depth: 0`) et déclarent une dépendance `needs: [gitleaks]` sur les jobs suivants.
 
 ### Principe Fail-Fast
 
