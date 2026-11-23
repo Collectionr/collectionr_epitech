@@ -4,15 +4,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: 
-        - dev
-        - main
+      - dev
+      - main
 
 permissions: 
-    contents: read
+  contents: read
 
 concurrency: 
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs: 
   gitleaks: 
