@@ -22,7 +22,10 @@ La visibilité publique temporaire du code source impose une vigilance accrue à
    - Tout commit poussé est immédiatement public et indexé.
    - **Il est strictement interdit de commiter** des fichiers `.env`, des clés d'API tierces, des identifiants/mots de passe de base de données, des secrets JWT ou des certificats.
    - Vos fichiers d'environnement locaux (`.env`, `.env.local`) doivent impérativement rester listés dans le `.gitignore`.
-   - L'outil **Gitleaks** est exécuté en tête de chaque pipeline CI (`backend/**`, `frontend/**`, `microservices/worker-ocr/**`, `microservices/tcg/**`) pour bloquer immédiatement toute Pull Request introduisant un secret (principe Fail-Fast, `needs: [gitleaks]`). Les étapes suivantes (lint, build, tests) ne sont pas exécutées si une fuite est détectée. Il n'est pas intégré en pre-commit Husky local.
+   - L'outil **Gitleaks** est exécuté en tête de chaque pipeline CI (workflow global `security-ci.yaml` sur toutes les PRs, ainsi que `backend-ci.yaml`,
+    `frontend-ci.yaml`, `worker-ocr-ci.yaml`, `worker-tcg-ci.yaml`) pour bloquer immédiatement toute Pull Request introduisant un secret (principe
+    Fail-Fast, `needs: [gitleaks]`). Les étapes suivantes (lint, build, tests) ne sont pas exécutées si une fuite est détectée. Il n'est pas intégré en
+    pre-commit Husky local.
 2. **Gestion des variables sensibles en CI/CD** :
    - Tout secret requis pour les builds ou les tests doit être enregistré exclusivement dans les **GitHub Actions Secrets** (`Settings > Secrets and variables > Actions`). Ils ne doivent jamais apparaître en clair dans les manifests YAML ou les scripts.
 3. **Protection contre les Pull Requests externes** :
@@ -113,7 +116,8 @@ pas dans la CI.
 | `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm run test:cov` · `npm run build` | 40 % lignes et branches (`vitest.config.ts`, `apps/mobile/jest.config.js`) |
 | `microservices/tcg/` | `worker-tcg-ci.yaml` | `ruff check .` · `ruff format --check .` · `mypy` · `pytest --cov` | 50 % (`pyproject.toml`) |
 | `microservices/worker-ocr/` | `worker-ocr-ci.yaml` | Pas encore de code Python : mêmes commandes que le TCG à son arrivée | 50 % (D03) |
-| `devops/`, `docs/` | Aucune CI pour l'instant | Depuis la racine : `for f in devops/scripts/*.sh; do bash -n "$f" || echo "ERREUR $f"; done` | — |
+| `devops/`, `docs/`, racine | `security-ci.yaml` (scan global) | Depuis la racine : `for f in devops/scripts/*.sh; do bash -n "$f" || echo "ERREUR $f";
+done` | — |
 
 Les commandes se lancent depuis le dossier du domaine (sauf `devops/`). Détails : [`backend/README.md`](../backend/README.md),
 [`microservices/tcg/README.md`](../microservices/tcg/README.md), [Spécificités Frontend](#spécificités-frontend).
@@ -521,83 +525,6 @@ To github.com:Collectionr/collectionr_epitech.git
  ! [remote rejected] test-direct-push -> main (push declined due to repository rule violations)
 error: failed to push some refs to 'github.com:Collectionr/collectionr_epitech.git'
 ```
-
-> **Résultat** : La tentative est immédiatement interceptée et rejetée par le pré-receive hook de GitHub (`GH013`). Le DoD « Push direct sur `main` refusé, testé » est validé.
-
----
-
-## Preuve de validation Gitleaks Fail-Fast (DoD Ticket #34)
-
-Conformément aux critères d'acceptation du ticket **#34** (*Vérifier intégration Gitleaks* — Epic 2 CI/CD), Gitleaks est positionné en première étape stricte sur chacun des pipelines du mono-repo (`backend-ci.yaml`, `frontend-ci.yaml`, `worker-ocr-ci.yaml`, `worker-tcg-ci.yaml`). Tous les jobs applicatifs déclarent explicitement `needs: [gitleaks]`.
-
-### Matrice des pipelines et configuration Fail-Fast
-
-| Pipeline | Chemin Workflow | Job de sécurité initial | Dépendance downstream (`needs`) | Statut en cas de secret |
-|---|---|---|---|---|
-| **Backend NestJS** | `.github/workflows/backend-ci.yaml` | `gitleaks` (`gitleaks-action@v3`) | `backend` : `needs: [gitleaks]` | **SKIPPED** (lint, build, tests non exécutés) |
-| **Frontend React** | `.github/workflows/frontend-ci.yaml` | `gitleaks` (`gitleaks-action@v3`) | `frontend` : `needs: [gitleaks]` | **SKIPPED** (lint, build, tests non exécutés) |
-| **Worker OCR Python** | `.github/workflows/worker-ocr-ci.yaml` | `gitleaks` (`gitleaks-action@v3`) | `worker-ocr` : `needs: [gitleaks]` | **SKIPPED** (ruff, pytest non exécutés) |
-| **Worker TCG Python** | `.github/workflows/worker-tcg-ci.yaml` | `gitleaks` (`gitleaks-action@v3`) | `worker-tcg` : `needs: [gitleaks]` | **SKIPPED** (ruff, mypy, pytest non exécutés) |
-
-### Preuve du test : Détection d'un secret factice et arrêt immédiat
-
-Test exécuté avec le script de validation transverse `./devops/scripts/verify-gitleaks-failfast.sh` :
-
-```bash
-$ ./devops/scripts/verify-gitleaks-failfast.sh
-=== [1/4] Vérification de la configuration des workflows CI ===
-[OK] .github/workflows/backend-ci.yaml : Job 'gitleaks' présent en tête de pipeline.
-[OK] .github/workflows/backend-ci.yaml : Checkout avec fetch-depth: 0 configuré.
-[OK] .github/workflows/backend-ci.yaml : Dépendance 'needs: [gitleaks]' présente (fail-fast garanti).
-[OK] .github/workflows/frontend-ci.yaml : Job 'gitleaks' présent en tête de pipeline.
-[OK] .github/workflows/frontend-ci.yaml : Checkout avec fetch-depth: 0 configuré.
-[OK] .github/workflows/frontend-ci.yaml : Dépendance 'needs: [gitleaks]' présente (fail-fast garanti).
-[OK] .github/workflows/worker-ocr-ci.yaml : Job 'gitleaks' présent en tête de pipeline.
-[OK] .github/workflows/worker-ocr-ci.yaml : Checkout avec fetch-depth: 0 configuré.
-[OK] .github/workflows/worker-ocr-ci.yaml : Dépendance 'needs: [gitleaks]' présente (fail-fast garanti).
-[OK] .github/workflows/worker-tcg-ci.yaml : Job 'gitleaks' présent en tête de pipeline.
-[OK] .github/workflows/worker-tcg-ci.yaml : Checkout avec fetch-depth: 0 configuré.
-[OK] .github/workflows/worker-tcg-ci.yaml : Dépendance 'needs: [gitleaks]' présente (fail-fast garanti).
-
-=== [2/4] Vérification du baseline Gitleaks sur le dépôt propre ===
-Exécution : gitleaks detect --no-banner -v
-455 commits scanned.
-no leaks found
-[OK] Le scan du dépôt propre ne remonte aucune fuite.
-
-=== [3/4] Test DoD : Injection d'un secret factice et détection ===
-Création d'un fichier avec un faux secret GitHub PAT : backend/test_fake_secret.txt
-Scan du fichier avec Gitleaks...
-Finding:     GITHUB_TOKEN=ghp_012345678901234567890123456789012345
-Secret:      ghp_012345678901234567890123456789012345
-RuleID:      github-pat
-Entropy:     3.646439
-File:        backend/test_fake_secret.txt
-Line:        1
-Fingerprint: backend/test_fake_secret.txt:github-pat:1
-leaks found: 1
-[SUCCÈS DoD 1/2] Gitleaks a détecté le faux secret (code retour = 1).
-
-=== [4/4] Validation du mécanisme Fail-Fast (Simulation Pipeline) ===
-Simulation du comportement du runner GitHub Actions lors d'un échec de Gitleaks :
---- Simulation (has_secret=true) ---
-[JOB gitleaks] Échec : Secret détecté dans le commit de PR ! Code retour: 1
-[ORCHESTRATEUR] Le job prérequis 'gitleaks' a échoué.
-[JOB backend/frontend/worker] STATUT: SKIPPED (non exécuté)
-
-==============================================================================
-CRITÈRE D'ACCEPTATION (DoD) VALIDÉ :
-- Secret factice intercepté avec succès par Gitleaks (RuleID: github-pat).
-- Le job 'gitleaks' échoue immédiatement (exit code != 0).
-- Les jobs applicatifs dépendants (needs: [gitleaks]) sont immédiatement SKIPPED.
-- Aucune étape suivante (lint, build, tests) n'est exécutée.
-==============================================================================
-```
-
-> **Résultat** : Le DoD « Test avec un secret factice, pipeline s'arrête immédiatement, étapes suivantes non exécutées » est validé.
-
----
-
 
 ## Contacts
 
