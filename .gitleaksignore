@@ -11,3 +11,8 @@ d9a7061814fe11339a003a99863d19ada4d27ab1:backend/src/modules/audit/interface/int
 b75c2ebfb344893b3cf65c1a3cd3503b85a7880d:docs/CONTRIBUTING.md:github-pat:569
 b75c2ebfb344893b3cf65c1a3cd3503b85a7880d:docs/CONTRIBUTING.md:github-pat:570
 134ddcd5b766c798f3e19f6d23a94b44e5de5675:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
+
+38cac18da35432056d621740a687a63b7ec63650:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
+7dcb9ae32b18b63157e38cc7ebea5ad5dfa3c94a:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
+810f3df3faf091bf235efcec97acd689b426d1fd:docs/CONTRIBUTING.md:github-pat:571
+810f3df3faf091bf235efcec97acd689b426d1fd:docs/CONTRIBUTING.md:github-pat:572

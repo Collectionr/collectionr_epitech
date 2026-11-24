@@ -80,7 +80,7 @@ fi
 echo ""
 echo -e "${BLUE}=== [3/4] Test DoD : Injection d'un secret factice et détection ===${NC}"
 TEST_FILE="backend/test_fake_secret.txt"
-DUMMY_SECRET="ghp_012345678901234567890123456789012345"
+DUMMY_SECRET="ghp_""012345678901234567890123456789012345"
 
 echo "Création d'un fichier avec un faux secret GitHub PAT : $TEST_FILE"
 echo "GITHUB_TOKEN=$DUMMY_SECRET" > "$TEST_FILE"
