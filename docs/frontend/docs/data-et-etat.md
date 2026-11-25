@@ -395,6 +395,8 @@ Le back renvoie le jeton d'acces et le jeton de renouvellement dans le corps des
 | Acces (courte duree) | Memoire uniquement, jamais `localStorage` | Jamais persiste : perdu au rechargement, il est renouvele au demarrage |
 | Renouvellement | `localStorage` (web) pour l'Alpha | Necessaire pour restaurer la session au demarrage |
 
+Si `localStorage` est inaccessible ou refuse une ecriture (stockage plein ou bloque), l'onglet garde le jeton de renouvellement en memoire jusqu'a la fin de la visite (`apps/web/src/config/tokenStorage.ts`) : la valeur persistee, perimee, est supprimee si possible et n'est plus jamais relue, car presenter un jeton deja utilise ferait revoquer toute la chaine de connexion. La connexion est alors redemandee au prochain chargement.
+
 Risque accepte pour l'Alpha : un script injecte (XSS) peut lire le jeton de renouvellement dans `localStorage`. La cible reste un cookie httpOnly pose par le back. Le mobile utilisera un stockage securise (Keychain / Keystore), d'ou une interface de stockage asynchrone cote `packages/shared`.
 
 ### Template : Hook TanStack Query

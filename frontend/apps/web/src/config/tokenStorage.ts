@@ -20,34 +20,59 @@ function readLocalStorage(): BrowserStorage | null {
 
 /**
  * Stockage du jeton de renouvellement dans `localStorage` (décision PO du 25/11/2026 pour l'Alpha,
- * voir data-et-etat.md). Si le stockage est indisponible ou plein, la session reste utilisable
- * mais n'est pas restaurée au prochain chargement : la connexion est simplement redemandée.
+ * voir data-et-etat.md). La valeur persistée fait foi tant qu'elle peut être écrite : elle reflète
+ * aussi les renouvellements faits par les autres onglets.
+ *
+ * Si une écriture échoue (stockage plein ou bloqué), ou si `localStorage` est inaccessible, le
+ * jeton est gardé en mémoire et fait foi pour cet onglet jusqu'à la fin de la visite : la valeur
+ * persistée, désormais périmée, est supprimée si possible et n'est plus jamais relue. Présenter un
+ * jeton déjà utilisé ferait révoquer toute la chaîne de connexion par le back. La session dure alors
+ * le temps de la visite, et la connexion est redemandée au prochain chargement.
  * @param storage - Stockage à utiliser, `localStorage` par défaut
  */
 export function createWebTokenStorage(
   storage: BrowserStorage | null = readLocalStorage(),
 ): TokenStorage {
+  let memoryToken: string | null = null;
+  let persistedIsAuthoritative = storage !== null;
+
+  function removePersistedToken() {
+    try {
+      storage?.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    } catch {
+      // Suppression impossible : la valeur restante n'est de toute façon plus relue par cet onglet.
+    }
+  }
+
   return {
     async getRefreshToken() {
+      if (!persistedIsAuthoritative) {
+        return memoryToken;
+      }
       try {
         return storage?.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
       } catch {
-        return null;
+        // Lecture impossible : le dernier jeton connu de cet onglet reste le plus sûr.
+        return memoryToken;
       }
     },
+
     async setRefreshToken(refreshToken) {
+      memoryToken = refreshToken;
+      if (!persistedIsAuthoritative) {
+        return;
+      }
       try {
         storage?.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
       } catch {
-        // Stockage plein ou bloqué : le jeton reste valable pour cette visite seulement.
+        persistedIsAuthoritative = false;
+        removePersistedToken();
       }
     },
+
     async clearRefreshToken() {
-      try {
-        storage?.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-      } catch {
-        // Stockage bloqué : il ne contient alors aucun jeton à supprimer.
-      }
+      memoryToken = null;
+      removePersistedToken();
     },
   };
 }
