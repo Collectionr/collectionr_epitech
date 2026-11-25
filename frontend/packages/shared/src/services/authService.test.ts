@@ -255,7 +255,8 @@ describe('createAuthService', () => {
         status: 'authenticated',
         user: USER,
         accessToken: 'acces-2',
-        sessionExpired: false,
+        endReason: null,
+        restoreError: null,
       });
     });
 
@@ -265,7 +266,7 @@ describe('createAuthService', () => {
       await authService.restoreSession();
 
       expect(client.request).not.toHaveBeenCalled();
-      expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: false });
+      expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: null });
     });
 
     it('supprime un jeton refusé et passe en anonyme, sans parler d’expiration', async () => {
@@ -277,35 +278,89 @@ describe('createAuthService', () => {
       await authService.restoreSession();
 
       expect(storage.current()).toBeNull();
-      expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: false });
+      expect(store.getState()).toMatchObject({
+        status: 'anonymous',
+        endReason: null,
+        restoreError: null,
+      });
     });
 
-    it('conserve le jeton et passe en anonyme quand le serveur est injoignable', async () => {
-      const { storage, store, authService } = setup(
-        {
-          '/auth/refresh': () => Promise.reject(new NetworkError('connection', 'Failed to fetch')),
-        },
-        { storedToken: 'renouvellement-1' },
-      );
+    it.each([
+      ['un serveur injoignable', new NetworkError('connection', 'Failed to fetch')],
+      ['un délai dépassé', new NetworkError('timeout', 'Timeout')],
+      ['une erreur 503', apiError(503)],
+      ['une limite de débit (429)', apiError(429)],
+    ])(
+      'garde la session indéterminée et le jeton sur %s au renouvellement',
+      async (_label, error) => {
+        const { storage, store, authService } = setup(
+          { '/auth/refresh': () => Promise.reject(error) },
+          { storedToken: 'renouvellement-1' },
+        );
 
-      await authService.restoreSession();
+        await authService.restoreSession();
 
-      expect(storage.current()).toBe('renouvellement-1');
-      expect(store.getState().status).toBe('anonymous');
-    });
+        expect(storage.current()).toBe('renouvellement-1');
+        expect(store.getState()).toMatchObject({ status: 'unknown', restoreError: error });
+      },
+    );
 
-    it('passe en anonyme quand le profil ne peut pas être lu', async () => {
+    it('garde la session indéterminée quand le profil échoue côté serveur', async () => {
+      const error = apiError(500);
       const { store, authService } = setup(
         {
           '/auth/refresh': async () => ROTATED_TOKENS,
-          '/users/me': () => Promise.reject(apiError(500)),
+          '/users/me': () => Promise.reject(error),
         },
         { storedToken: 'renouvellement-1' },
       );
 
       await authService.restoreSession();
 
-      expect(store.getState()).toMatchObject({ status: 'anonymous', user: null });
+      expect(store.getState()).toMatchObject({ status: 'unknown', restoreError: error });
+    });
+
+    it.each([401, 404])(
+      'passe en anonyme et supprime le jeton quand le profil est refusé (%i)',
+      async (status) => {
+        const { storage, store, authService } = setup(
+          {
+            '/auth/refresh': async () => ROTATED_TOKENS,
+            '/users/me': () => Promise.reject(apiError(status)),
+          },
+          { storedToken: 'renouvellement-1' },
+        );
+
+        await authService.restoreSession();
+
+        expect(storage.current()).toBeNull();
+        expect(store.getState()).toMatchObject({ status: 'anonymous', restoreError: null });
+      },
+    );
+
+    it('relance la restauration après un échec, en effaçant l’erreur', async () => {
+      let attempts = 0;
+      const { store, authService } = setup(
+        {
+          '/auth/refresh': async () => {
+            attempts += 1;
+            if (attempts === 1) {
+              throw new NetworkError('connection', 'Failed to fetch');
+            }
+            return ROTATED_TOKENS;
+          },
+          '/users/me': async () => USER,
+        },
+        { storedToken: 'renouvellement-1' },
+      );
+      await authService.restoreSession();
+      expect(store.getState().restoreError).toBeInstanceOf(NetworkError);
+
+      const retry = authService.restoreSession();
+      expect(store.getState().restoreError).toBeNull();
+      await retry;
+
+      expect(store.getState()).toMatchObject({ status: 'authenticated', restoreError: null });
     });
 
     it('ne restaure qu’une fois, même appelée deux fois (StrictMode)', async () => {
@@ -336,7 +391,7 @@ describe('createAuthService', () => {
         body: { refreshToken: 'renouvellement-1' },
       });
       expect(storage.current()).toBeNull();
-      expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: false });
+      expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: 'logout' });
     });
 
     it('ferme la session localement même si le back est injoignable, puis propage l’erreur', async () => {
@@ -350,7 +405,7 @@ describe('createAuthService', () => {
 
       await expect(authService.logout()).rejects.toBeInstanceOf(NetworkError);
       expect(storage.current()).toBeNull();
-      expect(store.getState().status).toBe('anonymous');
+      expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: 'logout' });
     });
 
     it('ferme la session sans appel quand aucun jeton n’est enregistré', async () => {
@@ -372,7 +427,7 @@ describe('createAuthService', () => {
       await authService.clearSession();
 
       expect(storage.current()).toBeNull();
-      expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: true });
+      expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: 'expired' });
     });
 
     it('ne parle pas d’expiration quand aucune session n’était ouverte', async () => {
@@ -380,7 +435,7 @@ describe('createAuthService', () => {
 
       await authService.clearSession();
 
-      expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: false });
+      expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: null });
     });
   });
 });
@@ -430,6 +485,6 @@ describe('createAuthSession avec le client API', () => {
 
     await expect(client.request('/collections')).rejects.toMatchObject({ status: 401 });
     await vi.waitFor(() => expect(storage.current()).toBeNull());
-    expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: true });
+    expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: 'expired' });
   });
 });

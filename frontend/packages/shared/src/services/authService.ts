@@ -64,20 +64,23 @@ export interface AuthService {
   /** @returns Le profil de l'utilisateur connecté (`GET /users/me`) */
   me(): Promise<User>;
   /**
-   * Restaure la session au démarrage : renouvellement, puis profil. Le statut passe ensuite à
-   * `authenticated` ou `anonymous`. Une seule exécution par chargement de l'application, même si
-   * elle est demandée plusieurs fois (double montage du `StrictMode`).
+   * Restaure la session au démarrage : renouvellement, puis profil. Le statut passe à
+   * `authenticated`, ou à `anonymous` si le jeton est absent ou refusé. Si le serveur est
+   * injoignable ou en erreur, le statut reste `unknown` avec `restoreError` : le jeton est conservé
+   * et un nouvel appel relance la restauration. Une fois aboutie, une seule exécution par
+   * chargement de l'application, même demandée plusieurs fois (double montage du `StrictMode`).
    */
   restoreSession(): Promise<void>;
   /**
    * Vide la session après un renouvellement refusé : supprime le jeton, ferme la session, et la
-   * signale comme expirée si elle était ouverte.
+   * signale comme expirée (`endReason`) si elle était ouverte.
    */
   clearSession(): Promise<void>;
 }
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
 
 const runDirectly: RunExclusive = (task) => task();
 
@@ -129,6 +132,14 @@ function isRejectedToken(error: unknown): boolean {
   );
 }
 
+/** Profil refusé (jeton refusé, compte supprimé) : la session ne peut pas être restaurée. */
+function isInvalidSession(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.status === HTTP_UNAUTHORIZED || error.status === HTTP_NOT_FOUND)
+  );
+}
+
 /**
  * Crée le service d'authentification.
  * @param options - Client API, stockage du jeton, store de session et exclusion entre onglets
@@ -167,7 +178,7 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
 
   async function clearSession(): Promise<void> {
     const wasAuthenticated = store.getState().status === 'authenticated';
-    store.getState().endSession({ expired: wasAuthenticated });
+    store.getState().endSession({ reason: wasAuthenticated ? 'expired' : undefined });
     await storage.clearRefreshToken();
   }
 
@@ -178,23 +189,30 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
     return pendingRefresh;
   }
 
-  async function restore(): Promise<void> {
+  /** @returns `true` si la session est tranchée (ouverte ou anonyme), `false` si l'essai a échoué */
+  async function restore(): Promise<boolean> {
+    store.getState().clearRestoreError();
     try {
       if (!(await refresh())) {
         await clearSession();
-        return;
+        return true;
       }
       const user = await me();
       const { accessToken } = store.getState();
-      if (accessToken === null) {
-        // Session vidée pendant la lecture du profil : rien à restaurer.
-        return;
+      // Jeton nul : session vidée pendant la lecture du profil, elle est déjà anonyme.
+      if (accessToken !== null) {
+        store.getState().startSession(user, accessToken);
       }
-      store.getState().startSession(user, accessToken);
-    } catch {
-      // Serveur injoignable ou en erreur : le jeton est conservé pour le prochain chargement,
-      // l'utilisateur continue en anonyme plutôt que de rester sur l'écran de démarrage.
-      store.getState().endSession();
+      return true;
+    } catch (error) {
+      if (isInvalidSession(error)) {
+        await clearSession();
+        return true;
+      }
+      // Serveur injoignable ou en erreur : le jeton est conservé, l'écran d'erreur propose de
+      // réessayer ; la session reste indéterminée plutôt que de passer pour anonyme.
+      store.getState().failRestore(error);
+      return false;
     }
   }
 
@@ -225,7 +243,7 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
           await client.request('/auth/logout', { method: 'POST', body: { refreshToken } });
         }
       } finally {
-        store.getState().endSession();
+        store.getState().endSession({ reason: 'logout' });
         await storage.clearRefreshToken();
       }
     },
@@ -234,7 +252,11 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
     me,
 
     restoreSession() {
-      restoration ??= restore();
+      restoration ??= restore().then((settled) => {
+        if (!settled) {
+          restoration = null;
+        }
+      });
       return restoration;
     },
 

@@ -5,6 +5,8 @@ import { createBrowserRouter } from 'react-router';
 import type { RouteObject } from 'react-router';
 
 import { PageRoute } from './PageRoute';
+import { RedirectIfAuthenticated } from './RedirectIfAuthenticated';
+import { RequireAuth } from './RequireAuth';
 import { RootLayout } from './RootLayout';
 import { ROUTES } from './routes';
 
@@ -48,14 +50,24 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RootLayout />,
     children: [
-      pageRoute(ROUTES.login, LoginPage),
-      pageRoute(ROUTES.signup, SignupPage),
-      pageRoute(ROUTES.forgotPassword, ForgotPasswordPage),
-      pageRoute(ROUTES.dashboard, DashboardPage),
-      pageRoute(ROUTES.collections, CollectionsPage),
-      pageRoute(ROUTES.collection, CollectionDetailPage),
-      pageRoute(ROUTES.addCard, AddCardPage),
-      pageRoute(ROUTES.profile, ProfilePage),
+      {
+        element: <RedirectIfAuthenticated />,
+        children: [
+          pageRoute(ROUTES.login, LoginPage),
+          pageRoute(ROUTES.signup, SignupPage),
+          pageRoute(ROUTES.forgotPassword, ForgotPasswordPage),
+        ],
+      },
+      {
+        element: <RequireAuth />,
+        children: [
+          pageRoute(ROUTES.dashboard, DashboardPage),
+          pageRoute(ROUTES.collections, CollectionsPage),
+          pageRoute(ROUTES.collection, CollectionDetailPage),
+          pageRoute(ROUTES.addCard, AddCardPage),
+          pageRoute(ROUTES.profile, ProfilePage),
+        ],
+      },
       pageRoute('*', NotFoundPage),
     ],
   },

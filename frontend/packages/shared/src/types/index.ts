@@ -1,1 +1,8 @@
-export type { AuthStatus, AuthTokens, LoginCredentials, RegisterInput, User } from './auth';
+export type {
+  AuthStatus,
+  AuthTokens,
+  LoginCredentials,
+  RegisterInput,
+  SessionEndReason,
+  User,
+} from './auth';

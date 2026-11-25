@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { App } from './App';
 
 describe('App', () => {
-  it('affiche la page correspondant à l’adresse du navigateur', async () => {
+  it('restaure la session puis envoie un visiteur sans session vers la connexion', async () => {
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeDefined();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Connexion' })).toBeDefined();
   });
 });

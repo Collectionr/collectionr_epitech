@@ -157,16 +157,19 @@ export const useCartStore = create<CartState>((set) => ({
 
 | Etat | Type | Description |
 |---|---|---|
-| `status` | `'unknown' \| 'authenticated' \| 'anonymous'` | `unknown` jusqu'a la fin de la restauration au demarrage |
+| `status` | `'unknown' \| 'authenticated' \| 'anonymous'` | `unknown` jusqu'a ce que la restauration au demarrage aboutisse |
 | `user` | `User \| null` | Utilisateur connecte |
 | `accessToken` | `string \| null` | Jeton d'acces, en memoire uniquement |
-| `sessionExpired` | `boolean` | Session expiree en cours d'usage (renouvellement refuse), jusqu'a l'affichage du message |
+| `endReason` | `'expired' \| 'logout' \| null` | Raison de la derniere fermeture : expiration en cours d'usage (renouvellement refuse) ou deconnexion volontaire, jusqu'a l'arrivee sur la connexion |
+| `restoreError` | `unknown` | Erreur de la derniere restauration (serveur injoignable...) ; le statut reste alors `unknown` |
 
 Le store n'est jamais modifie par un composant : seul `authService` (`packages/shared/src/services/authService.ts`) l'alimente. Les composants lisent la session par les hooks de `@shared/hooks`, fournis par `AuthServiceContext` a la racine de l'app :
 
 | Hook | Role |
 |---|---|
-| `useAuth()` | `status`, `user`, `sessionExpired`, `acknowledgeSessionExpiry` |
+| `useAuth()` | `status`, `user`, `endReason`, `restoreError` |
+| `useRestoreSession()` | Lance la restauration au montage (une fois par chargement) ; renvoie la fonction « Reessayer » |
+| `useSessionExpiredNotice()` | Sur la connexion : `true` si la session vient d'expirer ; acquitte la raison de fermeture |
 | `useLogin()` | Mutation : connexion, session ouverte, profil mis en cache (`QUERY_KEYS.me`) |
 | `useRegister()` | Mutation : inscription, sans ouverture de session (le back ne renvoie pas de jetons) |
 | `useLogout()` | Mutation : revocation du jeton, session fermee, cache vide (`queryClient.clear()`), meme si le back est injoignable |
@@ -174,7 +177,13 @@ Le store n'est jamais modifie par un composant : seul `authService` (`packages/s
 
 Les redirections (page demandee apres connexion, `/connexion` apres deconnexion) restent dans l'application : les hooks ne dependent d'aucun routeur, pour servir aussi au mobile. Les erreurs de connexion et d'inscription sont traduites par `translateAuthError` (`@shared/utils`), et les formulaires valides par `@shared/validation` (`validateEmail`, `validateNewPassword`, `validateUsername`...).
 
-Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou partage par les onglets (Web Locks, fourni par l'app web), avec le jeton relu dans le stockage juste avant l'appel. Le jeton etant a usage unique, deux onglets qui le presenteraient en meme temps feraient revoquer toute la chaine de connexion. Restauration (`authService.restoreSession`) : renouvellement puis `GET /users/me`, une seule fois par chargement (double montage du `StrictMode` compris) ; un jeton refuse est supprime, une erreur reseau le conserve pour le prochain chargement.
+Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou partage par les onglets (Web Locks, fourni par l'app web), avec le jeton relu dans le stockage juste avant l'appel. Le jeton etant a usage unique, deux onglets qui le presenteraient en meme temps feraient revoquer toute la chaine de connexion. Restauration (`authService.restoreSession`) : renouvellement puis `GET /users/me`, une seule fois par chargement une fois aboutie (double montage du `StrictMode` compris).
+
+| Resultat | Statut | Jeton de renouvellement |
+|---|---|---|
+| Renouvellement et profil acceptes | `authenticated` | Remplace par le nouveau |
+| Aucun jeton, jeton refuse (400, 401), profil refuse (401, 404) | `anonymous` | Supprime |
+| Serveur injoignable, delai depasse, 5xx, 429, reponse illisible | `unknown` + `restoreError` : ecran d'erreur avec « Reessayer » (COLLR-700) | Conserve |
 
 **useUIStore** -- Etat de l'interface : theme, modals, toasts, chargement global.
 
