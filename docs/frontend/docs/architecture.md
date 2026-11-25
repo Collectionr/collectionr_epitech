@@ -281,7 +281,10 @@ Le web utilise **React Router 7.18** en mode data (`createBrowserRouter` + `Rout
 |---|---|
 | `routes.ts` | Seul endroit ou les chemins sont ecrits (`ROUTES`), plus `collectionPath(id)` et `addCardPath(collectionId)` pour les chemins a parametre. Aucun composant n'ecrit d'URL en dur |
 | `router.tsx` | Declaration des routes (`appRoutes`, reutilisees par les tests sur un routeur en memoire) et routeur du navigateur |
-| `RootLayout.tsx` | Racine de toutes les routes |
+| `RootLayout.tsx` | Racine de toutes les routes : lance la restauration de la session et la navigation des liens internes |
+| `RequireAuth.tsx` | Garde des pages connectees (Dashboard, collections, ajout, profil) |
+| `RedirectIfAuthenticated.tsx` | Garde des pages visiteurs (connexion, inscription, mot de passe oublie) |
+| `StartupScreen.tsx` | Ecran de demarrage, et ecran d'erreur de la restauration |
 | `PageRoute.tsx` | Enveloppe de chaque page : `RouteErrorBoundary` puis `Suspense` |
 | `useDocumentTitle.ts` | Titre de l'onglet, fixe par chaque page : « Ma Collection · Collectionr » |
 | `internalLinks.ts` | Navigation des liens internes en `<a href>` natif (voir ci-dessous) |
@@ -294,6 +297,20 @@ Regles :
 - **404** : la route `*` affiche « Page introuvable » et un lien vers le Dashboard.
 - **Pages provisoires** : une page pas encore construite affiche son titre et une phrase (`PlaceholderPage`), sans faux contenu.
 - Dans une page, un lien interne utilise `<Link>` de React Router.
+
+### Gardes et restauration de session (COLLR-700)
+
+| Statut de la session | Page connectee (`RequireAuth`) | Page visiteur (`RedirectIfAuthenticated`) |
+|---|---|---|
+| `unknown` (restauration en cours) | Ecran de demarrage | Ecran de demarrage : le formulaire n'apparait jamais un instant chez un utilisateur deja connecte |
+| `unknown` + `restoreError` | Ecran d'erreur avec « Reessayer » | Ecran d'erreur avec « Reessayer » |
+| `anonymous` | `/connexion?redirect=<page demandee>` ; `/connexion` seul apres une deconnexion volontaire | La page |
+| `authenticated` | La page | Page demandee (`redirect`), sinon Dashboard |
+
+- C'est `RedirectIfAuthenticated` qui redirige juste apres une connexion reussie : la page de connexion ne navigue pas elle-meme.
+- `redirect` n'est suivi que s'il designe une page interne (`getSafeRedirect` : pas d'autre origine, ni `//hote`, ni page visiteur, qui bouclerait).
+- Session expiree en cours d'usage : redirection vers la connexion, qui affiche « Votre session a expire, reconnectez-vous. ».
+- Ecran de demarrage : fond Ecrin, nom Collectionr en fondu `duration-signature`, « Connexion… » au-dela d'1 s, jamais de spinner. La page 404 n'a pas de garde.
 
 ### Liens internes en `<a href>` natif
 

@@ -11,14 +11,15 @@ const USER: User = {
 };
 
 describe('createAuthStore', () => {
-  it('démarre au statut unknown, sans utilisateur ni jeton', () => {
+  it('démarre au statut unknown, sans utilisateur, jeton, raison ni erreur', () => {
     const state = createAuthStore().getState();
 
     expect(state).toMatchObject({
       status: 'unknown',
       user: null,
       accessToken: null,
-      sessionExpired: false,
+      endReason: null,
+      restoreError: null,
     });
     expect(selectIsAuthenticated(state)).toBe(false);
   });
@@ -44,7 +45,7 @@ describe('createAuthStore', () => {
     expect(store.getState()).toMatchObject({ status: 'unknown', accessToken: 'jeton-renouvele' });
   });
 
-  it('ferme la session sans la signaler comme expirée par défaut', () => {
+  it('ferme la session sans raison par défaut', () => {
     const store = createAuthStore();
     store.getState().startSession(USER, 'jeton-acces');
 
@@ -54,28 +55,53 @@ describe('createAuthStore', () => {
       status: 'anonymous',
       user: null,
       accessToken: null,
-      sessionExpired: false,
+      endReason: null,
     });
   });
 
-  it('signale une session expirée jusqu’à ce que le message soit acquitté', () => {
+  it.each(['expired', 'logout'] as const)(
+    'garde la raison « %s » jusqu’à son acquittement',
+    (reason) => {
+      const store = createAuthStore();
+      store.getState().startSession(USER, 'jeton-acces');
+
+      store.getState().endSession({ reason });
+      expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: reason });
+
+      store.getState().acknowledgeEndReason();
+      expect(store.getState().endReason).toBeNull();
+    },
+  );
+
+  it('efface la raison de fermeture à la connexion suivante', () => {
     const store = createAuthStore();
+    store.getState().endSession({ reason: 'expired' });
+
     store.getState().startSession(USER, 'jeton-acces');
 
-    store.getState().endSession({ expired: true });
-    expect(store.getState()).toMatchObject({ status: 'anonymous', sessionExpired: true });
-
-    store.getState().acknowledgeExpiry();
-    expect(store.getState().sessionExpired).toBe(false);
+    expect(store.getState().endReason).toBeNull();
   });
 
-  it('efface l’indicateur d’expiration à la connexion suivante', () => {
+  it('garde la session indéterminée quand la restauration échoue', () => {
     const store = createAuthStore();
-    store.getState().endSession({ expired: true });
+    const error = new Error('Serveur injoignable');
 
+    store.getState().failRestore(error);
+    expect(store.getState()).toMatchObject({ status: 'unknown', restoreError: error });
+
+    store.getState().clearRestoreError();
+    expect(store.getState()).toMatchObject({ status: 'unknown', restoreError: null });
+  });
+
+  it('efface l’erreur de restauration quand la session est tranchée', () => {
+    const store = createAuthStore();
+    store.getState().failRestore(new Error('Serveur injoignable'));
     store.getState().startSession(USER, 'jeton-acces');
+    expect(store.getState().restoreError).toBeNull();
 
-    expect(store.getState().sessionExpired).toBe(false);
+    store.getState().failRestore(new Error('Serveur injoignable'));
+    store.getState().endSession();
+    expect(store.getState().restoreError).toBeNull();
   });
 
   it('crée un store indépendant à chaque appel', () => {

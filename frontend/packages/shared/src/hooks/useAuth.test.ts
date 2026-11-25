@@ -13,24 +13,28 @@ describe('useAuth', () => {
     const { store, wrapper } = createAuthHarness();
     const { result } = renderHook(() => useAuth(), { wrapper });
 
-    expect(result.current).toMatchObject({ status: 'unknown', user: null, sessionExpired: false });
+    expect(result.current).toEqual({
+      status: 'unknown',
+      user: null,
+      endReason: null,
+      restoreError: null,
+    });
 
     act(() => store.getState().startSession(TEST_USER, 'acces-1'));
     expect(result.current).toMatchObject({ status: 'authenticated', user: TEST_USER });
 
-    act(() => store.getState().endSession());
-    expect(result.current).toMatchObject({ status: 'anonymous', user: null });
+    act(() => store.getState().endSession({ reason: 'logout' }));
+    expect(result.current).toMatchObject({ status: 'anonymous', user: null, endReason: 'logout' });
   });
 
-  it('signale une session expirée jusqu’à son acquittement', () => {
+  it('expose l’erreur de restauration', () => {
     const { store, wrapper } = createAuthHarness();
-    store.getState().endSession({ expired: true });
+    const error = new Error('Serveur injoignable');
     const { result } = renderHook(() => useAuth(), { wrapper });
 
-    expect(result.current.sessionExpired).toBe(true);
-    act(() => result.current.acknowledgeSessionExpiry());
+    act(() => store.getState().failRestore(error));
 
-    expect(result.current.sessionExpired).toBe(false);
+    expect(result.current).toMatchObject({ status: 'unknown', restoreError: error });
   });
 
   it('exige le service d’authentification à la racine', () => {

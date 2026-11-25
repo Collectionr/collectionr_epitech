@@ -40,3 +40,6 @@ export interface RegisterInput {
 
 /** État de la session : inconnu tant que la restauration au démarrage n'a pas abouti. */
 export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous';
+
+/** Raison d'une fermeture de session : expiration en cours d'usage, ou déconnexion volontaire. */
+export type SessionEndReason = 'expired' | 'logout';

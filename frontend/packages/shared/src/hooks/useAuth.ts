@@ -1,19 +1,19 @@
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 
-import type { AuthStatus, User } from '../types';
+import type { AuthStatus, SessionEndReason, User } from '../types';
 import { useAuthService } from './authServiceContext';
 
 /** État de la session exposé aux composants. */
 export interface AuthSessionState {
-  /** `unknown` jusqu'à la fin de la restauration au démarrage */
+  /** `unknown` jusqu'à ce que la restauration au démarrage aboutisse */
   status: AuthStatus;
   /** Utilisateur connecté, `null` hors session */
   user: User | null;
-  /** Vrai quand la session vient d'expirer en cours d'usage */
-  sessionExpired: boolean;
-  /** Efface l'indicateur d'expiration, une fois le message affiché */
-  acknowledgeSessionExpiry: () => void;
+  /** Raison de la dernière fermeture de session (expiration, déconnexion), `null` sinon */
+  endReason: SessionEndReason | null;
+  /** Erreur de la dernière restauration, `null` sinon ; le statut reste alors `unknown` */
+  restoreError: unknown;
 }
 
 /** État de la session, mis à jour à chaque connexion, renouvellement refusé ou déconnexion. */
@@ -24,8 +24,8 @@ export function useAuth(): AuthSessionState {
     useShallow((state) => ({
       status: state.status,
       user: state.user,
-      sessionExpired: state.sessionExpired,
-      acknowledgeSessionExpiry: state.acknowledgeExpiry,
+      endReason: state.endReason,
+      restoreError: state.restoreError,
     })),
   );
 }

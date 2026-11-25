@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { StoreApi } from 'zustand/vanilla';
 
-import type { AuthStatus, User } from '../types';
+import type { AuthStatus, SessionEndReason, User } from '../types';
 
 // -- Types --------------------------------------------------------
 
@@ -13,8 +13,10 @@ export interface AuthState {
   user: User | null;
   /** Jeton d'accès, jamais persisté */
   accessToken: string | null;
-  /** Vrai quand la session vient d'expirer en cours d'usage, jusqu'à l'affichage du message */
-  sessionExpired: boolean;
+  /** Raison de la dernière fermeture de session, jusqu'à son acquittement ; `null` sinon */
+  endReason: SessionEndReason | null;
+  /** Erreur de la dernière restauration (serveur injoignable…), le statut restant `unknown` */
+  restoreError: unknown;
 
   /** Ouvre la session après une connexion ou une restauration réussie. */
   startSession: (user: User, accessToken: string) => void;
@@ -22,11 +24,15 @@ export interface AuthState {
   setAccessToken: (accessToken: string) => void;
   /**
    * Ferme la session.
-   * @param options - `expired` : la session a expiré en cours d'usage, à signaler à l'utilisateur
+   * @param options - `reason` : expiration en cours d'usage ou déconnexion volontaire
    */
-  endSession: (options?: { expired?: boolean }) => void;
-  /** Efface l'indicateur d'expiration, une fois le message affiché. */
-  acknowledgeExpiry: () => void;
+  endSession: (options?: { reason?: SessionEndReason }) => void;
+  /** Efface la raison de fermeture, une fois prise en compte (message affiché, redirection faite). */
+  acknowledgeEndReason: () => void;
+  /** Signale l'échec de la restauration : la session reste indéterminée (`unknown`). */
+  failRestore: (error: unknown) => void;
+  /** Efface l'erreur de restauration avant un nouvel essai. */
+  clearRestoreError: () => void;
 }
 
 /** Store de session, créé une fois par application. */
@@ -44,17 +50,28 @@ export function createAuthStore(): AuthStore {
     status: 'unknown',
     user: null,
     accessToken: null,
-    sessionExpired: false,
+    endReason: null,
+    restoreError: null,
 
     startSession: (user, accessToken) =>
-      set({ status: 'authenticated', user, accessToken, sessionExpired: false }),
+      set({ status: 'authenticated', user, accessToken, endReason: null, restoreError: null }),
 
     setAccessToken: (accessToken) => set({ accessToken }),
 
-    endSession: ({ expired = false } = {}) =>
-      set({ status: 'anonymous', user: null, accessToken: null, sessionExpired: expired }),
+    endSession: ({ reason } = {}) =>
+      set({
+        status: 'anonymous',
+        user: null,
+        accessToken: null,
+        endReason: reason ?? null,
+        restoreError: null,
+      }),
 
-    acknowledgeExpiry: () => set({ sessionExpired: false }),
+    acknowledgeEndReason: () => set({ endReason: null }),
+
+    failRestore: (error) => set({ status: 'unknown', restoreError: error }),
+
+    clearRestoreError: () => set({ restoreError: null }),
   }));
 }
 
