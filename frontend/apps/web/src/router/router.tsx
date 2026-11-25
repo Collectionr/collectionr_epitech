@@ -1,0 +1,65 @@
+import { lazy } from 'react';
+import type { ComponentType } from 'react';
+
+import { createBrowserRouter } from 'react-router';
+import type { RouteObject } from 'react-router';
+
+import { PageRoute } from './PageRoute';
+import { RootLayout } from './RootLayout';
+import { ROUTES } from './routes';
+
+/**
+ * Page chargée à la demande, dans son propre fichier JavaScript. L'import vise le dossier de la
+ * page, jamais un barrel commun : il regrouperait toutes les pages dans le même fichier.
+ */
+function lazyPage<Name extends string>(
+  load: () => Promise<Record<Name, ComponentType>>,
+  name: Name,
+) {
+  return lazy(() => load().then((module) => ({ default: module[name] })));
+}
+
+const LoginPage = lazyPage(() => import('@/pages/LoginPage'), 'LoginPage');
+const SignupPage = lazyPage(() => import('@/pages/SignupPage'), 'SignupPage');
+const ForgotPasswordPage = lazyPage(
+  () => import('@/pages/ForgotPasswordPage'),
+  'ForgotPasswordPage',
+);
+const DashboardPage = lazyPage(() => import('@/pages/DashboardPage'), 'DashboardPage');
+const CollectionsPage = lazyPage(() => import('@/pages/CollectionsPage'), 'CollectionsPage');
+const CollectionDetailPage = lazyPage(
+  () => import('@/pages/CollectionDetailPage'),
+  'CollectionDetailPage',
+);
+const AddCardPage = lazyPage(() => import('@/pages/AddCardPage'), 'AddCardPage');
+const ProfilePage = lazyPage(() => import('@/pages/ProfilePage'), 'ProfilePage');
+const NotFoundPage = lazyPage(() => import('@/pages/NotFoundPage'), 'NotFoundPage');
+
+/**
+ * Route d'une page. La clé distingue chaque page : sans elle, React réutiliserait le même
+ * `Suspense` d'une page à l'autre et garderait l'ancienne page affichée pendant le chargement.
+ */
+function pageRoute(path: string, page: ComponentType): RouteObject {
+  return { path, element: <PageRoute key={path} page={page} /> };
+}
+
+/** Toutes les routes de l'application web (exportées pour les tests sur un routeur en mémoire). */
+export const appRoutes: RouteObject[] = [
+  {
+    element: <RootLayout />,
+    children: [
+      pageRoute(ROUTES.login, LoginPage),
+      pageRoute(ROUTES.signup, SignupPage),
+      pageRoute(ROUTES.forgotPassword, ForgotPasswordPage),
+      pageRoute(ROUTES.dashboard, DashboardPage),
+      pageRoute(ROUTES.collections, CollectionsPage),
+      pageRoute(ROUTES.collection, CollectionDetailPage),
+      pageRoute(ROUTES.addCard, AddCardPage),
+      pageRoute(ROUTES.profile, ProfilePage),
+      pageRoute('*', NotFoundPage),
+    ],
+  },
+];
+
+/** Routeur de l'application web, sur l'historique du navigateur. */
+export const router = createBrowserRouter(appRoutes);

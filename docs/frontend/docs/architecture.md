@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-09-25
+> **Derniere mise a jour :** 2026-11-25
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Architecture Frontend -- CollectionR
@@ -56,7 +56,9 @@ Le frontend est organise en monorepo (workspaces npm) : deux applications distin
 |   |-- web/                  # Application web (React + Vite + Tailwind)
 |   |   |-- src/
 |   |   |   |-- components/   # Composants UI web (Atomic Design)
-|   |   |   |-- pages/        # Pages reliees au routeur web
+|   |   |   |-- pages/        # Pages reliees au routeur web, un dossier par page
+|   |   |   |-- router/       # Routes, chemins (routes.ts), enveloppes de page, liens internes
+|   |   |   |-- config/       # Assemblage de l'app : client API, session, cache
 |   |   |   |-- styles/       # globals.css + tailwind.config.ts
 |   |   |   |-- assets/       # Images, polices, icones web
 |   |   |   |-- App.tsx       # Racine de l'app web
@@ -79,7 +81,7 @@ Le frontend est organise en monorepo (workspaces npm) : deux applications distin
 |   |-- shared/               # Logique pure partagee web + mobile (AUCUN composant visuel / JSX)
 |       |-- src/
 |       |   |-- hooks/        # Custom hooks metier (useCards, useCollection, useCardScanner, usePriceFormatter)
-|       |   |-- stores/       # Stores Zustand (useCollectionStore, useAuthStore, useUIStore, useFiltersStore)
+|       |   |-- stores/       # Stores Zustand (authStore, useCollectionStore, useUIStore, useFiltersStore)
 |       |   |-- services/     # Appels API (cardService, collectionService, priceService, scannerService, authService, apiClient)
 |       |   |-- types/        # Interfaces TypeScript (card, collection, user, price, api, navigation)
 |       |   |-- utils/        # Fonctions pures (formatPrice, formatDate, validators, storage)
@@ -268,6 +270,47 @@ export default defineConfig({
 ```
 
 En plus de l'alias, `apps/web/package.json` declare `"@collectionr/shared": "*"` en dependance workspace : l'alias sert aux imports, la dependance rend le graphe entre packages explicite (installation ciblee d'un workspace).
+
+---
+
+## 7. Routing web : React Router 7, mode data
+
+Le web utilise **React Router 7.18** en mode data (`createBrowserRouter` + `RouterProvider`), decision du 25/11/2026 (COLLR-696). La version 8 exige React 19.2.7 ou plus, alors que le monorepo est fige en React 19.2.3 pour Expo : la montee en 8 suivra celle de React.
+
+| Fichier (`apps/web/src/router/`) | Role |
+|---|---|
+| `routes.ts` | Seul endroit ou les chemins sont ecrits (`ROUTES`), plus `collectionPath(id)` et `addCardPath(collectionId)` pour les chemins a parametre. Aucun composant n'ecrit d'URL en dur |
+| `router.tsx` | Declaration des routes (`appRoutes`, reutilisees par les tests sur un routeur en memoire) et routeur du navigateur |
+| `RootLayout.tsx` | Racine de toutes les routes |
+| `PageRoute.tsx` | Enveloppe de chaque page : `RouteErrorBoundary` puis `Suspense` |
+| `useDocumentTitle.ts` | Titre de l'onglet, fixe par chaque page : « Ma Collection · Collectionr » |
+| `internalLinks.ts` | Navigation des liens internes en `<a href>` natif (voir ci-dessous) |
+
+Regles :
+
+- **Pages chargees a la demande** : chaque page est importee avec `lazy()` depuis son propre dossier (`@/pages/DashboardPage`), jamais depuis un barrel commun a toutes les pages, qui les regrouperait dans le meme fichier JavaScript.
+- **Attente** : seule la zone de la page attend. Le fallback de `Suspense` n'affiche rien pendant 400 ms, puis « Chargement… » en caption `acier-texte`, jamais de spinner.
+- **Erreurs** : une page qui ne charge pas ou dont le rendu echoue affiche l'ecran d'erreur de `RouteErrorBoundary`, avec « Reessayer » (voir data-et-etat.md).
+- **404** : la route `*` affiche « Page introuvable » et un lien vers le Dashboard.
+- **Pages provisoires** : une page pas encore construite affiche son titre et une phrase (`PlaceholderPage`), sans faux contenu.
+- Dans une page, un lien interne utilise `<Link>` de React Router.
+
+### Liens internes en `<a href>` natif
+
+Les composants du design system (NavItem, fil d'Ariane de Topbar, liens des formulaires) rendent des `<a href>` natifs, pour rester independants du routeur. Sans precaution, un clic rechargerait toute l'application, et donc renouvellerait la session a chaque changement de page.
+
+`useInternalLinkNavigation()` (`internalLinks.ts`), monte une seule fois dans `RootLayout`, ecoute les clics au niveau du document et fait passer par le routeur les clics sur un lien interne. Le navigateur garde son comportement dans tous les autres cas :
+
+| Clic | Traitement |
+|---|---|
+| Clic simple (bouton principal) sur un lien de la meme origine | Navigation par le routeur, sans rechargement |
+| Ctrl, Cmd, Maj ou Alt + clic, autre bouton de la souris | Navigateur (nouvel onglet, nouvelle fenetre...) |
+| `target` autre que `_self` | Navigateur |
+| Attribut `download` | Navigateur (telechargement) |
+| `rel="external"` ou lien vers une autre origine | Navigateur |
+| Clic deja traite (`<Link>` de React Router) | Ignore : le routeur l'a deja pris en charge |
+
+La decision est prise par la fonction pure `getInternalLinkPath`, testee cas par cas ; le hook ne fait que l'appliquer.
 
 ---
 
