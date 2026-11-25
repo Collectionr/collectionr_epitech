@@ -172,10 +172,12 @@ Le store n'est jamais modifie par un composant : seul `authService` (`packages/s
 | `useSessionExpiredNotice()` | Sur la connexion : `true` si la session vient d'expirer ; acquitte la raison de fermeture |
 | `useLogin()` | Mutation : connexion, session ouverte, profil mis en cache (`QUERY_KEYS.me`) |
 | `useRegister()` | Mutation : inscription, sans ouverture de session (le back ne renvoie pas de jetons) |
-| `useLogout()` | Mutation : revocation du jeton, session fermee, cache vide (`queryClient.clear()`), meme si le back est injoignable |
+| `useLogout()` | Mutation : session fermee, puis revocation du jeton, cache vide (`queryClient.clear()`), meme si le back est injoignable |
 | `useMe()` | Requete `GET /users/me`, active en session, initialisee avec l'utilisateur de la session |
 
 Les redirections (page demandee apres connexion, `/connexion` apres deconnexion) restent dans l'application : les hooks ne dependent d'aucun routeur, pour servir aussi au mobile. Les erreurs de connexion et d'inscription sont traduites par `translateAuthError` (`@shared/utils`), et les formulaires valides par `@shared/validation` (`validateEmail`, `validateNewPassword`, `validateUsername`...).
+
+Generation de session : chaque fermeture (deconnexion, renouvellement refuse) incremente une generation. Une reponse de refresh, de connexion ou de restauration n'ecrit ni jeton ni statut si la generation a change depuis son envoi : un refresh qui arrive apres une deconnexion, reussie ou non, ne reconnecte jamais. La deconnexion ferme la session localement avant de revoquer le jeton aupres du back.
 
 Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou partage par les onglets (Web Locks, fourni par l'app web), avec le jeton relu dans le stockage juste avant l'appel. Le jeton etant a usage unique, deux onglets qui le presenteraient en meme temps feraient revoquer toute la chaine de connexion. Restauration (`authService.restoreSession`) : renouvellement puis `GET /users/me`, une seule fois par chargement une fois aboutie (double montage du `StrictMode` compris).
 

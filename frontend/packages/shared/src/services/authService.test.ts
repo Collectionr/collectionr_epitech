@@ -4,7 +4,7 @@ import { createAuthStore } from '../stores';
 import type { User } from '../types';
 import { ApiError, createApiClient, NetworkError } from './apiClient';
 import type { ApiClient, ApiPath, ApiRequestOptions, FetchLike } from './apiClient';
-import { createAuthService, createAuthSession } from './authService';
+import { createAuthService, createAuthSession, SessionClosedError } from './authService';
 import type { RunExclusive, TokenStorage } from './authService';
 
 const USER: User = {
@@ -437,6 +437,209 @@ describe('createAuthService', () => {
 
       expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: null });
     });
+  });
+});
+
+/** Promesse résolue à la demande, pour faire arriver une réponse au moment choisi. */
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {
+    throw new Error('Promesse non créée');
+  };
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+describe('génération de session', () => {
+  function connected(handlers: Parameters<typeof setup>[0]) {
+    const context = setup(handlers, { storedToken: 'renouvellement-1' });
+    context.store.getState().startSession(USER, 'acces-1');
+    return context;
+  }
+
+  it('ignore un refresh qui arrive après une déconnexion réussie', async () => {
+    const refreshResponse = deferred<unknown>();
+    const { storage, store, authService } = connected({
+      '/auth/refresh': () => refreshResponse.promise,
+      '/auth/logout': async () => undefined,
+    });
+
+    const refresh = authService.refresh();
+    await vi.waitFor(() => expect(storage.getRefreshToken).toHaveBeenCalled());
+    await authService.logout();
+    refreshResponse.resolve(ROTATED_TOKENS);
+
+    await expect(refresh).resolves.toBe(false);
+    expect(storage.current()).toBeNull();
+    expect(store.getState()).toMatchObject({
+      status: 'anonymous',
+      accessToken: null,
+      endReason: 'logout',
+    });
+  });
+
+  it('ignore un refresh qui arrive après une déconnexion en erreur réseau', async () => {
+    const refreshResponse = deferred<unknown>();
+    const { storage, store, authService } = connected({
+      '/auth/refresh': () => refreshResponse.promise,
+      '/auth/logout': () => Promise.reject(new NetworkError('connection', 'Failed to fetch')),
+    });
+
+    const refresh = authService.refresh();
+    await vi.waitFor(() => expect(storage.getRefreshToken).toHaveBeenCalled());
+    await expect(authService.logout()).rejects.toBeInstanceOf(NetworkError);
+    refreshResponse.resolve(ROTATED_TOKENS);
+
+    await expect(refresh).resolves.toBe(false);
+    expect(storage.current()).toBeNull();
+    expect(store.getState()).toMatchObject({
+      status: 'anonymous',
+      accessToken: null,
+      endReason: 'logout',
+    });
+  });
+
+  it('ferme la session avant de révoquer le jeton auprès du back', async () => {
+    const logoutResponse = deferred<unknown>();
+    const { client, storage, store, authService } = connected({
+      '/auth/logout': () => logoutResponse.promise,
+    });
+
+    const logout = authService.logout();
+    await vi.waitFor(() => expect(client.request).toHaveBeenCalled());
+
+    expect(store.getState().status).toBe('anonymous');
+    expect(storage.current()).toBeNull();
+    expect(client.request).toHaveBeenCalledWith('/auth/logout', {
+      method: 'POST',
+      body: { refreshToken: 'renouvellement-1' },
+    });
+    logoutResponse.resolve(undefined);
+    await logout;
+  });
+
+  it('refuse une connexion dont la réponse arrive après une fermeture de session', async () => {
+    const loginResponse = deferred<unknown>();
+    const { storage, store, authService } = setup({ '/auth/login': () => loginResponse.promise });
+
+    const login = authService.login({ email: 'ash@exemple.fr', password: 'pikachu25' });
+    await authService.clearSession();
+    loginResponse.resolve({ user: USER, ...ROTATED_TOKENS });
+
+    await expect(login).rejects.toBeInstanceOf(SessionClosedError);
+    expect(storage.current()).toBeNull();
+    expect(store.getState()).toMatchObject({ status: 'anonymous', accessToken: null });
+  });
+
+  it('n’ouvre pas une session restaurée après sa fermeture', async () => {
+    const refreshResponse = deferred<unknown>();
+    const { client, storage, store, authService } = setup(
+      { '/auth/refresh': () => refreshResponse.promise, '/users/me': async () => USER },
+      { storedToken: 'renouvellement-1' },
+    );
+
+    const restoration = authService.restoreSession();
+    await vi.waitFor(() => expect(client.request).toHaveBeenCalled());
+    await authService.clearSession();
+    refreshResponse.resolve(ROTATED_TOKENS);
+    await restoration;
+
+    expect(storage.current()).toBeNull();
+    expect(store.getState()).toMatchObject({ status: 'anonymous', accessToken: null, user: null });
+    expect(client.request).not.toHaveBeenCalledWith('/users/me');
+  });
+
+  it('efface le jeton écrit pendant une fermeture de session', async () => {
+    const { storage, store, authService } = connected({
+      '/auth/refresh': async () => ROTATED_TOKENS,
+    });
+    // La session est fermée pendant l'écriture du nouveau jeton dans le stockage.
+    storage.setRefreshToken.mockImplementationOnce(async () => {
+      await authService.clearSession();
+    });
+
+    await expect(authService.refresh()).resolves.toBe(false);
+    expect(storage.current()).toBeNull();
+    expect(store.getState()).toMatchObject({ status: 'anonymous', accessToken: null });
+  });
+
+  it('ne raccroche pas une nouvelle session à un refresh abandonné', async () => {
+    const staleResponse = deferred<unknown>();
+    const freshTokens = { accessToken: 'acces-b2', refreshToken: 'renouvellement-b2' };
+    let refreshCalls = 0;
+    const { client, storage, store, authService } = connected({
+      '/auth/refresh': () => {
+        refreshCalls += 1;
+        return refreshCalls === 1 ? staleResponse.promise : Promise.resolve(freshTokens);
+      },
+      '/auth/logout': async () => undefined,
+      '/auth/login': async () => ({
+        user: USER,
+        accessToken: 'acces-b1',
+        refreshToken: 'renouvellement-b1',
+      }),
+    });
+
+    const staleRefresh = authService.refresh();
+    await vi.waitFor(() => expect(refreshCalls).toBe(1));
+    await authService.logout();
+    await authService.login({ email: 'ash@exemple.fr', password: 'pikachu25' });
+
+    await expect(authService.refresh()).resolves.toBe(true);
+    staleResponse.resolve(ROTATED_TOKENS);
+    await expect(staleRefresh).resolves.toBe(false);
+
+    expect(client.request).toHaveBeenCalledWith('/auth/refresh', {
+      method: 'POST',
+      body: { refreshToken: 'renouvellement-b1' },
+    });
+    expect(storage.current()).toBe('renouvellement-b2');
+    expect(store.getState()).toMatchObject({ status: 'authenticated', accessToken: 'acces-b2' });
+  });
+
+  it('efface le jeton d’une connexion fermée pendant l’écriture du stockage', async () => {
+    const { storage, store, authService } = setup({
+      '/auth/login': async () => ({ user: USER, ...ROTATED_TOKENS }),
+    });
+    storage.setRefreshToken.mockImplementationOnce(async () => {
+      await authService.clearSession();
+    });
+
+    await expect(
+      authService.login({ email: 'ash@exemple.fr', password: 'pikachu25' }),
+    ).rejects.toBeInstanceOf(SessionClosedError);
+    expect(storage.current()).toBeNull();
+    expect(store.getState()).toMatchObject({ status: 'anonymous', accessToken: null });
+  });
+
+  it('ne signale pas l’échec d’une restauration fermée entre-temps', async () => {
+    const profileResponse = deferred<unknown>();
+    const { client, store, authService } = setup(
+      {
+        '/auth/refresh': async () => ROTATED_TOKENS,
+        '/users/me': () => profileResponse.promise,
+      },
+      { storedToken: 'renouvellement-1' },
+    );
+
+    const restoration = authService.restoreSession();
+    await vi.waitFor(() => expect(client.request).toHaveBeenCalledWith('/users/me'));
+    await authService.clearSession();
+    // Profil illisible : la lecture échoue, alors que la session a déjà été fermée.
+    profileResponse.resolve(undefined);
+    await restoration;
+
+    expect(store.getState()).toMatchObject({ status: 'anonymous', restoreError: null });
+  });
+
+  it('garde la raison d’une déconnexion quand la session est vidée ensuite', async () => {
+    const { store, authService } = connected({ '/auth/logout': async () => undefined });
+    await authService.logout();
+
+    await authService.clearSession();
+
+    expect(store.getState()).toMatchObject({ status: 'anonymous', endReason: 'logout' });
   });
 });
 
