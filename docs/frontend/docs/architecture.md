@@ -293,7 +293,7 @@ Regles :
 
 - **Pages chargees a la demande** : chaque page est importee avec `lazy()` depuis son propre dossier (`@/pages/DashboardPage`), jamais depuis un barrel commun a toutes les pages, qui les regrouperait dans le meme fichier JavaScript.
 - **Attente** : seule la zone de la page attend. Le fallback de `Suspense` n'affiche rien pendant 400 ms, puis « Chargement… » en caption `acier-texte`, jamais de spinner.
-- **Erreurs** : une page qui ne charge pas ou dont le rendu echoue affiche l'ecran d'erreur de `RouteErrorBoundary`, avec « Reessayer » (voir data-et-etat.md).
+- **Erreurs** : une page qui ne charge pas ou dont le rendu echoue affiche l'ecran d'erreur de `RouteErrorBoundary`, avec « Reessayer » (voir data-et-etat.md). Apres un echec d'import de la page (`isDynamicImportError`, `dynamicImportError.ts`), « Reessayer » recharge la page.
 - **404** : la route `*` affiche « Page introuvable » et un lien vers le Dashboard.
 - **Pages provisoires** : une page pas encore construite affiche son titre et une phrase (`PlaceholderPage`), sans faux contenu.
 - Dans une page, un lien interne utilise `<Link>` de React Router.
