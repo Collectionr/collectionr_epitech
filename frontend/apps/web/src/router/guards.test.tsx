@@ -209,7 +209,7 @@ describe('routes protégées et restauration de session', () => {
     renderApp('/collections', harness);
 
     expect(await heading('Connexion')).toBeDefined();
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
     await waitFor(() => expect(harness.storage.current()).toBeNull());
   });
 });

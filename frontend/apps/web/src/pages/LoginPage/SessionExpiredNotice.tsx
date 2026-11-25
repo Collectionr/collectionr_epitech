@@ -1,9 +1,9 @@
 import { Text } from '@/components/atoms';
 
-/** Message affiché sur la connexion quand la session vient d'expirer en cours d'usage. */
+/** Message affiché en tête de la connexion quand la session vient d'expirer en cours d'usage. */
 export function SessionExpiredNotice() {
   return (
-    <div role="status" className="px-space-24 pt-space-24">
+    <div role="status">
       <Text variant="body">Votre session a expiré, reconnectez-vous.</Text>
     </div>
   );
