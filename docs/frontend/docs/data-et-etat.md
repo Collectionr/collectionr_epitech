@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-03-22
+> **Derniere mise a jour :** 2026-11-25
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Data et Etat -- CollectionR
@@ -370,79 +370,49 @@ export const cardService = {
 };
 ```
 
-### Template : Client HTTP
+### Client HTTP
+
+Le client vit dans `packages/shared/src/services/apiClient.ts`. Il ne lit aucune variable d'environnement : chaque application l'assemble dans son `config/api.ts` et lui fournit l'URL de base, `fetch` et un controleur d'annulation (`new AbortController()`, disponible sur web et mobile). Ces deux derniers sont injectes parce que `packages/shared` compile sans les types DOM.
 
 ```typescript
-// services/apiClient.ts
+// apps/web/src/config/api.ts
+export const apiClient = createApiClient({
+  baseUrl: resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL), // /api/v1 par defaut
+  fetch,
+  createAbortController: () => new AbortController(),
+});
 
-import { useAuthStore } from '@/stores';
-import { API_BASE_URL } from '@/constants';
-
-class ApiClient {
-  private baseUrl: string;
-
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
-  }
-
-  async get<T>(path: string, options?: { params?: Record<string, unknown> }): Promise<T> {
-    const url = new URL(path, this.baseUrl);
-    if (options?.params) {
-      Object.entries(options.params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
-        }
-      });
-    }
-    return this.request<T>('GET', url.toString());
-  }
-
-  async post<T>(path: string, body?: unknown): Promise<T> {
-    return this.request<T>('POST', `${this.baseUrl}${path}`, body);
-  }
-
-  async delete<T>(path: string): Promise<T> {
-    return this.request<T>('DELETE', `${this.baseUrl}${path}`);
-  }
-
-  private async request<T>(method: string, url: string, body?: unknown): Promise<T> {
-    const token = useAuthStore.getState().token;
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      ...(body && { body: JSON.stringify(body) }),
-    });
-
-    if (response.status === 401) {
-      useAuthStore.getState().logout();
-      throw new ApiError(401, 'Session expiree');
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, error.message ?? 'Erreur serveur');
-    }
-
-    return response.json() as Promise<T>;
-  }
-}
-
-export const apiClient = new ApiClient(API_BASE_URL);
-
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+const card = await apiClient.request('/cards/swsh3-136'); // unknown : le service valide la forme
+await apiClient.request('/collections', { method: 'POST', body: { name: 'Base' } });
 ```
+
+Comportement commun a toutes les requetes :
+
+| Situation | Comportement |
+|---|---|
+| Session ouverte | En-tete `Authorization: Bearer <jeton d'acces>` |
+| 401 sur une requete authentifiee | Un seul renouvellement (`session.refresh()`), partage par les requetes simultanees, puis la requete est rejouee une fois |
+| Renouvellement refuse | `session.clear()` vide la session, la requete leve l'`ApiError` 401 |
+| Renouvellement impossible (reseau) | La session est conservee, la requete leve la `NetworkError` |
+| 401 d'une route `/auth/*` | Aucun renouvellement : identifiants invalides ou jeton de renouvellement refuse |
+| Statut hors 200-299 | `ApiError { status, code, message, fieldErrors?, retryAfterSeconds?, body }` |
+| Serveur injoignable, coupure | `NetworkError` de cause `connection` |
+| Pas de reponse en 15 s | Requete annulee, `NetworkError` de cause `timeout` |
+
+`code` et `message` viennent du format d'erreur du back (`{ statusCode, error, message, timestamp, path }`) : `code` reprend `error` (ex. : `Conflict`), ou vaut `HTTP_<statut>` si le corps est inexploitable. Le back n'envoie pas encore d'erreurs par champ : `fieldErrors` reste vide. `retryAfterSeconds` est lu dans l'en-tete `Retry-After` (429). Les messages du back sont en anglais et ne s'affichent jamais tels quels : ils sont traduits en francais avant affichage.
+
+`VITE_API_BASE_URL` (web) est verifiee au demarrage : un chemin du meme domaine (`/api/v1`, defaut derriere l'Ingress) ou une URL absolue en http(s). Toute autre valeur bloque le demarrage avec un message explicite.
+
+### Stockage des jetons (decision PO du 25/11/2026)
+
+Le back renvoie le jeton d'acces et le jeton de renouvellement dans le corps des reponses (`POST /auth/login`, `POST /auth/refresh`), sans cookie httpOnly. Le jeton de renouvellement est a usage unique : le reutiliser revoque toute la chaine de connexion.
+
+| Jeton | Stockage | Raison |
+|---|---|---|
+| Acces (courte duree) | Memoire uniquement, jamais `localStorage` | Jamais persiste : perdu au rechargement, il est renouvele au demarrage |
+| Renouvellement | `localStorage` (web) pour l'Alpha | Necessaire pour restaurer la session au demarrage |
+
+Risque accepte pour l'Alpha : un script injecte (XSS) peut lire le jeton de renouvellement dans `localStorage`. La cible reste un cookie httpOnly pose par le back. Le mobile utilisera un stockage securise (Keychain / Keystore), d'ou une interface de stockage asynchrone cote `packages/shared`.
 
 ### Template : Hook TanStack Query
 
