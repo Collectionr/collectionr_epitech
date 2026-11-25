@@ -18,4 +18,5 @@ if (!ABSOLUTE_HTTP_URL.test(apiUrl)) {
 export const apiClient = createApiClient({
   baseUrl: apiUrl,
   fetch,
+  createAbortController: () => new AbortController(),
 });
