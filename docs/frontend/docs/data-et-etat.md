@@ -417,34 +417,35 @@ Risque accepte pour l'Alpha : un script injecte (XSS) peut lire le jeton de reno
 ### Template : Hook TanStack Query
 
 ```typescript
-// hooks/useCards.ts
+// packages/shared/src/hooks/useCollections.ts
 
 import { useQuery } from '@tanstack/react-query';
-import { cardService } from '@/services';
-import { QUERY_KEYS } from '@/constants';
 
-/** Recupere la liste paginee des cartes. */
-export function useCards(page = 1) {
+import { catalogService, collectionService } from '@shared/services';
+import { QUERY_KEYS } from '@shared/constants';
+
+/** Recupere les collections de l'utilisateur. */
+export function useCollections() {
   return useQuery({
-    queryKey: [...QUERY_KEYS.cards.all, page],
-    queryFn: () => cardService.getAll({ page }),
+    queryKey: QUERY_KEYS.collections,
+    queryFn: () => collectionService.getAll(),
   });
 }
 
-/** Recupere le detail d'une carte par son ID. */
-export function useCard(id: string) {
+/** Recupere le detail d'une collection par son ID. */
+export function useCollection(id: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.cards.detail(id),
-    queryFn: () => cardService.getById(id),
-    enabled: !!id,
+    queryKey: QUERY_KEYS.collection(id),
+    queryFn: () => collectionService.getById(id),
+    enabled: id !== '',
   });
 }
 
-/** Recherche des cartes. Active uniquement quand la query fait 2+ caracteres. */
-export function useSearchCards(query: string) {
+/** Recherche dans le catalogue. Active uniquement quand la recherche fait 2+ caracteres. */
+export function useSearchCatalog(query: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.cards.search(query),
-    queryFn: () => cardService.search(query),
+    queryKey: QUERY_KEYS.catalog(query),
+    queryFn: () => catalogService.search(query),
     enabled: query.length >= 2,
   });
 }
@@ -453,22 +454,22 @@ export function useSearchCards(query: string) {
 ### Template : Hook de mutation
 
 ```typescript
-// hooks/useAddToCollection.ts
+// packages/shared/src/hooks/useAddToCollection.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { collectionService } from '@/services';
-import { QUERY_KEYS } from '@/constants';
 
-/** Ajoute une carte a la collection de l'utilisateur. */
-export function useAddToCollection() {
+import { collectionService } from '@shared/services';
+import { QUERY_KEYS } from '@shared/constants';
+
+/** Ajoute une carte a une collection de l'utilisateur. */
+export function useAddToCollection(collectionId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: collectionService.addCard,
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.collections.all,
-      });
+      // Detail et cartes de la collection, par prefixe de cle.
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collection(collectionId) });
     },
   });
 }
@@ -512,41 +513,39 @@ function CardListPage() {
 
 ### Invalidation de cache apres mutation
 
-Apres une mutation reussie, les donnees en cache peuvent etre obsoletes. L'invalidation force un refetch.
+Apres une mutation reussie, les donnees en cache peuvent etre obsoletes. L'invalidation force un refetch. Les cles sont hierarchiques : une invalidation touche aussi toutes les cles qui commencent par la cle donnee.
 
 | Mutation | Caches a invalider |
 |---|---|
-| Ajouter une carte a la collection | `collections.all`, `collections.items(id)` |
-| Retirer une carte de la collection | `collections.all`, `collections.items(id)` |
-| Modifier la quantite/etat d'une carte | `collections.items(id)` |
-| Scan reussi | `collections.all` (si ajout automatique) |
+| Ajouter une carte a une collection | `QUERY_KEYS.collection(id)` (detail et cartes), `QUERY_KEYS.collections` si la liste affiche des totaux |
+| Retirer une carte d'une collection | Idem |
+| Modifier la quantite/etat d'une carte | `QUERY_KEYS.cards(id)` (sans filtre : toutes les listes filtrees de la collection) |
+| Scan reussi | `QUERY_KEYS.collections` (si ajout automatique) |
+| Deconnexion | Tout le cache (`queryClient.clear()`) |
 
-Les query keys sont centralisees dans un fichier unique :
+Les cles de requete sont centralisees dans `packages/shared/src/constants/queryKeys.ts`. Aucune cle n'est ecrite a la main dans un hook :
 
 ```typescript
-// constants/queryKeys.ts
+import { QUERY_KEYS } from '@shared/constants';
 
-export const QUERY_KEYS = {
-  cards: {
-    all: ['cards'] as const,
-    detail: (id: string) => ['cards', 'detail', id] as const,
-    search: (query: string) => ['cards', 'search', query] as const,
-    bySet: (setId: string) => ['cards', 'set', setId] as const,
-  },
-  collections: {
-    all: ['collections'] as const,
-    detail: (id: string) => ['collections', 'detail', id] as const,
-    items: (id: string) => ['collections', 'items', id] as const,
-  },
-  prices: {
-    byCard: (cardId: string) => ['prices', cardId] as const,
-  },
-} as const;
+QUERY_KEYS.me;                          // ['me']
+QUERY_KEYS.collections;                 // ['collections']
+QUERY_KEYS.collection(id);              // ['collections', id]
+QUERY_KEYS.cards(id, { rarity: 'Rare' }); // ['collections', id, 'cards', { rarity: 'Rare' }]
+QUERY_KEYS.catalog(query);              // ['catalog', query]
 ```
 
-### Temps de stale (staleTime) recommandes
+### Temps de stale (staleTime) et relances
 
-Le `staleTime` determine combien de temps TanStack Query considere les donnees comme fraiches avant de refetch.
+Le `staleTime` determine combien de temps TanStack Query considere les donnees comme fraiches avant de refetch. Le cache est cree une seule fois par `createQueryClient()` (`packages/shared/src/services/queryClient.ts`) et fourni a la racine de l'app web par `QueryClientProvider` (`apps/web/src/App.tsx`).
+
+| Option | Valeur par defaut | Constante |
+|---|---|---|
+| `staleTime` | 5 min | `DEFAULT_STALE_TIME_MS` |
+| `gcTime` | 30 min | `DEFAULT_GC_TIME_MS` |
+| `refetchOnWindowFocus` | desactive | -- |
+
+Un hook peut s'ecarter du defaut quand la donnee le justifie (valeurs recommandees) :
 
 | Type de donnee | staleTime | gcTime | Justification |
 |---|---|---|---|
@@ -556,25 +555,20 @@ Le `staleTime` determine combien de temps TanStack Query considere les donnees c
 | Resultats de recherche | 2 min | 10 min | Sensibles aux changements de catalogue |
 | Detail d'une carte | 30 min | 1 h | Donnees stables |
 
-```typescript
-// config/queryClient.ts
+Relances automatiques (`shouldRetryQuery`) :
 
-import { QueryClient } from '@tanstack/react-query';
+| Erreur | Requete (`useQuery`) | Mutation (`useMutation`) |
+|---|---|---|
+| `NetworkError` (serveur injoignable, delai depasse) | 2 relances maximum | Aucune |
+| `ApiError` 5xx | 2 relances maximum | Aucune |
+| `ApiError` 4xx | Aucune : relancer ne change rien | Aucune |
+| Autre erreur (bug) | Aucune | Aucune |
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,     // 5 min par defaut
-      gcTime: 30 * 60 * 1000,       // 30 min de cache
-      retry: 2,
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
-```
+Une mutation n'est jamais relancee automatiquement : rejouer une connexion ou un ajout n'est pas sans effet (tentative comptee par la limite de debit, doublon).
+
+Chaque route est protegee par `RouteErrorBoundary` (`apps/web/src/router/`) : une erreur de rendu, de chargement de la page ou d'une requete en `throwOnError` affiche un ecran d'erreur avec « Reessayer », jamais un ecran blanc. « Reessayer » relance les requetes en erreur puis rend la route a nouveau.
+
+Les devtools TanStack Query sont chargees a la demande sous `npm run dev` uniquement, absentes du build de production.
 
 ### WebSocket / SSE : notifications de scan
 

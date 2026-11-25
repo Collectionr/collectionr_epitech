@@ -7,5 +7,13 @@
   "sideEffects": false,
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.107.1",
+    "react": "^19.2.3"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "5.107.1",
+    "react": "19.2.3"
   }
 }
