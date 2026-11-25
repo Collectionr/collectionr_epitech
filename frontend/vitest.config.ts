@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url';
 
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
@@ -33,6 +33,16 @@ export default defineConfig({
           root: './packages/shared',
           environment: 'node',
           include: ['src/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, 'src/hooks/**'],
+        },
+      },
+      {
+        // Hooks React de shared : renderHook exige un DOM. Le reste de shared reste testé sous Node.
+        test: {
+          name: 'shared-hooks',
+          root: './packages/shared',
+          environment: 'jsdom',
+          include: ['src/hooks/**/*.test.ts'],
         },
       },
     ],
