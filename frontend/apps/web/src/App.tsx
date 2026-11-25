@@ -1,12 +1,13 @@
 import { lazy, Suspense } from 'react';
 
 import { QueryClientProvider } from '@tanstack/react-query';
+// Pas react-router/dom : sous Vitest il charge un second build (double contexte), et flushSync est inutilisé.
+import { RouterProvider } from 'react-router';
 
 import { authService } from '@/config/api';
 import { queryClient } from '@/config/queryClient';
+import { router } from '@/router/router';
 import { AuthServiceContext } from '@shared/hooks';
-
-import { APP_NAME } from '@shared/constants';
 
 /**
  * Devtools de TanStack Query, chargées à la demande sous `vite dev` uniquement : le build de
@@ -21,14 +22,12 @@ const QueryDevtools =
       )
     : null;
 
-/** Racine de l'application web. */
+/** Racine de l'application web : cache des appels API, service d'authentification et routeur. */
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthServiceContext.Provider value={authService}>
-        <main className="p-space-24">
-          <h1 className="text-h1">{APP_NAME}</h1>
-        </main>
+        <RouterProvider router={router} />
       </AuthServiceContext.Provider>
       {QueryDevtools && (
         <Suspense fallback={null}>
