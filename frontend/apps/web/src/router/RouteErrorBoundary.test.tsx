@@ -1,3 +1,5 @@
+import { lazy } from 'react';
+
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -51,10 +53,11 @@ describe('RouteErrorBoundary', () => {
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeDefined();
   });
 
-  it('rend la route à nouveau au clic sur « Réessayer »', () => {
+  it('rend la route à nouveau au clic sur « Réessayer », sans recharger la page', () => {
     const { state, FragileChild } = createFragileChild();
+    const reload = vi.fn();
     render(
-      <RouteErrorBoundary>
+      <RouteErrorBoundary reload={reload}>
         <FragileChild />
       </RouteErrorBoundary>,
     );
@@ -64,6 +67,28 @@ describe('RouteErrorBoundary', () => {
 
     expect(screen.getByText('Contenu de la page')).toBeDefined();
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('recharge la page au clic sur « Réessayer » quand l’import de la page a échoué', async () => {
+    const reload = vi.fn();
+    const UnreachablePage = lazy(() =>
+      Promise.reject(
+        new TypeError(
+          'Failed to fetch dynamically imported module: http://localhost:3000/assets/LoginPage-a1.js',
+        ),
+      ),
+    );
+    render(
+      <RouteErrorBoundary reload={reload}>
+        <UnreachablePage />
+      </RouteErrorBoundary>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Réessayer' }));
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert')).toBeDefined();
   });
 
   it('relance la requête en erreur au clic sur « Réessayer »', async () => {

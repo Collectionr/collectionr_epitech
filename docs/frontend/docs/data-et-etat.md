@@ -551,7 +551,7 @@ Relances automatiques (`shouldRetryQuery`) :
 
 Une mutation n'est jamais relancee automatiquement : rejouer une connexion ou un ajout n'est pas sans effet (tentative comptee par la limite de debit, doublon).
 
-Chaque route est protegee par `RouteErrorBoundary` (`apps/web/src/router/`) : une erreur de rendu, de chargement de la page ou d'une requete en `throwOnError` affiche un ecran d'erreur avec « Reessayer », jamais un ecran blanc. « Reessayer » relance les requetes en erreur puis rend la route a nouveau.
+Chaque route est protegee par `RouteErrorBoundary` (`apps/web/src/router/`) : une erreur de rendu, de chargement de la page ou d'une requete en `throwOnError` affiche un ecran d'erreur avec « Reessayer », jamais un ecran blanc. « Reessayer » relance les requetes en erreur puis rend la route a nouveau ; si c'est l'import de la page qui a echoue (fichier introuvable apres un nouveau deploiement, reseau coupe), il recharge la page, React gardant en memoire l'echec d'un `lazy()`.
 
 Les devtools TanStack Query sont chargees a la demande sous `npm run dev` uniquement, absentes du build de production.
 
