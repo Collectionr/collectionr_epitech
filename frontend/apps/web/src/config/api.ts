@@ -1,4 +1,8 @@
-import { createApiClient } from '@shared/services';
+import { createApiClient, createAuthService, createAuthSession } from '@shared/services';
+import { createAuthStore } from '@shared/stores';
+
+import { createRunExclusive } from './refreshLock';
+import { createWebTokenStorage } from './tokenStorage';
 
 const DEFAULT_API_BASE_URL = '/api/v1';
 /** Chemin du même domaine (Ingress, proxy de dev) : un seul "/" initial, pas une URL "//hôte". */
@@ -23,9 +27,20 @@ export function resolveApiBaseUrl(value: string | undefined): string {
   );
 }
 
+const authStore = createAuthStore();
+
 /** Client API de l'application web, sur `VITE_API_BASE_URL` ou `/api/v1` par défaut. */
 export const apiClient = createApiClient({
   baseUrl: resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL),
   fetch,
   createAbortController: () => new AbortController(),
+  session: createAuthSession(authStore, () => authService),
+});
+
+/** Service d'authentification de l'application web, fourni à la racine par `AuthServiceContext`. */
+export const authService = createAuthService({
+  client: apiClient,
+  storage: createWebTokenStorage(),
+  store: authStore,
+  runExclusive: createRunExclusive(navigator.locks),
 });

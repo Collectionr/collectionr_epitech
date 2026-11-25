@@ -19,7 +19,7 @@ Trois outils coexistent dans le projet. Le choix depend de la nature de la donne
 | Donnee locale a un seul composant (champ ouvert/ferme, valeur d'input) | `useState` | Pas besoin de partager, pas besoin de persister |
 | Donnee serveur (cartes, prix, collection) | TanStack Query | Cache automatique, deduplication, etats loading/error/refetch |
 | Donnee globale UI (modal ouverte, toast, filtre actif) | Zustand | Partagee entre composants, pas de source serveur |
-| Session utilisateur, auth token | Zustand (`useAuthStore`) | Persiste entre sessions, necessite un acces global |
+| Session (statut, utilisateur, jeton d'acces) | Zustand (`authStore`, lu via `useAuth`) | Acces global, en memoire ; seul le jeton de renouvellement est persiste, a part (voir Stockage des jetons) |
 
 ### Schema de decision
 
@@ -153,54 +153,28 @@ export const useCartStore = create<CartState>((set) => ({
 }));
 ```
 
-**useAuthStore** -- Session utilisateur. Persiste le token entre les redemarrages via AsyncStorage (mobile) ou localStorage (web).
+**authStore** -- Session utilisateur (`packages/shared/src/stores/authStore.ts`, livre en COLLR-699). Store "vanilla" cree par `createAuthStore()` : une instance par application, et par test. Rien n'est persiste par ce store : le jeton d'acces reste en memoire, le jeton de renouvellement est confie a un `TokenStorage` fourni par l'application (voir Stockage des jetons).
 
 | Etat | Type | Description |
 |---|---|---|
-| `token` | `string \| null` | JWT d'acces |
-| `refreshToken` | `string \| null` | Token de rafraichissement |
-| `user` | `User \| null` | Donnees utilisateur en cache |
-| `isAuthenticated` | `boolean` | Derive : `token !== null` |
+| `status` | `'unknown' \| 'authenticated' \| 'anonymous'` | `unknown` jusqu'a la fin de la restauration au demarrage |
+| `user` | `User \| null` | Utilisateur connecte |
+| `accessToken` | `string \| null` | Jeton d'acces, en memoire uniquement |
+| `sessionExpired` | `boolean` | Session expiree en cours d'usage (renouvellement refuse), jusqu'a l'affichage du message |
 
-```typescript
-// stores/authStore.ts
+Le store n'est jamais modifie par un composant : seul `authService` (`packages/shared/src/services/authService.ts`) l'alimente. Les composants lisent la session par les hooks de `@shared/hooks`, fournis par `AuthServiceContext` a la racine de l'app :
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { User } from '@/types';
+| Hook | Role |
+|---|---|
+| `useAuth()` | `status`, `user`, `sessionExpired`, `acknowledgeSessionExpiry` |
+| `useLogin()` | Mutation : connexion, session ouverte, profil mis en cache (`QUERY_KEYS.me`) |
+| `useRegister()` | Mutation : inscription, sans ouverture de session (le back ne renvoie pas de jetons) |
+| `useLogout()` | Mutation : revocation du jeton, session fermee, cache vide (`queryClient.clear()`), meme si le back est injoignable |
+| `useMe()` | Requete `GET /users/me`, active en session, initialisee avec l'utilisateur de la session |
 
-interface AuthState {
-  token: string | null;
-  refreshToken: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
+Les redirections (page demandee apres connexion, `/connexion` apres deconnexion) restent dans l'application : les hooks ne dependent d'aucun routeur, pour servir aussi au mobile. Les erreurs de connexion et d'inscription sont traduites par `translateAuthError` (`@shared/utils`), et les formulaires valides par `@shared/validation` (`validateEmail`, `validateNewPassword`, `validateUsername`...).
 
-  setAuth: (token: string, refreshToken: string, user: User) => void;
-  logout: () => void;
-}
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      token: null,
-      refreshToken: null,
-      user: null,
-      isAuthenticated: false,
-
-      setAuth: (token, refreshToken, user) =>
-        set({ token, refreshToken, user, isAuthenticated: true }),
-
-      logout: () =>
-        set({ token: null, refreshToken: null, user: null, isAuthenticated: false }),
-    }),
-    {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
-```
+Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou partage par les onglets (Web Locks, fourni par l'app web), avec le jeton relu dans le stockage juste avant l'appel. Le jeton etant a usage unique, deux onglets qui le presenteraient en meme temps feraient revoquer toute la chaine de connexion. Restauration (`authService.restoreSession`) : renouvellement puis `GET /users/me`, une seule fois par chargement (double montage du `StrictMode` compris) ; un jeton refuse est supprime, une erreur reseau le conserve pour le prochain chargement.
 
 **useUIStore** -- Etat de l'interface : theme, modals, toasts, chargement global.
 
@@ -338,36 +312,33 @@ Les composants ne font jamais fetch directement. Un composant qui appelle un ser
 
 ### Template : Service API
 
-Un service est une collection de fonctions pures qui encapsulent les appels HTTP. Il ne gere ni le cache ni l'etat.
+Un service est une collection de fonctions qui encapsulent les appels HTTP. Il ne gere pas le cache. `apiClient.request` renvoie un corps non valide (`unknown`) : le service en verifie la forme avant de le renvoyer type, et leve une erreur si le contrat de l'API n'est pas respecte.
 
 ```typescript
-// services/cardService.ts
+// packages/shared/src/services/authService.ts (extrait)
 
-import { apiClient } from './apiClient';
-import type { Card, PaginatedResponse } from '@/types';
-
-interface GetCardsParams {
-  page?: number;
-  limit?: number;
-  set?: string;
+function parseUser(value: unknown, path: string): User {
+  const id = readString(value, 'id');
+  const email = readString(value, 'email');
+  // ...
+  if (id === undefined || email === undefined /* ... */) {
+    throw new TypeError(`Reponse inattendue de ${path}`);
+  }
+  return { id, email, username, createdAt };
 }
 
-/** Service d'acces aux endpoints cartes. */
-export const cardService = {
-  /** Recupere une liste paginee de cartes. */
-  getAll: (params: GetCardsParams = {}) =>
-    apiClient.get<PaginatedResponse<Card>>('/cards', {
-      params: { page: params.page ?? 1, limit: params.limit ?? 50, set: params.set },
-    }),
-
-  /** Recupere le detail d'une carte par son ID. */
-  getById: (id: string) =>
-    apiClient.get<Card>(`/cards/${id}`),
-
-  /** Recherche des cartes par nom. */
-  search: (query: string) =>
-    apiClient.get<Card[]>('/cards/search', { params: { q: query } }),
-};
+export function createAuthService({ client, storage, store }: AuthServiceOptions): AuthService {
+  return {
+    async me() {
+      return parseUser(await client.request('/users/me'), '/users/me');
+    },
+    async register(input) {
+      const body = await client.request('/auth/register', { method: 'POST', body: input });
+      return parseUser(body, '/auth/register');
+    },
+    // ...
+  };
+}
 ```
 
 ### Client HTTP
@@ -380,6 +351,7 @@ export const apiClient = createApiClient({
   baseUrl: resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL), // /api/v1 par defaut
   fetch,
   createAbortController: () => new AbortController(),
+  session: createAuthSession(authStore, () => authService), // jeton d'acces, renouvellement
 });
 
 const card = await apiClient.request('/cards/swsh3-136'); // unknown : le service valide la forme
