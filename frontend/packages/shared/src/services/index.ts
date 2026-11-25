@@ -5,6 +5,13 @@ export {
   INVALID_JSON_ERROR_CODE,
   NetworkError,
 } from './apiClient';
+export {
+  createQueryClient,
+  DEFAULT_GC_TIME_MS,
+  DEFAULT_STALE_TIME_MS,
+  MAX_QUERY_RETRIES,
+  shouldRetryQuery,
+} from './queryClient';
 export type {
   AbortControllerLike,
   ApiClient,
