@@ -1,5 +1,5 @@
 import type { AuthStore } from '../stores';
-import type { AuthTokens, LoginCredentials, RegisterInput, User } from '../types';
+import type { AuthTokens, LoginCredentials, RegisterInput, SessionEndReason, User } from '../types';
 import { ApiError } from './apiClient';
 import type { ApiClient, ApiSession } from './apiClient';
 
@@ -50,8 +50,8 @@ export interface AuthService {
    */
   login(credentials: LoginCredentials): Promise<User>;
   /**
-   * Révoque le jeton de renouvellement auprès du back, puis ferme la session localement, même si
-   * l'appel échoue (l'erreur est alors propagée après la fermeture).
+   * Ferme la session localement, puis révoque le jeton de renouvellement auprès du back. La session
+   * reste fermée si cet appel échoue ; l'erreur est alors propagée.
    */
   logout(): Promise<void>;
   /**
@@ -83,6 +83,14 @@ const HTTP_UNAUTHORIZED = 401;
 const HTTP_NOT_FOUND = 404;
 
 const runDirectly: RunExclusive = (task) => task();
+
+/** Levée par `login` quand la session est fermée pendant l'appel : sa réponse est périmée. */
+export class SessionClosedError extends Error {
+  constructor() {
+    super('Session fermée pendant la connexion');
+    this.name = 'SessionClosedError';
+  }
+}
 
 /** Erreur levée quand une réponse 2xx n'a pas la forme attendue : contrat de l'API rompu. */
 function unexpectedResponse(path: string): Error {
@@ -149,10 +157,49 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
   const { client, storage, store, runExclusive = runDirectly } = options;
   let pendingRefresh: Promise<boolean> | null = null;
   let restoration: Promise<void> | null = null;
+  /**
+   * Génération de session, incrémentée à chaque fermeture (déconnexion, renouvellement refusé).
+   * Une réponse de refresh, de login ou de restauration n'écrit jeton ni statut que si la
+   * génération n'a pas changé depuis son envoi : sinon elle appartient à une session fermée.
+   */
+  let generation = 0;
+
+  /**
+   * Ferme la session localement. Le refresh en cours est abandonné : sa réponse sera ignorée, et un
+   * refresh demandé ensuite part de zéro au lieu de s'y raccrocher. Une session déjà anonyme garde
+   * sa raison de fermeture (une déconnexion ne devient pas une fermeture sans raison).
+   */
+  async function closeSession(reason: SessionEndReason | undefined): Promise<void> {
+    generation += 1;
+    pendingRefresh = null;
+    if (store.getState().status !== 'anonymous') {
+      store.getState().endSession({ reason });
+    }
+    await storage.clearRefreshToken();
+  }
+
+  /**
+   * Enregistre une nouvelle paire de jetons si la session n'a pas été fermée depuis `sentAt`. Une
+   * fermeture pendant l'écriture du stockage efface aussitôt le jeton tout juste écrit.
+   * @returns `true` si les jetons sont enregistrés, `false` si la réponse est périmée
+   */
+  async function saveTokens(tokens: AuthTokens, sentAt: number): Promise<boolean> {
+    if (generation !== sentAt) {
+      return false;
+    }
+    store.getState().setAccessToken(tokens.accessToken);
+    await storage.setRefreshToken(tokens.refreshToken);
+    if (generation !== sentAt) {
+      await storage.clearRefreshToken();
+      return false;
+    }
+    return true;
+  }
 
   async function refreshTokens(): Promise<boolean> {
+    const sentAt = generation;
     const refreshToken = await storage.getRefreshToken();
-    if (refreshToken === null) {
+    if (refreshToken === null || generation !== sentAt) {
       return false;
     }
     try {
@@ -160,10 +207,7 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
         method: 'POST',
         body: { refreshToken },
       });
-      const tokens = parseTokens(body, '/auth/refresh');
-      await storage.setRefreshToken(tokens.refreshToken);
-      store.getState().setAccessToken(tokens.accessToken);
-      return true;
+      return await saveTokens(parseTokens(body, '/auth/refresh'), sentAt);
     } catch (error) {
       if (isRejectedToken(error)) {
         return false;
@@ -178,19 +222,25 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
 
   async function clearSession(): Promise<void> {
     const wasAuthenticated = store.getState().status === 'authenticated';
-    store.getState().endSession({ reason: wasAuthenticated ? 'expired' : undefined });
-    await storage.clearRefreshToken();
+    await closeSession(wasAuthenticated ? 'expired' : undefined);
   }
 
   function refresh(): Promise<boolean> {
-    pendingRefresh ??= runExclusive(refreshTokens).finally(() => {
-      pendingRefresh = null;
-    });
+    if (pendingRefresh === null) {
+      const attempt = runExclusive(refreshTokens).finally(() => {
+        // Une fermeture a pu abandonner ce refresh et un autre a pu partir depuis : ne pas l'effacer.
+        if (pendingRefresh === attempt) {
+          pendingRefresh = null;
+        }
+      });
+      pendingRefresh = attempt;
+    }
     return pendingRefresh;
   }
 
   /** @returns `true` si la session est tranchée (ouverte ou anonyme), `false` si l'essai a échoué */
   async function restore(): Promise<boolean> {
+    const sentAt = generation;
     store.getState().clearRestoreError();
     try {
       if (!(await refresh())) {
@@ -199,12 +249,16 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
       }
       const user = await me();
       const { accessToken } = store.getState();
-      // Jeton nul : session vidée pendant la lecture du profil, elle est déjà anonyme.
-      if (accessToken !== null) {
+      // Session fermée pendant la lecture du profil : elle est déjà anonyme, rien à ouvrir.
+      if (generation === sentAt && accessToken !== null) {
         store.getState().startSession(user, accessToken);
       }
       return true;
     } catch (error) {
+      if (generation !== sentAt) {
+        // Session fermée entre-temps : son échec n'a plus rien à signaler.
+        return true;
+      }
       if (isInvalidSession(error)) {
         await clearSession();
         return true;
@@ -225,26 +279,31 @@ export function createAuthService(options: AuthServiceOptions): AuthService {
     },
 
     async login({ email, password }) {
+      const sentAt = generation;
       const body = await client.request('/auth/login', {
         method: 'POST',
         body: { email, password },
       });
       const user = parseUser(readField(body, 'user'), '/auth/login');
       const tokens = parseTokens(body, '/auth/login');
+      if (generation !== sentAt) {
+        throw new SessionClosedError();
+      }
       await storage.setRefreshToken(tokens.refreshToken);
+      if (generation !== sentAt) {
+        await storage.clearRefreshToken();
+        throw new SessionClosedError();
+      }
       store.getState().startSession(user, tokens.accessToken);
       return user;
     },
 
     async logout() {
+      // Jeton relevé avant la fermeture, qui le supprime du stockage, pour le révoquer ensuite.
       const refreshToken = await storage.getRefreshToken();
-      try {
-        if (refreshToken !== null) {
-          await client.request('/auth/logout', { method: 'POST', body: { refreshToken } });
-        }
-      } finally {
-        store.getState().endSession({ reason: 'logout' });
-        await storage.clearRefreshToken();
+      await closeSession('logout');
+      if (refreshToken !== null) {
+        await client.request('/auth/logout', { method: 'POST', body: { refreshToken } });
       }
     },
 

@@ -5,7 +5,7 @@ export {
   INVALID_JSON_ERROR_CODE,
   NetworkError,
 } from './apiClient';
-export { createAuthService, createAuthSession } from './authService';
+export { createAuthService, createAuthSession, SessionClosedError } from './authService';
 export type { AuthService, AuthServiceOptions, RunExclusive, TokenStorage } from './authService';
 export {
   createQueryClient,
