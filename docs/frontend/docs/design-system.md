@@ -66,7 +66,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 
 - Espacements : `space-4`, `space-8`, `space-12`, `space-16`, `space-24`, `space-32`, `space-48`, `space-64`.
 - Arrondis : `radius.card` = 6 px, `radius.none` = 0. Avatar et Badge sont carrés ; pas de `rounded-full`.
-- Ratio : `aspectRatio.card` = 63/88.
+- Ratio : `aspectRatio.card` = 63/88. CardThumbnail l’applique à toute la largeur fixée par son parent (`aspect-card`), sur un fond `ecrin-elevated` bordé du liséré pendant le chargement.
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
 - SearchBar utilise la variante compacte d’Input (`sizing['control-compact']`, 32 px). Sa largeur suit son conteneur. Elle affiche une loupe décorative à gauche et un bouton d’effacement à droite quand elle contient du texte.
@@ -126,7 +126,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 

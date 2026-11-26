@@ -10,3 +10,5 @@ export { SearchBar } from './SearchBar';
 export type { SearchBarProps } from './SearchBar';
 export { Stepper } from './Stepper';
 export type { StepperProps } from './Stepper';
+export { CardThumbnail, cardThumbnailAlt } from './CardThumbnail';
+export type { CardThumbnailProps } from './CardThumbnail';
