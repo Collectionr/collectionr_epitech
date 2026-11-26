@@ -8,3 +8,5 @@ export { CatalogSearch } from './CatalogSearch';
 export type { CatalogSearchProps } from './CatalogSearch';
 export { CardPreviewPanel } from './CardPreviewPanel';
 export type { CardPreviewPanelProps } from './CardPreviewPanel';
+export { AddCardForm } from './AddCardForm';
+export type { AddCardFormProps, AddCardFormSubmission, AddCardFormValues } from './AddCardForm';
