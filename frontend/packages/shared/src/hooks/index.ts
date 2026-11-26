@@ -1,4 +1,5 @@
 export { AuthServiceContext, useAuthService } from './authServiceContext';
+export { CatalogServiceContext, useCatalogService } from './catalogServiceContext';
 export { CollectionServiceContext, useCollectionService } from './collectionServiceContext';
 export { useAddCardEntry, OPTIMISTIC_ENTRY_ID_PREFIX } from './useAddCardEntry';
 export type { AddCardEntryVariables } from './useAddCardEntry';
@@ -7,9 +8,12 @@ export type { AuthSessionState } from './useAuth';
 export { nextCardsPage, useCollectionCards } from './useCollectionCards';
 export type { CollectionCardsData } from './useCollectionCards';
 export { useCollections } from './useCollections';
+export { useDebouncedValue } from './useDebouncedValue';
 export { useLogin } from './useLogin';
 export { useLogout } from './useLogout';
 export { useMe } from './useMe';
 export { useRegister } from './useRegister';
 export { useRestoreSession } from './useRestoreSession';
+export { useSearchCatalog } from './useSearchCatalog';
+export type { CatalogSearchState } from './useSearchCatalog';
 export { useSessionExpiredNotice } from './useSessionExpiredNotice';

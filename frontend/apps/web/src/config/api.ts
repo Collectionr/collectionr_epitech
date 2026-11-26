@@ -2,6 +2,7 @@ import {
   createApiClient,
   createAuthService,
   createAuthSession,
+  createCatalogService,
   createCollectionService,
 } from '@shared/services';
 import { createAuthStore } from '@shared/stores';
@@ -52,3 +53,6 @@ export const authService = createAuthService({
 
 /** Service des collections de l'application web, fourni à la racine par `CollectionServiceContext`. */
 export const collectionService = createCollectionService({ client: apiClient });
+
+/** Service du catalogue de l'application web, fourni à la racine par `CatalogServiceContext`. */
+export const catalogService = createCatalogService({ client: apiClient });

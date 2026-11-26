@@ -7,23 +7,20 @@ import type {
   AddCardEntryInput,
   CardEntry,
   CardEntryView,
-  CardView,
   Collection,
   CollectionCardsPage,
-  SetView,
-  VariantView,
 } from '../types';
 import type { ApiClient, ApiPath } from './apiClient';
+import { parseCardView, parseSetView, parseVariantView } from './catalogViews';
 import {
+  parseList,
   readField,
   readNullableNumber,
   readNullableString,
   readNumber,
   readOneOf,
   readString,
-  readStringArray,
   requireFields,
-  unexpectedResponse,
 } from './responseReaders';
 
 /**
@@ -98,66 +95,14 @@ function parseCardEntry(value: unknown, path: string): CardEntry {
   );
 }
 
-function parseCardView(value: unknown, path: string): CardView {
-  return requireFields(
-    {
-      id: readString(value, 'id'),
-      number: readString(value, 'number'),
-      nameEn: readString(value, 'nameEn'),
-      nameFr: readNullableString(value, 'nameFr'),
-      category: readString(value, 'category'),
-      rarity: readNullableString(value, 'rarity'),
-      imageUrlEn: readNullableString(value, 'imageUrlEn'),
-      imageUrlFr: readNullableString(value, 'imageUrlFr'),
-    },
-    path,
-  );
-}
-
-function parseSetView(value: unknown, path: string): SetView {
-  return requireFields(
-    {
-      id: readString(value, 'id'),
-      tcgdexId: readString(value, 'tcgdexId'),
-      nameEn: readString(value, 'nameEn'),
-      nameFr: readNullableString(value, 'nameFr'),
-      abbreviationOfficial: readNullableString(value, 'abbreviationOfficial'),
-    },
-    path,
-  );
-}
-
-function parseVariantView(value: unknown, path: string): VariantView | null {
-  if (value === null) {
-    return null;
-  }
-  return requireFields(
-    {
-      id: readString(value, 'id'),
-      type: readString(value, 'type'),
-      subtype: readNullableString(value, 'subtype'),
-      size: readString(value, 'size'),
-      stamps: readStringArray(value, 'stamps'),
-      foil: readNullableString(value, 'foil'),
-    },
-    path,
-  );
-}
-
 function parseCardEntryView(value: unknown, path: string): CardEntryView {
+  const variant = readField(value, 'variant');
   return {
     ...parseCardEntry(value, path),
     card: parseCardView(readField(value, 'card'), path),
     set: parseSetView(readField(value, 'set'), path),
-    variant: parseVariantView(readField(value, 'variant'), path),
+    variant: variant === null ? null : parseVariantView(variant, path),
   };
-}
-
-function parseList<T>(value: unknown, path: string, parseItem: (item: unknown) => T): T[] {
-  if (!Array.isArray(value)) {
-    throw unexpectedResponse(path);
-  }
-  return value.map(parseItem);
 }
 
 function parseCardsPage(value: unknown, path: string): CollectionCardsPage {

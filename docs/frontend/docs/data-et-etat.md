@@ -381,6 +381,7 @@ Comportement commun a toutes les requetes :
 | Statut hors 200-299 | `ApiError { status, code, message, fieldErrors?, retryAfterSeconds?, body }` |
 | Serveur injoignable, coupure | `NetworkError` de cause `connection` |
 | Pas de reponse en 15 s | Requete annulee, `NetworkError` de cause `timeout` |
+| Signal de l'appelant declenche (`signal`, celui de TanStack Query) | `fetch` interrompu, `RequestAbortedError` : une requete devenue obsolete n'est pas un echec |
 
 `code` et `message` viennent du format d'erreur du back (`{ statusCode, error, message, timestamp, path }`) : `code` reprend `error` (ex. : `Conflict`), ou vaut `HTTP_<statut>` si le corps est inexploitable. Le back n'envoie pas encore d'erreurs par champ : `fieldErrors` reste vide. `retryAfterSeconds` est lu dans l'en-tete `Retry-After` (429). Les messages du back sont en anglais et ne s'affichent jamais tels quels : ils sont traduits en francais avant affichage.
 
@@ -415,6 +416,20 @@ Les etats (`CARD_CONDITIONS` : NM, LP, MP, HP, DMG), les langues (`CARD_LANGUAGE
 
 Reste a livrer avec Ma Collection (COLLR-764) : detail, creation, renommage et suppression d'une collection, modification et retrait d'une carte.
 
+### Recherche dans le catalogue (COLLR-702)
+
+**Aucun endpoint de recherche n'existe encore cote back (COLLR-459).** `catalogService` (`packages/shared/src/services/catalogService.ts`) appelle un contrat suppose, a valider avec le back : `GET /catalogue/cards/search?q=<terme>&limit=20`, qui renvoie une liste de `{ card, set, variants }` (type `CatalogCard`), reprenant les vues deja exposees par l'API (`CardViewDto`, `SetViewDto`, `VariantViewDto`). Le comportement suppose est celui du depot du back (`searchByName`) : nom francais ou anglais contenant le terme, sans tenir compte de la casse mais des accents, tri par nom anglais, 2 a 100 caracteres. La recherche par extension ou par numero n'existe pas cote back. Quand le vrai contrat sera livre, seuls `catalogService` et son handler simule sont a adapter.
+
+`useSearchCatalog(texte)` porte l'autocompletion :
+
+| Regle | Valeur |
+|---|---|
+| Declenchement | 200 ms apres la derniere frappe, a partir de 2 caracteres (espaces de debut et de fin ignores) ; rien au-dela de 100 |
+| Requetes obsoletes | Annulees : le signal de TanStack Query interrompt la requete (`RequestAbortedError`) |
+| Pendant la frappe | Les resultats precedents restent affiches (`keepPreviousData`) : la liste ne clignote pas |
+| Meme recherche retapee | Servie par le cache pendant 5 min, sans nouvel appel |
+| Renvoie | `canSearch`, `results`, `searchedTerm` (terme des resultats affiches), `isSearching`, `error`, `retry` |
+
 ### Donnees simulees (MSW)
 
 En dev, le front peut travailler sur des donnees simulees par [MSW 2](https://mswjs.io) (`apps/web/src/mocks/`), alignees sur les DTO et les erreurs du back. Un seul reglage, `VITE_API_MOCKS`, dans `apps/web/.env.local` (documente dans `.env.example`) :
@@ -422,13 +437,16 @@ En dev, le front peut travailler sur des donnees simulees par [MSW 2](https://ms
 | Valeur | Effet |
 |---|---|
 | vide (defaut) | Aucune simulation : toutes les requetes vont a l'API |
-| `all` | Toute l'API utilisee par le front est simulee (collections) : travail sans back |
+| `catalogue` | Seule la recherche dans le catalogue, absente du back, est simulee ; le reste va a l'API |
+| `all` | Toute l'API utilisee par le front est simulee (catalogue et collections) : travail sans back |
+
+Demo de l'Ajout manuel : tant que la recherche du catalogue n'existe pas cote back, le parcours complet se montre avec `VITE_API_MOCKS=all`. Avec `catalogue`, les cartes simulees n'existent pas dans la vraie base : l'ajout reel repond 404.
 
 - **Dev uniquement** : `main.tsx` demarre le service worker de MSW avant le premier rendu, sous `npm run dev` seulement. Le build de production n'embarque ni MSW ni les handlers, et `vite.config.ts` retire le worker (`public/mockServiceWorker.js`) du build. Une valeur inconnue bloque le demarrage.
 - **Contrat** : memes chemins, memes reponses, memes erreurs que le back (`{ statusCode, error, message, timestamp, path }`, messages en anglais). Les cartes simulees reprennent les fixtures TCGdex du back (`backend/prisma/fixtures/tcgdex`) avec des UUID fixes : elles n'existent pas dans une vraie base.
 - **Requetes sans handler** : envoyees a la vraie API (`onUnhandledRequest: 'bypass'`).
 - **Etat** : les ajouts sont gardes en memoire jusqu'au rechargement de la page.
-- **Tests** : les handlers sont verifies avec `msw/node` contre le vrai `collectionService` (`collectionHandlers.test.ts`) ; les hooks de `shared` gardent leurs faux clients injectes.
+- **Tests** : les handlers sont verifies avec `msw/node` contre les vrais services (`collectionHandlers.test.ts`, `catalogueHandlers.test.ts`) ; les hooks de `shared` gardent leurs faux clients injectes.
 
 ### Template : Hook TanStack Query
 

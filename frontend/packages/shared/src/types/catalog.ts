@@ -47,3 +47,17 @@ export interface VariantView {
   /** Type de brillance (« gold »), s'il existe */
   foil: string | null;
 }
+
+/**
+ * Carte trouvée dans le catalogue, avec son set et ses impressions (résultat de recherche).
+ * Forme supposée : aucun endpoint de recherche n'existe encore côté back (COLLR-459). Elle reprend
+ * les vues déjà exposées par l'API (`CardViewDto`, `SetViewDto`, `VariantViewDto`).
+ */
+export interface CatalogCard {
+  /** Carte */
+  card: CardView;
+  /** Set de la carte */
+  set: SetView;
+  /** Impressions de la carte */
+  variants: VariantView[];
+}

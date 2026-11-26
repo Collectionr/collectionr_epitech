@@ -2,6 +2,7 @@ import type { HttpHandler } from 'msw';
 
 import type { ApiMocksMode } from '@/config/apiMocks';
 
+import { createCatalogueHandlers } from './catalogueHandlers';
 import { createCollectionHandlers } from './collectionHandlers';
 import { createMockCollectionStore } from './data/collections';
 
@@ -12,7 +13,12 @@ import { createMockCollectionStore } from './data/collections';
  */
 export function createApiHandlers(mode: ApiMocksMode, baseUrl: string): HttpHandler[] {
   switch (mode) {
+    case 'catalogue':
+      return createCatalogueHandlers(baseUrl);
     case 'all':
-      return createCollectionHandlers(baseUrl, createMockCollectionStore());
+      return [
+        ...createCatalogueHandlers(baseUrl),
+        ...createCollectionHandlers(baseUrl, createMockCollectionStore()),
+      ];
   }
 }

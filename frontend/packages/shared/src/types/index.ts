@@ -6,7 +6,7 @@ export type {
   SessionEndReason,
   User,
 } from './auth';
-export type { CardView, SetView, VariantView } from './catalog';
+export type { CardView, CatalogCard, SetView, VariantView } from './catalog';
 export type {
   AddCardEntryInput,
   CardCondition,

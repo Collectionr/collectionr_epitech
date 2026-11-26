@@ -61,6 +61,20 @@ export function readOneOf<T extends string>(
 }
 
 /**
+ * Liste dont chaque élément est vérifié.
+ * @param value - Corps de la réponse
+ * @param path - Chemin de l'endpoint, cité dans l'erreur
+ * @param parseItem - Vérifie et type un élément
+ * @throws {TypeError} Si le corps n'est pas une liste, ou si un élément est refusé
+ */
+export function parseList<T>(value: unknown, path: string, parseItem: (item: unknown) => T): T[] {
+  if (!Array.isArray(value)) {
+    throw unexpectedResponse(path);
+  }
+  return value.map(parseItem);
+}
+
+/**
  * Vérifie qu'aucun champ lu ne manque.
  * @param fields - Champs lus par les fonctions `read…` ; `undefined` signale un champ absent ou invalide
  * @param path - Chemin de l'endpoint, cité dans l'erreur

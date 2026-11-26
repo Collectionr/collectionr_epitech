@@ -6,8 +6,10 @@ import {
   DEFAULT_REQUEST_TIMEOUT_MS,
   INVALID_JSON_ERROR_CODE,
   NetworkError,
+  RequestAbortedError,
 } from './apiClient';
 import type {
+  AbortSignalLike,
   ApiClientOptions,
   ApiSession,
   FetchLike,
@@ -104,6 +106,31 @@ function createFakeSession(
     }),
   } satisfies ApiSession;
   return session;
+}
+
+/** Signal d'annulation de l'appelant (celui de TanStack Query), déclenché par `abort`. */
+function createCallerSignal() {
+  const listeners = new Set<() => void>();
+  let aborted = false;
+  const signal = {
+    get aborted() {
+      return aborted;
+    },
+    addEventListener: vi.fn((_type: 'abort', listener: () => void) => {
+      listeners.add(listener);
+    }),
+    removeEventListener: vi.fn((_type: 'abort', listener: () => void) => {
+      listeners.delete(listener);
+    }),
+  } satisfies AbortSignalLike;
+  return {
+    signal,
+    listeners,
+    abort: () => {
+      aborted = true;
+      listeners.forEach((listener) => listener());
+    },
+  };
 }
 
 function authorizationOf(call: RecordedCall | undefined): string | undefined {
@@ -393,6 +420,48 @@ describe('createApiClient', () => {
       await expect(client.request('/cards')).resolves.toEqual({ id: 1 });
       await vi.advanceTimersByTimeAsync(DEFAULT_REQUEST_TIMEOUT_MS);
 
+      expect(controller.signal.aborted).toBe(false);
+    });
+  });
+
+  describe('annulation par l’appelant', () => {
+    it('n’envoie rien quand la requête est déjà annulée', async () => {
+      const { fetch, calls } = createFakeFetch(jsonResponse(200, []));
+      const caller = createCallerSignal();
+      caller.abort();
+
+      await expect(
+        createClient(fetch).request('/catalogue/cards/search', { signal: caller.signal }),
+      ).rejects.toBeInstanceOf(RequestAbortedError);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('interrompt fetch et lève une RequestAbortedError quand l’appelant annule', async () => {
+      const controller = createFakeAbortController();
+      const fetch: FetchLike<FakeSignal> = () => new Promise(() => {});
+      const client = createClient(fetch, { createAbortController: () => controller });
+      const caller = createCallerSignal();
+
+      const request = client.request('/catalogue/cards/search', { signal: caller.signal });
+      caller.abort();
+
+      await expect(request).rejects.toMatchObject({
+        name: 'RequestAbortedError',
+        message: 'Requête GET /catalogue/cards/search annulée',
+      });
+      expect(controller.signal.aborted).toBe(true);
+    });
+
+    it('se désabonne du signal une fois la requête aboutie', async () => {
+      const controller = createFakeAbortController();
+      const { fetch } = createFakeFetch(jsonResponse(200, []));
+      const client = createClient(fetch, { createAbortController: () => controller });
+      const caller = createCallerSignal();
+
+      await expect(client.request('/cards', { signal: caller.signal })).resolves.toEqual([]);
+
+      expect(caller.listeners.size).toBe(0);
+      caller.abort();
       expect(controller.signal.aborted).toBe(false);
     });
   });

@@ -7,13 +7,13 @@ describe('resolveApiMocks', () => {
     expect(resolveApiMocks(value)).toBeNull();
   });
 
-  it('simule toute l’API avec all', () => {
-    expect(resolveApiMocks('all')).toBe('all');
+  it.each(['catalogue', 'all'] as const)('accepte le mode %s', (mode) => {
+    expect(resolveApiMocks(mode)).toBe(mode);
   });
 
   it.each(['true', 'ALL', 'collections'])('refuse une valeur inconnue (%s)', (value) => {
     expect(() => resolveApiMocks(value)).toThrow(
-      `VITE_API_MOCKS doit être vide ou valoir all (reçu : "${value}")`,
+      `VITE_API_MOCKS doit être vide ou valoir catalogue ou all (reçu : "${value}")`,
     );
   });
 });
