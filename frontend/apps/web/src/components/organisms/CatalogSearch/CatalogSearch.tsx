@@ -32,6 +32,8 @@ const VISIBLE_SUGGESTIONS = 8;
 const SUGGESTION_HEIGHT = spacing['space-48'];
 
 const HELP_TEXT = `Nom de la carte (${CATALOG_SEARCH.minLength} caractères minimum)`;
+/** Une ligne caption insécable : la place de l'aide reste réservée une fois la recherche lancée. */
+const EMPTY_HELP = '\u00A0';
 
 /** Ouverte instantanément, sans animation : la vitesse perçue prime. */
 const PANEL_CLASSES =
@@ -197,13 +199,12 @@ export function CatalogSearch({
           activeDescendantId: open ? activeOptionId : undefined,
         }}
       />
-      {!canSearch && (
-        <span id={helpId}>
-          <Text variant="caption" color="acier-texte">
-            {HELP_TEXT}
-          </Text>
-        </span>
-      )}
+      {/* Ligne réservée, comme le message d'Input : le formulaire ne remonte pas quand l'aide disparaît. */}
+      <span id={helpId} aria-hidden={canSearch || undefined} className="flex">
+        <Text variant="caption" color="acier-texte">
+          {canSearch ? EMPTY_HELP : HELP_TEXT}
+        </Text>
+      </span>
       <span role="status" className="sr-only">
         {searchedTerm !== '' && !isSearching && error === null
           ? `${results.length} ${results.length > 1 ? 'cartes trouvées' : 'carte trouvée'}`

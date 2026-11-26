@@ -248,4 +248,14 @@ describe('CatalogSearch', () => {
     expect(listbox.querySelector('strong')).toBeNull();
     expect(within(listbox).getAllByRole('option')[0]?.textContent).toContain('Dracaufeu');
   });
+
+  it('garde la place de l’aide une fois la recherche lancée, sans la faire lire', () => {
+    const { input } = renderSearch(FOUND);
+
+    expect(screen.queryByText('Nom de la carte (2 caractères minimum)')).toBeNull();
+    expect(input.hasAttribute('aria-describedby')).toBe(false);
+    const reserved = document.querySelector('[id$="-aide"]');
+    expect(reserved?.getAttribute('aria-hidden')).toBe('true');
+    expect(reserved?.textContent).toBe('\u00A0');
+  });
 });
