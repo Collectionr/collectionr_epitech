@@ -32,12 +32,35 @@ describe('routes de l’application', () => {
     [collectionPath('c1'), 'Collection', true],
     [addCardPath('c1'), 'Ajouter une carte', true],
     [ROUTES.profile, 'Profil', true],
+    [ROUTES.catalogue, 'Catalogue', true],
+    [ROUTES.setProgression, 'Set Progression', true],
+    [ROUTES.preGrading, 'Pré-Gradage IA', true],
+    [ROUTES.settings, 'Paramètres', true],
     ['/adresse/inconnue', 'Page introuvable', false],
   ])('affiche %s avec son titre de page et d’onglet', async (path, title, connected) => {
     renderAt(path, { connected });
 
     expect(await screen.findByRole('heading', { level: 1, name: title })).toBeDefined();
     await waitFor(() => expect(document.title).toBe(`${title} · Collectionr`));
+  });
+
+  it('affiche une page connectée dans le cadre : titre dans la Topbar, un seul main', async () => {
+    renderAt(ROUTES.collections, { connected: true });
+
+    const title = await screen.findByRole('heading', { level: 1, name: 'Ma Collection' });
+    expect(screen.getByRole('banner').contains(title)).toBe(true);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('navigation', { name: 'Navigation principale' })).toBeDefined();
+  });
+
+  it('affiche une page visiteur hors du cadre, avec son propre titre', async () => {
+    renderAt(ROUTES.forgotPassword, { connected: false });
+
+    const title = await screen.findByRole('heading', { level: 1, name: 'Mot de passe oublié' });
+    expect(screen.getByRole('main').contains(title)).toBe(true);
+    expect(screen.queryByRole('banner')).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Navigation principale' })).toBeNull();
   });
 
   it('ramène au Dashboard depuis la page 404', async () => {

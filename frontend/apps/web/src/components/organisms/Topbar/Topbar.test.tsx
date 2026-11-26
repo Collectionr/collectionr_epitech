@@ -66,4 +66,20 @@ describe('Topbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Effacer la recherche' }));
     expect(onSearchChange).toHaveBeenNthCalledWith(2, '');
   });
+
+  it('n’affiche aucun champ de recherche sans recherche à brancher', () => {
+    render(<Topbar title="Dashboard" notificationCount={0} avatar={{ name: 'Camille' }} />);
+
+    const topbar = within(screen.getByRole('banner'));
+    expect(topbar.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeTruthy();
+    expect(topbar.queryByRole('textbox')).toBeNull();
+  });
+
+  it('place l’élément fourni avant le titre', () => {
+    render(<Topbar {...props} leading={<button type="button">Menu</button>} />);
+
+    const menu = screen.getByRole('button', { name: 'Menu' });
+    const title = screen.getByRole('heading', { level: 1, name: 'Dashboard' });
+    expect(menu.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

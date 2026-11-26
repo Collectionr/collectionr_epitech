@@ -1,5 +1,5 @@
 > **Maintenu par :** François Dubois (PO / Frontend Lead)
-> **Dernière mise à jour :** 2026-11-19
+> **Dernière mise à jour :** 2026-11-26
 > **Audience :** Toute l’équipe, en particulier les nouveaux contributeurs
 
 # Design system — Collectionr, thème Écrin
@@ -75,7 +75,8 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - NavItem utilise la hauteur `sizing.control` et la largeur de son conteneur. L’indicateur de la page courante utilise `borders['nav-indicator']` (3 px) et la couleur Signal. Le libellé actif est en Archive.
 - Sidebar utilise `sizing.sidebar` (220 px), exposé par la classe `w-sidebar`.
-- Topbar centre SearchBar jusqu’à `sizing['topbar-search']` (548 px). Sous le seuil `desktop`, la recherche passe sur une seconde ligne.
+- Topbar centre SearchBar jusqu’à `sizing['topbar-search']` (548 px). Sous le seuil `desktop`, la recherche passe sur une seconde ligne. La recherche est facultative : sans recherche à brancher, Topbar n’affiche pas de champ. Un élément peut précéder le titre (bouton « Menu » d’AppLayout).
+- AppLayout : Sidebar à gauche (`w-sidebar`), Topbar en haut, zone de contenu qui défile seule sur la hauteur de l’écran. Sous le seuil `desktop`, la Sidebar est masquée et s’ouvre par-dessus le contenu depuis le bouton « Menu ».
 - Colonne formulaire : `sizing.form` = 480 px (`max-w-form`), largeur maximale de la colonne formulaire d'AuthLayout. Valeur provisoire (décision PO du 21/11), à confirmer dans Figma. Le preset génère aussi les largeurs maximales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
@@ -125,7 +126,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 

@@ -30,7 +30,7 @@ const REFUSED_REDIRECTS = [
 ];
 
 describe('chemins', () => {
-  it('déclare les routes de l’Alpha', () => {
+  it('déclare les routes de l’Alpha et les pages provisoires de la Sidebar', () => {
     expect(ROUTES).toEqual({
       login: '/connexion',
       signup: '/inscription',
@@ -40,6 +40,10 @@ describe('chemins', () => {
       collection: '/collections/:id',
       addCard: '/cartes/ajouter',
       profile: '/profil',
+      catalogue: '/catalogue',
+      setProgression: '/progression',
+      preGrading: '/pre-gradage',
+      settings: '/parametres',
     });
   });
 

@@ -21,9 +21,9 @@ const meta = {
     return (
       <Topbar
         {...args}
-        searchValue={searchValue}
+        searchValue={searchValue ?? ''}
         onSearchChange={(nextValue) => {
-          args.onSearchChange(nextValue);
+          args.onSearchChange?.(nextValue);
           updateArgs({ searchValue: nextValue });
         }}
       />
@@ -43,5 +43,20 @@ export const PageImbriquee: Story = {
     breadcrumbs: [{ label: 'Catalogue', href: '/catalogue' }],
     notificationCount: 3,
     searchValue: 'Pikachu',
+  },
+};
+
+/** Sans recherche globale à brancher (Alpha) : pas de champ qui ne ferait rien. */
+export const SansRecherche: Story = {
+  name: 'Sans recherche',
+  render: function Render({ title, breadcrumbs, notificationCount, avatar }) {
+    return (
+      <Topbar
+        title={title}
+        breadcrumbs={breadcrumbs}
+        notificationCount={notificationCount}
+        avatar={avatar}
+      />
+    );
   },
 };
