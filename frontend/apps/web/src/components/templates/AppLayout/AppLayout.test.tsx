@@ -42,6 +42,18 @@ function openMenu(menuButton: HTMLElement) {
   fireEvent.click(menuButton);
 }
 
+/**
+ * Lien de la navigation, trouvé par son texte : `getByRole` avec un nom calcule le nom accessible
+ * de chaque élément et dépasse le délai des tests quand la machine est chargée.
+ */
+function navigationLink(panel: HTMLElement, name: string): HTMLElement {
+  const link = within(panel).getByText(name).closest('a');
+  if (link === null) {
+    throw new Error(`Lien « ${name} » introuvable`);
+  }
+  return link;
+}
+
 describe('AppLayout', () => {
   it('compose la Sidebar, la Topbar et la zone de contenu', () => {
     renderLayout();
@@ -95,7 +107,7 @@ describe('AppLayout', () => {
     expect(menuButton.getAttribute('aria-expanded')).toBe('true');
     expect(panel.classList.contains('hidden')).toBe(false);
     expect(panel.classList.contains('fixed')).toBe(true);
-    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Dashboard' }));
+    expect(document.activeElement).toBe(navigationLink(panel, 'Dashboard'));
   });
 
   it('se referme avec Échap et rend le focus au bouton Menu', () => {
@@ -139,41 +151,41 @@ describe('AppLayout', () => {
   });
 
   it('se referme au choix d’un lien', () => {
-    const { menuButton } = renderLayout();
+    const { menuButton, panel } = renderLayout();
     openMenu(menuButton);
 
-    fireEvent.click(screen.getByRole('link', { name: 'Profil' }));
+    fireEvent.click(navigationLink(panel, 'Profil'));
 
     expect(menuButton.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('reste ouverte quand le focus passe d’un lien à l’autre', () => {
-    const { menuButton } = renderLayout();
+    const { menuButton, panel } = renderLayout();
     openMenu(menuButton);
 
-    fireEvent.focusOut(screen.getByRole('link', { name: 'Dashboard' }), {
-      relatedTarget: screen.getByRole('link', { name: 'Catalogue' }),
+    fireEvent.focusOut(navigationLink(panel, 'Dashboard'), {
+      relatedTarget: navigationLink(panel, 'Catalogue'),
     });
 
     expect(menuButton.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('se referme quand le focus quitte la navigation', () => {
-    const { menuButton } = renderLayout();
+    const { menuButton, panel } = renderLayout();
     openMenu(menuButton);
 
-    fireEvent.focusOut(screen.getByRole('link', { name: 'Dashboard' }), {
-      relatedTarget: screen.getByRole('button', { name: 'Action de la page' }),
+    fireEvent.focusOut(navigationLink(panel, 'Dashboard'), {
+      relatedTarget: screen.getByText('Action de la page'),
     });
 
     expect(menuButton.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('se referme par le bouton Menu, sans se rouvrir quand le focus y revient', () => {
-    const { menuButton } = renderLayout();
+    const { menuButton, panel } = renderLayout();
     openMenu(menuButton);
 
-    fireEvent.focusOut(screen.getByRole('link', { name: 'Dashboard' }), {
+    fireEvent.focusOut(navigationLink(panel, 'Dashboard'), {
       relatedTarget: menuButton,
     });
     expect(menuButton.getAttribute('aria-expanded')).toBe('true');
