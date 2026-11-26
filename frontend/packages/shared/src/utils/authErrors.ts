@@ -15,7 +15,9 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_CONFLICT = 409;
 const HTTP_TOO_MANY_REQUESTS = 429;
+const HTTP_BAD_GATEWAY = 502;
 const HTTP_SERVICE_UNAVAILABLE = 503;
+const HTTP_GATEWAY_TIMEOUT = 504;
 const SECONDS_PER_MINUTE = 60;
 
 /**
@@ -73,7 +75,11 @@ function translateApiError(error: ApiError): TranslatedAuthError {
       return {
         message: `${MESSAGES.tooManyAttempts} ${retryDelayMessage(error.retryAfterSeconds)}`,
       };
+    // 502 et 504 viennent du proxy (Traefik en production) quand le back redémarre ou ne répond
+    // pas : pour l'utilisateur, c'est le même service momentanément indisponible qu'un 503.
+    case HTTP_BAD_GATEWAY:
     case HTTP_SERVICE_UNAVAILABLE:
+    case HTTP_GATEWAY_TIMEOUT:
       return { message: MESSAGES.unavailable };
     default:
       return { message: MESSAGES.unexpected };

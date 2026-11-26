@@ -70,8 +70,12 @@ describe('translateAuthError', () => {
     });
   });
 
-  it('traduit un service indisponible (503)', () => {
-    expect(translateAuthError(apiError({ status: 503 }))).toEqual({
+  it.each([
+    [503, 'service indisponible'],
+    [502, 'passerelle en erreur, back qui redémarre derrière le proxy'],
+    [504, 'passerelle sans réponse du back'],
+  ])('traduit un %i (%s) en service momentanément indisponible', (status) => {
+    expect(translateAuthError(apiError({ status }))).toEqual({
       message: 'Le service est momentanément indisponible. Réessayez dans quelques minutes.',
     });
   });
