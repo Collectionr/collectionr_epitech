@@ -6,3 +6,5 @@ export { Topbar } from './Topbar';
 export type { TopbarBreadcrumb, TopbarProps } from './Topbar';
 export { CatalogSearch } from './CatalogSearch';
 export type { CatalogSearchProps } from './CatalogSearch';
+export { CardPreviewPanel } from './CardPreviewPanel';
+export type { CardPreviewPanelProps } from './CardPreviewPanel';

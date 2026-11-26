@@ -131,7 +131,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox, Price, Select), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail, QuantityStepper, Toast, EmptyState), **Organisms** (Sidebar, Topbar, LoginForm, CatalogSearch) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox, Price, Select), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail, QuantityStepper, Toast, EmptyState), **Organisms** (Sidebar, Topbar, LoginForm, CatalogSearch, CardPreviewPanel) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 
