@@ -307,6 +307,7 @@ Regles :
 | `anonymous` | `/connexion?redirect=<page demandee>` ; `/connexion` seul apres une deconnexion volontaire | La page |
 | `authenticated` | La page | Page demandee (`redirect`), sinon Dashboard |
 
+- Ecran d'erreur : apres un « Reessayer » qui echoue, le focus revient sur « Reessayer » (le bouton est demonte pendant l'essai) ; au premier affichage, le focus n'est pas deplace.
 - C'est `RedirectIfAuthenticated` qui redirige juste apres une connexion reussie : la page de connexion ne navigue pas elle-meme.
 - `redirect` n'est suivi que s'il designe une page interne (`getSafeRedirect` : pas d'autre origine, ni `//hote`, ni page visiteur, qui bouclerait).
 - Session expiree en cours d'usage : redirection vers la connexion, qui affiche « Votre session a expire, reconnectez-vous. ».

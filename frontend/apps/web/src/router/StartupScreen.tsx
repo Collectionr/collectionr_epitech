@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button, Text } from '@/components/atoms';
 import { translateAuthError } from '@shared/utils';
@@ -20,11 +20,14 @@ export interface StartupScreenProps {
  * Écran affiché tant que la session est indéterminée (`unknown`) : fond Écrin, nom Collectionr en
  * fondu (`duration-signature`), puis « Connexion… » au-delà d'1 s. Jamais de spinner. Si la
  * restauration échoue (serveur injoignable…), le message d'erreur et « Réessayer » remplacent le
- * libellé.
+ * libellé. Après un « Réessayer » qui échoue, le focus revient sur « Réessayer ».
  */
 export function StartupScreen({ error, onRetry }: StartupScreenProps) {
   const [revealed, setRevealed] = useState(false);
   const [labelVisible, setLabelVisible] = useState(false);
+  const alertRef = useRef<HTMLDivElement>(null);
+  const retriedRef = useRef(false);
+  const hasError = error !== null && error !== undefined;
 
   useEffect(() => {
     // Une image après le premier rendu : l'opacité nulle est peinte, la transition peut jouer.
@@ -37,6 +40,20 @@ export function StartupScreen({ error, onRetry }: StartupScreenProps) {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    // Pendant l'essai, l'écran d'erreur laisse la place au libellé et le bouton est démonté : sans
+    // cela, le focus finirait sur `body`. Au premier affichage de l'erreur, il n'est pas déplacé.
+    if (hasError && retriedRef.current) {
+      retriedRef.current = false;
+      alertRef.current?.querySelector('button')?.focus();
+    }
+  }, [hasError]);
+
+  function handleRetry() {
+    retriedRef.current = true;
+    onRetry();
+  }
+
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-space-24 bg-ecrin p-space-24">
       <div
@@ -46,7 +63,7 @@ export function StartupScreen({ error, onRetry }: StartupScreenProps) {
           {APP_NAME}
         </Text>
       </div>
-      {error === null || error === undefined ? (
+      {!hasError ? (
         <div role="status">
           {labelVisible && (
             <Text variant="caption" color="acier-texte">
@@ -55,11 +72,11 @@ export function StartupScreen({ error, onRetry }: StartupScreenProps) {
           )}
         </div>
       ) : (
-        <div role="alert" className="flex flex-col items-center gap-space-16">
+        <div ref={alertRef} role="alert" className="flex flex-col items-center gap-space-16">
           <Text color="acier-texte" variant="body">
             {translateAuthError(error).message}
           </Text>
-          <Button variant="primary" onClick={onRetry}>
+          <Button variant="primary" onClick={handleRetry}>
             Réessayer
           </Button>
         </div>

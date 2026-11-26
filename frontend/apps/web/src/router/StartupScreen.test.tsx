@@ -50,4 +50,41 @@ describe('StartupScreen', () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it('ne déplace pas le focus au premier affichage de l’erreur', () => {
+    render(<StartupScreen error={offline()} onRetry={() => undefined} />);
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('remet le focus sur « Réessayer » quand l’essai échoue à son tour', () => {
+    const onRetry = vi.fn();
+    const { rerender } = render(<StartupScreen error={offline()} onRetry={onRetry} />);
+
+    // fireEvent.click ne donne pas le focus au bouton : seul le composant peut le remettre.
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    rerender(<StartupScreen error={null} onRetry={onRetry} />);
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+    rerender(<StartupScreen error={offline()} onRetry={onRetry} />);
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Réessayer' }));
+  });
+
+  it('ne reprend le focus qu’après un nouvel appui sur « Réessayer »', () => {
+    const { rerender } = render(<StartupScreen error={offline()} onRetry={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    rerender(<StartupScreen error={null} onRetry={() => undefined} />);
+    rerender(<StartupScreen error={offline()} onRetry={() => undefined} />);
+
+    // Nouvelle erreur sans appui sur « Réessayer » : le bouton démonté emporte le focus.
+    rerender(<StartupScreen error={null} onRetry={() => undefined} />);
+    rerender(<StartupScreen error={offline()} onRetry={() => undefined} />);
+
+    expect(document.activeElement).toBe(document.body);
+  });
 });
+
+function offline(): NetworkError {
+  return new NetworkError('connection', 'Failed to fetch');
+}
