@@ -70,6 +70,7 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
 - Select : `<select>` natif au gabarit d’Input (`h-control`, mêmes bordures et états, place du message réservée), chevron dessiné dans l’atome au trait des icônes ; il se branche dans FormField par `renderControl`.
+- QuantityStepper : boutons − et + (`h-control`, `min-w-control`) autour d’un champ en Data-Mono à chiffres tabulaires ; bornes du back (1 à 9999, `CARD_ENTRY_QUANTITY`).
 - SearchBar utilise la variante compacte d’Input (`sizing['control-compact']`, 32 px). Sa largeur suit son conteneur. Elle affiche une loupe décorative à gauche et un bouton d’effacement à droite quand elle contient du texte.
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
 - Messages d'erreur des champs : ils tiennent sur une ligne à la largeur minimale de la colonne formulaire. La place réservée sous Input standard et Checkbox couvre une ligne caption. Input compact affiche une ligne uniquement en cas d’erreur. Un message plus long n'est jamais tronqué : il passe à la ligne et décale le contenu, c'est une exception acceptée.
@@ -127,7 +128,7 @@ Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après l
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox, Price, Select), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox, Price, Select), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail, QuantityStepper), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 

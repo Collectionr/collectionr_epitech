@@ -12,3 +12,5 @@ export { Stepper } from './Stepper';
 export type { StepperProps } from './Stepper';
 export { CardThumbnail, cardThumbnailAlt } from './CardThumbnail';
 export type { CardThumbnailProps } from './CardThumbnail';
+export { QuantityStepper } from './QuantityStepper';
+export type { QuantityStepperProps } from './QuantityStepper';
