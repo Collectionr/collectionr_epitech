@@ -416,6 +416,8 @@ Ajout d'une carte : chaque appel cree une nouvelle ligne, comme le back (la meme
 
 Les etats (`CARD_CONDITIONS` : NM, LP, MP, HP, DMG), les langues (`CARD_LANGUAGES` : fr, en) et les bornes de quantite (`CARD_ENTRY_QUANTITY` : 1 a 9999) ne sont exposes par aucun endpoint : ce sont les enumerations du Swagger, recopiees dans `@shared/constants` et a tenir alignees sur le back. Fraicheur : 2 min, conservation : 15 min (`COLLECTION_STALE_TIME_MS`, `COLLECTION_GC_TIME_MS`).
 
+Ajout manuel (`AddCardPage`, COLLR-713) : la collection est presélectionnee depuis `?collection=<id>`, sinon la derniere utilisee, sinon la plus recente. La derniere collection utilisee n'est pas fournie par l'API : elle est gardee par utilisateur dans `localStorage` (`apps/web/src/config/lastCollectionStorage.ts`, lecture et ecriture protegees, simple preference). Un echec d'ajout est traduit par `translateAddCardError` (`@shared/utils`) et affiche en toast d'erreur ; la saisie est conservee.
+
 Reste a livrer avec Ma Collection (COLLR-764) : detail, creation, renommage et suppression d'une collection, modification et retrait d'une carte.
 
 ### Recherche dans le catalogue (COLLR-702)

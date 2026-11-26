@@ -2,12 +2,22 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
+import { CatalogServiceContext, CollectionServiceContext } from '@shared/hooks';
 import { createAuthHarness, TEST_USER } from '@shared/hooks/mocks/createAuthHarness';
+import type { CatalogService, CollectionService } from '@shared/services';
 
 import { appRoutes } from './router';
 import { addCardPath, collectionPath, ROUTES } from './routes';
 
 const ROTATED_TOKENS = { accessToken: 'acces-2', refreshToken: 'renouvellement-2' };
+
+/** Services de l'Ajout manuel : aucune collection, aucune carte (seul le titre est vérifié ici). */
+const COLLECTION_SERVICE: CollectionService = {
+  list: async () => [],
+  listCards: async () => ({ items: [], total: 0, page: 1, pageSize: 50 }),
+  addCard: () => Promise.reject(new Error('Ajout inattendu')),
+};
+const CATALOG_SERVICE: CatalogService = { search: async () => [] };
 
 /** Visiteur connecté (session restaurée) ou anonyme (aucun jeton). */
 function renderAt(path: string, { connected }: { connected: boolean }) {
@@ -18,7 +28,18 @@ function renderAt(path: string, { connected }: { connected: boolean }) {
       )
     : createAuthHarness();
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />, { wrapper: harness.wrapper });
+  render(<RouterProvider router={router} />, {
+    wrapper: ({ children }) =>
+      harness.wrapper({
+        children: (
+          <CollectionServiceContext.Provider value={COLLECTION_SERVICE}>
+            <CatalogServiceContext.Provider value={CATALOG_SERVICE}>
+              {children}
+            </CatalogServiceContext.Provider>
+          </CollectionServiceContext.Provider>
+        ),
+      }),
+  });
   return router;
 }
 
