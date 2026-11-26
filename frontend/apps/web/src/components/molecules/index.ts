@@ -16,3 +16,5 @@ export { QuantityStepper } from './QuantityStepper';
 export type { QuantityStepperProps } from './QuantityStepper';
 export { Toast, ToastProvider } from './Toast';
 export type { ToastProps } from './Toast';
+export { EmptyState } from './EmptyState';
+export type { EmptyStateAction, EmptyStateProps } from './EmptyState';
