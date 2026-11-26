@@ -1,2 +1,4 @@
 package-lock.json
 **/storybook-static/
+# Généré par msw init (données simulées) : ne pas modifier.
+apps/web/public/mockServiceWorker.js

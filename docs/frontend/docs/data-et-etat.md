@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-11-25
+> **Derniere mise a jour :** 2026-11-26
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Data et Etat -- CollectionR
@@ -398,6 +398,37 @@ Le back renvoie le jeton d'acces et le jeton de renouvellement dans le corps des
 Si `localStorage` est inaccessible ou refuse une ecriture (stockage plein ou bloque), l'onglet garde le jeton de renouvellement en memoire jusqu'a la fin de la visite (`apps/web/src/config/tokenStorage.ts`) : la valeur persistee, perimee, est supprimee si possible et n'est plus jamais relue, car presenter un jeton deja utilise ferait revoquer toute la chaine de connexion. La connexion est alors redemandee au prochain chargement.
 
 Risque accepte pour l'Alpha : un script injecte (XSS) peut lire le jeton de renouvellement dans `localStorage`. La cible reste un cookie httpOnly pose par le back. Le mobile utilisera un stockage securise (Keychain / Keystore), d'ou une interface de stockage asynchrone cote `packages/shared`.
+
+### Collections (COLLR-701)
+
+`collectionService` (`packages/shared/src/services/collectionService.ts`) appelle l'API des collections et verifie chaque reponse avant de la renvoyer typee (types `Collection`, `CardEntry`, `CardEntryView`, `CollectionCardsPage` de `@shared/types`). Le service est fourni a la racine par `CollectionServiceContext` ; les composants passent par les hooks :
+
+| Hook | Role |
+|---|---|
+| `useCollections()` | `GET /collections` : collections de l'utilisateur, les plus recentes d'abord (non pagine) |
+| `useCollectionCards(id)` | `GET /collections/:id/cards` en requete infinie, 50 lignes par page. L'API ne propose ni tri ni recherche |
+| `useAddCardEntry()` | `POST /collections/:id/cards`, en optimiste (voir ci-dessous) |
+
+Ajout d'une carte : chaque appel cree une nouvelle ligne, comme le back (la meme carte, dans le meme etat et la meme langue, donne deux lignes, jamais fusionnees). La ligne apparait tout de suite en tete des cartes de la collection en cache, avec les donnees de la carte choisie dans le catalogue (`preview`), puis prend l'identifiant renvoye par l'API. Si l'API refuse, seule cette ligne est retiree : un autre ajout en cours est garde. Une fois la reponse recue, seules la collection et ses cartes sont invalidees (`QUERY_KEYS.collection(id)`).
+
+Les etats (`CARD_CONDITIONS` : NM, LP, MP, HP, DMG), les langues (`CARD_LANGUAGES` : fr, en) et les bornes de quantite (`CARD_ENTRY_QUANTITY` : 1 a 9999) ne sont exposes par aucun endpoint : ce sont les enumerations du Swagger, recopiees dans `@shared/constants` et a tenir alignees sur le back. Fraicheur : 2 min, conservation : 15 min (`COLLECTION_STALE_TIME_MS`, `COLLECTION_GC_TIME_MS`).
+
+Reste a livrer avec Ma Collection (COLLR-764) : detail, creation, renommage et suppression d'une collection, modification et retrait d'une carte.
+
+### Donnees simulees (MSW)
+
+En dev, le front peut travailler sur des donnees simulees par [MSW 2](https://mswjs.io) (`apps/web/src/mocks/`), alignees sur les DTO et les erreurs du back. Un seul reglage, `VITE_API_MOCKS`, dans `apps/web/.env.local` (documente dans `.env.example`) :
+
+| Valeur | Effet |
+|---|---|
+| vide (defaut) | Aucune simulation : toutes les requetes vont a l'API |
+| `all` | Toute l'API utilisee par le front est simulee (collections) : travail sans back |
+
+- **Dev uniquement** : `main.tsx` demarre le service worker de MSW avant le premier rendu, sous `npm run dev` seulement. Le build de production n'embarque ni MSW ni les handlers, et `vite.config.ts` retire le worker (`public/mockServiceWorker.js`) du build. Une valeur inconnue bloque le demarrage.
+- **Contrat** : memes chemins, memes reponses, memes erreurs que le back (`{ statusCode, error, message, timestamp, path }`, messages en anglais). Les cartes simulees reprennent les fixtures TCGdex du back (`backend/prisma/fixtures/tcgdex`) avec des UUID fixes : elles n'existent pas dans une vraie base.
+- **Requetes sans handler** : envoyees a la vraie API (`onUnhandledRequest: 'bypass'`).
+- **Etat** : les ajouts sont gardes en memoire jusqu'au rechargement de la page.
+- **Tests** : les handlers sont verifies avec `msw/node` contre le vrai `collectionService` (`collectionHandlers.test.ts`) ; les hooks de `shared` gardent leurs faux clients injectes.
 
 ### Template : Hook TanStack Query
 

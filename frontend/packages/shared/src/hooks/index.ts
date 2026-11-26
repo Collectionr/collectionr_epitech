@@ -1,6 +1,12 @@
 export { AuthServiceContext, useAuthService } from './authServiceContext';
+export { CollectionServiceContext, useCollectionService } from './collectionServiceContext';
+export { useAddCardEntry, OPTIMISTIC_ENTRY_ID_PREFIX } from './useAddCardEntry';
+export type { AddCardEntryVariables } from './useAddCardEntry';
 export { useAuth } from './useAuth';
 export type { AuthSessionState } from './useAuth';
+export { nextCardsPage, useCollectionCards } from './useCollectionCards';
+export type { CollectionCardsData } from './useCollectionCards';
+export { useCollections } from './useCollections';
 export { useLogin } from './useLogin';
 export { useLogout } from './useLogout';
 export { useMe } from './useMe';

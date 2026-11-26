@@ -7,7 +7,13 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['**/dist/', '**/storybook-static/', '**/coverage/']),
+  globalIgnores([
+    '**/dist/',
+    '**/storybook-static/',
+    '**/coverage/',
+    // Généré par msw init (données simulées) : ne pas modifier.
+    'apps/web/public/mockServiceWorker.js',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],

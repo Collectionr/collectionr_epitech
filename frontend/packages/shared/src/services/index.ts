@@ -7,7 +7,11 @@ export {
 } from './apiClient';
 export { createAuthService, createAuthSession, SessionClosedError } from './authService';
 export type { AuthService, AuthServiceOptions, RunExclusive, TokenStorage } from './authService';
+export { createCollectionService } from './collectionService';
+export type { CollectionService, CollectionServiceOptions } from './collectionService';
 export {
+  COLLECTION_GC_TIME_MS,
+  COLLECTION_STALE_TIME_MS,
   createQueryClient,
   DEFAULT_GC_TIME_MS,
   DEFAULT_STALE_TIME_MS,
