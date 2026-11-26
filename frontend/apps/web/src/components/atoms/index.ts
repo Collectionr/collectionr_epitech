@@ -18,6 +18,8 @@ export { Price } from './Price';
 export type { PriceProps } from './Price';
 export { ProgressBar } from './ProgressBar';
 export type { ProgressBarProps } from './ProgressBar';
+export { Select } from './Select';
+export type { SelectOption, SelectProps } from './Select';
 export { Surface } from './Surface';
 export type { SurfaceElement, SurfacePadding, SurfaceProps } from './Surface';
 export { Text } from './Text';
