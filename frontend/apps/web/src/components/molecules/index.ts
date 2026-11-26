@@ -14,3 +14,5 @@ export { CardThumbnail, cardThumbnailAlt } from './CardThumbnail';
 export type { CardThumbnailProps } from './CardThumbnail';
 export { QuantityStepper } from './QuantityStepper';
 export type { QuantityStepperProps } from './QuantityStepper';
+export { Toast, ToastProvider } from './Toast';
+export type { ToastProps } from './Toast';

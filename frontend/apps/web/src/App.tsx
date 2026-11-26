@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router';
 
 import { authService, catalogService, collectionService } from '@/config/api';
+import { ToastProvider } from '@/components/molecules';
 import { queryClient } from '@/config/queryClient';
 import { router } from '@/router/router';
 import { AuthServiceContext, CatalogServiceContext, CollectionServiceContext } from '@shared/hooks';
@@ -22,7 +23,7 @@ const QueryDevtools =
       )
     : null;
 
-/** Racine de l'application web : cache des appels API, services de l'API et routeur. */
+/** Racine de l'application web : cache des appels API, services de l'API, routeur et notifications. */
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -30,6 +31,7 @@ export function App() {
         <CollectionServiceContext.Provider value={collectionService}>
           <CatalogServiceContext.Provider value={catalogService}>
             <RouterProvider router={router} />
+            <ToastProvider />
           </CatalogServiceContext.Provider>
         </CollectionServiceContext.Provider>
       </AuthServiceContext.Provider>

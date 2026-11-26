@@ -187,6 +187,8 @@ Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou parta
 | Aucun jeton, jeton refuse (400, 401), profil refuse (401, 404) | `anonymous` | Supprime |
 | Serveur injoignable, delai depasse, 5xx, 429, reponse illisible | `unknown` + `restoreError` : ecran d'erreur avec « Reessayer » (COLLR-700) | Conserve |
 
+**toastStore** -- Notifications (`packages/shared/src/stores/toastStore.ts`, livre en COLLR-704). Store unique, appelable hors composant, en particulier dans une mutation : `toast.success(message, action?)`, `toast.info(...)`, `toast.error(...)`, `toast.dismiss(id)`. 3 notifications au plus (les plus anciennes sortent en premier). Le web les affiche par `ToastProvider` (lu via `useToasts()`) : succes et information fermes apres 4 s (`TOAST_DURATION_MS`, en pause au survol et au focus), erreur affichee jusqu'a sa fermeture.
+
 **useUIStore** -- Etat de l'interface : theme, modals, toasts, chargement global.
 
 | Etat | Type | Description |

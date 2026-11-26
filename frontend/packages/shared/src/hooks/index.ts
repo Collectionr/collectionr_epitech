@@ -17,3 +17,4 @@ export { useRestoreSession } from './useRestoreSession';
 export { useSearchCatalog } from './useSearchCatalog';
 export type { CatalogSearchState } from './useSearchCatalog';
 export { useSessionExpiredNotice } from './useSessionExpiredNotice';
+export { useToasts } from './useToasts';
