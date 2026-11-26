@@ -14,6 +14,8 @@ export { Input } from './Input';
 export type { InputProps, InputType } from './Input';
 export { Label } from './Label';
 export type { LabelProps } from './Label';
+export { Price } from './Price';
+export type { PriceProps } from './Price';
 export { ProgressBar } from './ProgressBar';
 export type { ProgressBarProps } from './ProgressBar';
 export { Surface } from './Surface';

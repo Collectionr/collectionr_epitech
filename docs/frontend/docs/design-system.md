@@ -122,11 +122,11 @@ Sur le web, passer par l'atome Icon (COLLR-577) plutôt que par Lucide directeme
 
 ## Prix et valeurs monétaires
 
-Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après le montant (exemple : `1 234,56 EUR`). Utiliser Data-Mono. Les hausses sont en Archive avec ↗, les baisses en acier-texte avec ↘ ; ni rouge/vert, ni Signal.
+Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après le montant (exemple : `1 234,56 EUR`). Utiliser Data-Mono. Sur le web, passer par l’atome Price : il formate avec `formatPrice` (`@shared/utils`, espaces insécables), affiche « — » quand aucune cote n’existe (jamais « 0 EUR ») et lit le prix en toutes lettres (« 12,40 euros, en hausse de 3,2 % »). Les hausses sont en Archive avec ↗, les baisses en acier-texte avec ↘ ; ni rouge/vert, ni Signal.
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox, Price), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 
