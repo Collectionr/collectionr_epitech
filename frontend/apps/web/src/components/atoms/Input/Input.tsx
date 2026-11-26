@@ -2,6 +2,7 @@ import type {
   ChangeEventHandler,
   FocusEventHandler,
   InputHTMLAttributes,
+  KeyboardEventHandler,
   ReactNode,
   Ref,
 } from 'react';
@@ -41,6 +42,24 @@ export interface InputProps {
   onChange?: ChangeEventHandler<HTMLInputElement>;
   /** Appelé à la sortie du champ, moment où le formulaire valide. */
   onBlur?: FocusEventHandler<HTMLInputElement>;
+  /** Appelé à l'entrée dans le champ. */
+  onFocus?: FocusEventHandler<HTMLInputElement>;
+  /** Appelé à chaque touche (navigation d'une liste de suggestions). */
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  /** Nombre de caractères au plus. */
+  maxLength?: number;
+  /** Id d'un texte d'aide qui décrit le champ, en plus du message d'erreur. */
+  describedBy?: string;
+  /** Champ d'une liste de suggestions (motif ARIA combobox). */
+  role?: 'combobox';
+  /** Liste de suggestions ouverte (motif combobox). */
+  'aria-expanded'?: boolean;
+  /** Id de la liste de suggestions (motif combobox). */
+  'aria-controls'?: string;
+  /** Id de la suggestion active (motif combobox). */
+  'aria-activedescendant'?: string;
+  /** Les suggestions complètent la saisie dans une liste (motif combobox). */
+  'aria-autocomplete'?: 'list';
   /** Référence vers l'`<input>` natif (bibliothèque de formulaire, focus programmé). */
   ref?: Ref<HTMLInputElement>;
   /** Décoration non interactive placée à gauche du champ. */
@@ -107,6 +126,15 @@ export function Input({
   error,
   onChange,
   onBlur,
+  onFocus,
+  onKeyDown,
+  maxLength,
+  describedBy,
+  role,
+  'aria-expanded': ariaExpanded,
+  'aria-controls': ariaControls,
+  'aria-activedescendant': ariaActiveDescendant,
+  'aria-autocomplete': ariaAutocomplete,
   ref,
   leading,
   trailing,
@@ -150,9 +178,19 @@ export function Input({
           disabled={disabled}
           aria-label={ariaLabel}
           aria-invalid={hasError || undefined}
-          aria-describedby={hasError ? errorId : undefined}
+          aria-describedby={
+            [describedBy, hasError && errorId].filter(Boolean).join(' ') || undefined
+          }
+          role={role}
+          aria-expanded={ariaExpanded}
+          aria-controls={ariaControls}
+          aria-activedescendant={ariaActiveDescendant}
+          aria-autocomplete={ariaAutocomplete}
+          maxLength={maxLength}
           onChange={onChange}
           onBlur={onBlur}
+          onFocus={onFocus}
+          onKeyDown={onKeyDown}
           className={inputClassName}
         />
         {hasTrailing && (
