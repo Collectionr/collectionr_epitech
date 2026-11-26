@@ -180,16 +180,17 @@ describe('CatalogSearch', () => {
     expect(screen.getAllByRole('option')).toHaveLength(DRACAUFEU_CARDS.length);
   });
 
-  it('signale une recherche sans résultat et propose de l’effacer', () => {
+  it('signale une recherche sans résultat, la croix du champ restant le seul moyen d’effacer', () => {
     const { input, onValueChange } = renderSearch(searchState({ searchedTerm: 'zzz' }), 'zzz');
     fireEvent.focus(input);
 
     const emptyState = screen.getByText('Aucune carte trouvée pour “zzz”').closest('div');
     expect(emptyState).not.toBeNull();
+    expect(within(emptyState as HTMLElement).queryByRole('button')).toBeNull();
     expect(screen.getByRole('status').textContent).toBe('0 carte trouvée');
-    fireEvent.click(
-      within(emptyState as HTMLElement).getByRole('button', { name: 'Effacer la recherche' }),
-    );
+    const clearButtons = screen.getAllByRole('button', { name: 'Effacer la recherche' });
+    expect(clearButtons).toHaveLength(1);
+    fireEvent.click(clearButtons[0] as HTMLElement);
 
     expect(onValueChange).toHaveBeenCalledWith('');
   });

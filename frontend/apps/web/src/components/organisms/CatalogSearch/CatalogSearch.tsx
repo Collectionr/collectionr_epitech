@@ -171,11 +171,6 @@ export function CatalogSearch({
     }
   }
 
-  function clearSearch() {
-    changeValue('');
-    ownInput.current?.focus();
-  }
-
   const activeOptionId = activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined;
 
   return (
@@ -229,10 +224,10 @@ export function CatalogSearch({
             </div>
           )}
           {noResults && (
+            // Sans bouton propre : la croix du champ efface déjà la recherche.
             <EmptyState
               variant="no-results"
               title={`Aucune carte trouvée pour “${searchedTerm}”`}
-              onClearSearch={clearSearch}
             />
           )}
           {results.length > 0 && error === null && (
