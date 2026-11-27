@@ -23,6 +23,7 @@ module.exports = {
     '/node_modules/',
     'src/main.ts',
     'src/app.module.ts',
+    'src/jobs/PurgeAccounts.ts$',
     'src/shared/bootstrap/',
     'src/contracts/',
     'src/generated/',
