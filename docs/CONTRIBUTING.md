@@ -112,8 +112,8 @@ pas dans la CI.
 
 | Dossier modifié | CI | Commandes à lancer en local | Seuil de couverture |
 |---|---|---|---|
-| `backend/` | `backend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run build` · `npm run test:cov` · `npm run test:e2e` | 70 (`jestconfig.js`) |
-| `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm run test:cov` · `npm run build` | 40 % lignes et branches (`vitest.config.ts` `apps/mobile/jest.config.js`) |
+| `backend/` | `backend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run build` · `npm run test:cov` · `npm run test:e2e` | 70 % (`jest.config.js`) |
+| `frontend/` | `frontend-ci.yaml` | `npm run format:check` · `npm run lint` · `npm run typecheck` · `npm run test:cov` · `npm run build` | 40 % lignes et branches (`vitest.config.ts`, `apps/mobile/jest.config.js`) |
 | `microservices/tcg/` | `worker-tcg-ci.yaml` | `ruff check .` · `ruff format --check .` · `mypy` · `pytest --cov` | 50 % (`pyproject.toml`) |
 | `microservices/worker-ocr/` | `worker-ocr-ci.yaml` | Pas encore de code Python : mêmes commandes que le TCG à son arrivée | 50 % (D03) |
 | `devops/`, `docs/`, racine | `security-ci.yaml` (scan global) | Depuis la racine : `for f in devops/scripts/*.sh; do bash -n "$f" || echo "ERREUR $f"; done` | — |
@@ -524,6 +524,11 @@ To github.com:Collectionr/collectionr_epitech.git
  ! [remote rejected] test-direct-push -> main (push declined due to repository rule violations)
 error: failed to push some refs to 'github.com:Collectionr/collectionr_epitech.git'
 ```
+
+> **Résultat** : La tentative est immédiatement interceptée et rejetée par le pré-receive hook de GitHub (`GH013`). Le DoD « Push direct sur `main` refusé, testé » est validé.
+
+---
+
 
 ## Contacts
 

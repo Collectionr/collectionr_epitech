@@ -1,17 +1,31 @@
+# =============================================================================
+# .gitleaksignore — alertes Gitleaks connues et volontairement ignorées
+#
+# Chaque ligne = l'empreinte d'UNE alerte précise : commit:fichier:règle:ligne
+# (copiée depuis la colonne « Fingerprint » d'un scan Gitleaks).
+#
+# Règles :
+# - N'ajouter ici QUE des faux positifs (valeurs inventées pour un test, un exemple, une démo).
+# - Un VRAI secret ne s'ignore jamais : il se révoque (on le change), puis on le retire du code.
+# - Toujours ajouter la ligne dans la bonne catégorie, avec le ticket qui l'a introduite.
+# =============================================================================
+
+# --- Données de test du Backend : mots de passe et JWT inventés pour les tests automatiques ---
 5a6bb94a66cc1e569e16dc9d1b898ee5e9756f88:backend/src/contracts/IntegrationDatabase.ts:generic-api-key:8
 177f7d84b670434161925d556839df966a978f70:backend/src/modules/auth/infrastructure/services/JwtTokenCodec.spec.ts:generic-api-key:6
 9a722ea31efb803ddd58d01ea9b57be4b7547bc2:backend/src/shared/config/ValidateEnvironment.spec.ts:generic-api-key:93
 9a722ea31efb803ddd58d01ea9b57be4b7547bc2:backend/src/shared/config/ValidateEnvironment.spec.ts:generic-api-key:120
-
 0a7ff1cb973813c4e99d4fe2215aea50a79cb1f3:backend/src/modules/auth/application/use-cases/RegisterUserUseCase.spec.ts:generic-api-key:128
 0a7ff1cb973813c4e99d4fe2215aea50a79cb1f3:backend/src/modules/auth/application/use-cases/ChangePasswordUseCase.spec.ts:generic-api-key:159
 d9a7061814fe11339a003a99863d19ada4d27ab1:backend/src/modules/audit/interface/interceptors/ReadAuditContext.spec.ts:jwt:77
+
+# --- Fichiers d'exemple : valeurs bidon à remplacer (ex. JWT_SECRET=replace-me-…) ---
 0278f0b6aa7ab29da308d04df84d4cfce89abcbf:backend/.env.example:generic-api-key:12
 
+# --- Démonstration Gitleaks (COLLR-564) : faux jeton GitHub « ghp_0123… » des anciens commits, resté dans l'historique ---
 b75c2ebfb344893b3cf65c1a3cd3503b85a7880d:docs/CONTRIBUTING.md:github-pat:569
 b75c2ebfb344893b3cf65c1a3cd3503b85a7880d:docs/CONTRIBUTING.md:github-pat:570
 134ddcd5b766c798f3e19f6d23a94b44e5de5675:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
-
 38cac18da35432056d621740a687a63b7ec63650:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
 7dcb9ae32b18b63157e38cc7ebea5ad5dfa3c94a:devops/scripts/verify-gitleaks-failfast.sh:github-pat:83
 810f3df3faf091bf235efcec97acd689b426d1fd:docs/CONTRIBUTING.md:github-pat:571
