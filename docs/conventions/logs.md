@@ -4,7 +4,7 @@
 aujourd'hui, les interroger dans Loki/Grafana en Staging (`docs/devops/D04-observabilité-slo.md`), et **suivre un traitement
 d'un service à l'autre** grâce au `job_id`.
 
-> Proposée par le DevOps, à valider par le lead Back et le lead IA.
+> Proposée par le DevOps, validée par le lead Back et le lead IA (réunion de novembre 2026).
 
 ---
 
@@ -50,9 +50,10 @@ d'un service à l'autre** grâce au `job_id`.
 ## 2. Le `job_id` : suivre un traitement d'un service à l'autre
 
 1. **Qui le crée** : le service qui **lance** le traitement. Pour un scan : le **Backend**, quand il reçoit l'image.
-   Format : **UUID v4**.
-2. **Comment il circule** : dans le message déposé dans Redis (`{ job_id, image_path }`, voir
-   `docs/AI/worker_structure/folder-structure.md`) et dans le nom du dossier du volume partagé (`jobs/{job_id}/`).
+   Format : **UUID en minuscules** (ex. `3f2b9c1e-7d4a-4c1b-9e2f-5a6b7c8d9e0f`), imposé par le contrat Backend ↔ Worker OCR.
+   Les recherches dans les logs (`grep`) étant sensibles à la casse, une majuscule suffirait à « perdre » des lignes.
+2. **Comment il circule** : dans le message de job déposé dans Redis et dans le nom du dossier du volume partagé
+   (`jobs/{job_id}/`). Format du message : voir `docs/AI/workflow/contrat-backend-worker-ocr.md`.
 3. **Qui l'écrit** : **chaque service** qui touche au traitement l'écrit dans **chacune** de ses lignes de log liées à ce
    traitement, sous le nom exact **`job_id`**, y compris en TypeScript (pas `jobId`), pour pouvoir filtrer tous les services
    d'un coup.
