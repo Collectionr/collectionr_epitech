@@ -74,3 +74,32 @@ jobs:
         env:
           PYTHONPATH: src
         run: pytest -v --cov --cov-fail-under=50
+  notify-failure:
+        name: Notify Discord on failure
+        needs: [gitleaks, worker-tcg]
+        if: failure()
+        runs-on: ubuntu-latest
+        steps:
+          - name: Send Discord notification
+            env:
+              DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+              WORKFLOW: ${{ github.workflow }}
+              REPO: ${{ github.repository }}
+              BRANCH: ${{ github.head_ref || github.ref_name }}
+              ACTOR: ${{ github.actor }}
+              RUN_URL: ${{ github.server_url }}/${{ github.repository}}/actions/runs/${{ github.run_id }}
+            run: |
+              jq -n \
+                --arg title "Echec CI : $WORKFLOW" \
+                --arg repo "$REPO" \
+                --arg branch "$BRANCH" \
+                --arg actor "$ACTOR" \
+                --arg url "[Voir le workflow]($RUN_URL)" \
+                '{embeds: [{title: $title, color: 15158332, fields: [
+                  {name: "Depot", value: $repo, inline: true},
+                  {name: "Branche / PR", value: $branch, inline: true},
+                  {name: "Auteur", value: $actor, inline: true},
+                  {name: "Logs", value: $url, inline: false}
+                ]}]}' | curl -fsS -H "Content-Type: application/json" -X \
+                POST -d @- "$DISCORD_WEBHOOK_URL"
+  
