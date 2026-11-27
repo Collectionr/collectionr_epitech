@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-03-22
+> **Derniere mise a jour :** 2026-11-25
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Data et Etat -- CollectionR
@@ -19,7 +19,7 @@ Trois outils coexistent dans le projet. Le choix depend de la nature de la donne
 | Donnee locale a un seul composant (champ ouvert/ferme, valeur d'input) | `useState` | Pas besoin de partager, pas besoin de persister |
 | Donnee serveur (cartes, prix, collection) | TanStack Query | Cache automatique, deduplication, etats loading/error/refetch |
 | Donnee globale UI (modal ouverte, toast, filtre actif) | Zustand | Partagee entre composants, pas de source serveur |
-| Session utilisateur, auth token | Zustand (`useAuthStore`) | Persiste entre sessions, necessite un acces global |
+| Session (statut, utilisateur, jeton d'acces) | Zustand (`authStore`, lu via `useAuth`) | Acces global, en memoire ; seul le jeton de renouvellement est persiste, a part (voir Stockage des jetons) |
 
 ### Schema de decision
 
@@ -153,54 +153,39 @@ export const useCartStore = create<CartState>((set) => ({
 }));
 ```
 
-**useAuthStore** -- Session utilisateur. Persiste le token entre les redemarrages via AsyncStorage (mobile) ou localStorage (web).
+**authStore** -- Session utilisateur (`packages/shared/src/stores/authStore.ts`, livre en COLLR-699). Store "vanilla" cree par `createAuthStore()` : une instance par application, et par test. Rien n'est persiste par ce store : le jeton d'acces reste en memoire, le jeton de renouvellement est confie a un `TokenStorage` fourni par l'application (voir Stockage des jetons).
 
 | Etat | Type | Description |
 |---|---|---|
-| `token` | `string \| null` | JWT d'acces |
-| `refreshToken` | `string \| null` | Token de rafraichissement |
-| `user` | `User \| null` | Donnees utilisateur en cache |
-| `isAuthenticated` | `boolean` | Derive : `token !== null` |
+| `status` | `'unknown' \| 'authenticated' \| 'anonymous'` | `unknown` jusqu'a ce que la restauration au demarrage aboutisse |
+| `user` | `User \| null` | Utilisateur connecte |
+| `accessToken` | `string \| null` | Jeton d'acces, en memoire uniquement |
+| `endReason` | `'expired' \| 'logout' \| null` | Raison de la derniere fermeture : expiration en cours d'usage (renouvellement refuse) ou deconnexion volontaire, jusqu'a l'arrivee sur la connexion |
+| `restoreError` | `unknown` | Erreur de la derniere restauration (serveur injoignable...) ; le statut reste alors `unknown` |
 
-```typescript
-// stores/authStore.ts
+Le store n'est jamais modifie par un composant : seul `authService` (`packages/shared/src/services/authService.ts`) l'alimente. Les composants lisent la session par les hooks de `@shared/hooks`, fournis par `AuthServiceContext` a la racine de l'app :
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { User } from '@/types';
+| Hook | Role |
+|---|---|
+| `useAuth()` | `status`, `user`, `endReason`, `restoreError` |
+| `useRestoreSession()` | Lance la restauration au montage (une fois par chargement) ; renvoie la fonction « Reessayer » |
+| `useSessionExpiredNotice()` | Sur la connexion : `true` si la session vient d'expirer ; acquitte la raison de fermeture |
+| `useLogin()` | Mutation : connexion, session ouverte, profil mis en cache (`QUERY_KEYS.me`) |
+| `useRegister()` | Mutation : inscription, sans ouverture de session (le back ne renvoie pas de jetons) |
+| `useLogout()` | Mutation : session fermee (ce qui vide le cache), puis revocation du jeton, meme si le back est injoignable |
+| `useMe()` | Requete `GET /users/me`, active en session, initialisee avec l'utilisateur de la session |
 
-interface AuthState {
-  token: string | null;
-  refreshToken: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
+Les redirections (page demandee apres connexion, `/connexion` apres deconnexion) restent dans l'application : les hooks ne dependent d'aucun routeur, pour servir aussi au mobile. Les erreurs de connexion et d'inscription sont traduites par `translateAuthError` (`@shared/utils`), et les formulaires valides par `@shared/validation` (`validateEmail`, `validateNewPassword`, `validateUsername`...).
 
-  setAuth: (token: string, refreshToken: string, user: User) => void;
-  logout: () => void;
-}
+Generation de session : chaque fermeture (deconnexion, renouvellement refuse) incremente une generation. Une reponse de refresh, de connexion ou de restauration n'ecrit ni jeton ni statut si la generation a change depuis son envoi : un refresh qui arrive apres une deconnexion, reussie ou non, ne reconnecte jamais. La deconnexion ferme la session localement avant de revoquer le jeton aupres du back.
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      token: null,
-      refreshToken: null,
-      user: null,
-      isAuthenticated: false,
+Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou partage par les onglets (Web Locks, fourni par l'app web), avec le jeton relu dans le stockage juste avant l'appel. Le jeton etant a usage unique, deux onglets qui le presenteraient en meme temps feraient revoquer toute la chaine de connexion. Restauration (`authService.restoreSession`) : renouvellement puis `GET /users/me`, une seule fois par chargement une fois aboutie (double montage du `StrictMode` compris).
 
-      setAuth: (token, refreshToken, user) =>
-        set({ token, refreshToken, user, isAuthenticated: true }),
-
-      logout: () =>
-        set({ token: null, refreshToken: null, user: null, isAuthenticated: false }),
-    }),
-    {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
-```
+| Resultat | Statut | Jeton de renouvellement |
+|---|---|---|
+| Renouvellement et profil acceptes | `authenticated` | Remplace par le nouveau |
+| Aucun jeton, jeton refuse (400, 401), profil refuse (401, 404) | `anonymous` | Supprime |
+| Serveur injoignable, delai depasse, 5xx, 429, reponse illisible | `unknown` + `restoreError` : ecran d'erreur avec « Reessayer » (COLLR-700) | Conserve |
 
 **useUIStore** -- Etat de l'interface : theme, modals, toasts, chargement global.
 
@@ -338,143 +323,114 @@ Les composants ne font jamais fetch directement. Un composant qui appelle un ser
 
 ### Template : Service API
 
-Un service est une collection de fonctions pures qui encapsulent les appels HTTP. Il ne gere ni le cache ni l'etat.
+Un service est une collection de fonctions qui encapsulent les appels HTTP. Il ne gere pas le cache. `apiClient.request` renvoie un corps non valide (`unknown`) : le service en verifie la forme avant de le renvoyer type, et leve une erreur si le contrat de l'API n'est pas respecte.
 
 ```typescript
-// services/cardService.ts
+// packages/shared/src/services/authService.ts (extrait)
 
-import { apiClient } from './apiClient';
-import type { Card, PaginatedResponse } from '@/types';
-
-interface GetCardsParams {
-  page?: number;
-  limit?: number;
-  set?: string;
+function parseUser(value: unknown, path: string): User {
+  const id = readString(value, 'id');
+  const email = readString(value, 'email');
+  // ...
+  if (id === undefined || email === undefined /* ... */) {
+    throw new TypeError(`Reponse inattendue de ${path}`);
+  }
+  return { id, email, username, createdAt };
 }
 
-/** Service d'acces aux endpoints cartes. */
-export const cardService = {
-  /** Recupere une liste paginee de cartes. */
-  getAll: (params: GetCardsParams = {}) =>
-    apiClient.get<PaginatedResponse<Card>>('/cards', {
-      params: { page: params.page ?? 1, limit: params.limit ?? 50, set: params.set },
-    }),
-
-  /** Recupere le detail d'une carte par son ID. */
-  getById: (id: string) =>
-    apiClient.get<Card>(`/cards/${id}`),
-
-  /** Recherche des cartes par nom. */
-  search: (query: string) =>
-    apiClient.get<Card[]>('/cards/search', { params: { q: query } }),
-};
+export function createAuthService({ client, storage, store }: AuthServiceOptions): AuthService {
+  return {
+    async me() {
+      return parseUser(await client.request('/users/me'), '/users/me');
+    },
+    async register(input) {
+      const body = await client.request('/auth/register', { method: 'POST', body: input });
+      return parseUser(body, '/auth/register');
+    },
+    // ...
+  };
+}
 ```
 
-### Template : Client HTTP
+### Client HTTP
+
+Le client vit dans `packages/shared/src/services/apiClient.ts`. Il ne lit aucune variable d'environnement : chaque application l'assemble dans son `config/api.ts` et lui fournit l'URL de base, `fetch` et un controleur d'annulation (`new AbortController()`, disponible sur web et mobile). Ces deux derniers sont injectes parce que `packages/shared` compile sans les types DOM.
 
 ```typescript
-// services/apiClient.ts
+// apps/web/src/config/api.ts
+export const apiClient = createApiClient({
+  baseUrl: resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL), // /api/v1 par defaut
+  fetch,
+  createAbortController: () => new AbortController(),
+  session: createAuthSession(authStore, () => authService), // jeton d'acces, renouvellement
+});
 
-import { useAuthStore } from '@/stores';
-import { API_BASE_URL } from '@/constants';
-
-class ApiClient {
-  private baseUrl: string;
-
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
-  }
-
-  async get<T>(path: string, options?: { params?: Record<string, unknown> }): Promise<T> {
-    const url = new URL(path, this.baseUrl);
-    if (options?.params) {
-      Object.entries(options.params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
-        }
-      });
-    }
-    return this.request<T>('GET', url.toString());
-  }
-
-  async post<T>(path: string, body?: unknown): Promise<T> {
-    return this.request<T>('POST', `${this.baseUrl}${path}`, body);
-  }
-
-  async delete<T>(path: string): Promise<T> {
-    return this.request<T>('DELETE', `${this.baseUrl}${path}`);
-  }
-
-  private async request<T>(method: string, url: string, body?: unknown): Promise<T> {
-    const token = useAuthStore.getState().token;
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      ...(body && { body: JSON.stringify(body) }),
-    });
-
-    if (response.status === 401) {
-      useAuthStore.getState().logout();
-      throw new ApiError(401, 'Session expiree');
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, error.message ?? 'Erreur serveur');
-    }
-
-    return response.json() as Promise<T>;
-  }
-}
-
-export const apiClient = new ApiClient(API_BASE_URL);
-
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+const card = await apiClient.request('/cards/swsh3-136'); // unknown : le service valide la forme
+await apiClient.request('/collections', { method: 'POST', body: { name: 'Base' } });
 ```
+
+Comportement commun a toutes les requetes :
+
+| Situation | Comportement |
+|---|---|
+| Session ouverte | En-tete `Authorization: Bearer <jeton d'acces>` |
+| 401 sur une requete authentifiee | Un seul renouvellement (`session.refresh()`), partage par les requetes simultanees, puis la requete est rejouee une fois |
+| Renouvellement refuse | `session.clear()` vide la session, la requete leve l'`ApiError` 401 |
+| Renouvellement impossible (reseau) | La session est conservee, la requete leve la `NetworkError` |
+| 401 d'une route `/auth/*` | Aucun renouvellement : identifiants invalides ou jeton de renouvellement refuse |
+| Statut hors 200-299 | `ApiError { status, code, message, fieldErrors?, retryAfterSeconds?, body }` |
+| Serveur injoignable, coupure | `NetworkError` de cause `connection` |
+| Pas de reponse en 15 s | Requete annulee, `NetworkError` de cause `timeout` |
+
+`code` et `message` viennent du format d'erreur du back (`{ statusCode, error, message, timestamp, path }`) : `code` reprend `error` (ex. : `Conflict`), ou vaut `HTTP_<statut>` si le corps est inexploitable. Le back n'envoie pas encore d'erreurs par champ : `fieldErrors` reste vide. `retryAfterSeconds` est lu dans l'en-tete `Retry-After` (429). Les messages du back sont en anglais et ne s'affichent jamais tels quels : ils sont traduits en francais avant affichage.
+
+`VITE_API_BASE_URL` (web) est verifiee au demarrage : un chemin du meme domaine (`/api/v1`, defaut derriere l'Ingress) ou une URL absolue en http(s). Toute autre valeur bloque le demarrage avec un message explicite.
+
+### Stockage des jetons (decision PO du 25/11/2026)
+
+Le back renvoie le jeton d'acces et le jeton de renouvellement dans le corps des reponses (`POST /auth/login`, `POST /auth/refresh`), sans cookie httpOnly. Le jeton de renouvellement est a usage unique : le reutiliser revoque toute la chaine de connexion.
+
+| Jeton | Stockage | Raison |
+|---|---|---|
+| Acces (courte duree) | Memoire uniquement, jamais `localStorage` | Jamais persiste : perdu au rechargement, il est renouvele au demarrage |
+| Renouvellement | `localStorage` (web) pour l'Alpha | Necessaire pour restaurer la session au demarrage |
+
+Si `localStorage` est inaccessible ou refuse une ecriture (stockage plein ou bloque), l'onglet garde le jeton de renouvellement en memoire jusqu'a la fin de la visite (`apps/web/src/config/tokenStorage.ts`) : la valeur persistee, perimee, est supprimee si possible et n'est plus jamais relue, car presenter un jeton deja utilise ferait revoquer toute la chaine de connexion. La connexion est alors redemandee au prochain chargement.
+
+Risque accepte pour l'Alpha : un script injecte (XSS) peut lire le jeton de renouvellement dans `localStorage`. La cible reste un cookie httpOnly pose par le back. Le mobile utilisera un stockage securise (Keychain / Keystore), d'ou une interface de stockage asynchrone cote `packages/shared`.
 
 ### Template : Hook TanStack Query
 
 ```typescript
-// hooks/useCards.ts
+// packages/shared/src/hooks/useCollections.ts
 
 import { useQuery } from '@tanstack/react-query';
-import { cardService } from '@/services';
-import { QUERY_KEYS } from '@/constants';
 
-/** Recupere la liste paginee des cartes. */
-export function useCards(page = 1) {
+import { catalogService, collectionService } from '@shared/services';
+import { QUERY_KEYS } from '@shared/constants';
+
+/** Recupere les collections de l'utilisateur. */
+export function useCollections() {
   return useQuery({
-    queryKey: [...QUERY_KEYS.cards.all, page],
-    queryFn: () => cardService.getAll({ page }),
+    queryKey: QUERY_KEYS.collections,
+    queryFn: () => collectionService.getAll(),
   });
 }
 
-/** Recupere le detail d'une carte par son ID. */
-export function useCard(id: string) {
+/** Recupere le detail d'une collection par son ID. */
+export function useCollection(id: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.cards.detail(id),
-    queryFn: () => cardService.getById(id),
-    enabled: !!id,
+    queryKey: QUERY_KEYS.collection(id),
+    queryFn: () => collectionService.getById(id),
+    enabled: id !== '',
   });
 }
 
-/** Recherche des cartes. Active uniquement quand la query fait 2+ caracteres. */
-export function useSearchCards(query: string) {
+/** Recherche dans le catalogue. Active uniquement quand la recherche fait 2+ caracteres. */
+export function useSearchCatalog(query: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.cards.search(query),
-    queryFn: () => cardService.search(query),
+    queryKey: QUERY_KEYS.catalog(query),
+    queryFn: () => catalogService.search(query),
     enabled: query.length >= 2,
   });
 }
@@ -483,22 +439,22 @@ export function useSearchCards(query: string) {
 ### Template : Hook de mutation
 
 ```typescript
-// hooks/useAddToCollection.ts
+// packages/shared/src/hooks/useAddToCollection.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { collectionService } from '@/services';
-import { QUERY_KEYS } from '@/constants';
 
-/** Ajoute une carte a la collection de l'utilisateur. */
-export function useAddToCollection() {
+import { collectionService } from '@shared/services';
+import { QUERY_KEYS } from '@shared/constants';
+
+/** Ajoute une carte a une collection de l'utilisateur. */
+export function useAddToCollection(collectionId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: collectionService.addCard,
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.collections.all,
-      });
+      // Detail et cartes de la collection, par prefixe de cle.
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collection(collectionId) });
     },
   });
 }
@@ -542,41 +498,41 @@ function CardListPage() {
 
 ### Invalidation de cache apres mutation
 
-Apres une mutation reussie, les donnees en cache peuvent etre obsoletes. L'invalidation force un refetch.
+Apres une mutation reussie, les donnees en cache peuvent etre obsoletes. L'invalidation force un refetch. Les cles sont hierarchiques : une invalidation touche aussi toutes les cles qui commencent par la cle donnee.
 
 | Mutation | Caches a invalider |
 |---|---|
-| Ajouter une carte a la collection | `collections.all`, `collections.items(id)` |
-| Retirer une carte de la collection | `collections.all`, `collections.items(id)` |
-| Modifier la quantite/etat d'une carte | `collections.items(id)` |
-| Scan reussi | `collections.all` (si ajout automatique) |
+| Ajouter une carte a une collection | `QUERY_KEYS.collection(id)` (detail et cartes), `QUERY_KEYS.collections` si la liste affiche des totaux |
+| Retirer une carte d'une collection | Idem |
+| Modifier la quantite/etat d'une carte | `QUERY_KEYS.cards(id)` (sans filtre : toutes les listes filtrees de la collection) |
+| Scan reussi | `QUERY_KEYS.collections` (si ajout automatique) |
+| Deconnexion | Tout le cache (`queryClient.clear()`), comme toute fin de session (voir ci-dessous) |
 
-Les query keys sont centralisees dans un fichier unique :
+Toute fin de session (deconnexion, expiration, renouvellement refuse) vide tout le cache, des que la session quitte `authenticated` : `clearCacheOnSessionEnd` (`packages/shared/src/services/sessionCache.ts`), branche une fois par application la ou le cache est cree (`apps/web/src/config/queryClient.ts`). Sans cela, les donnees d'un compte resteraient en memoire pour le compte connecte ensuite sans recharger la page.
+
+Les cles de requete sont centralisees dans `packages/shared/src/constants/queryKeys.ts`. Aucune cle n'est ecrite a la main dans un hook :
 
 ```typescript
-// constants/queryKeys.ts
+import { QUERY_KEYS } from '@shared/constants';
 
-export const QUERY_KEYS = {
-  cards: {
-    all: ['cards'] as const,
-    detail: (id: string) => ['cards', 'detail', id] as const,
-    search: (query: string) => ['cards', 'search', query] as const,
-    bySet: (setId: string) => ['cards', 'set', setId] as const,
-  },
-  collections: {
-    all: ['collections'] as const,
-    detail: (id: string) => ['collections', 'detail', id] as const,
-    items: (id: string) => ['collections', 'items', id] as const,
-  },
-  prices: {
-    byCard: (cardId: string) => ['prices', cardId] as const,
-  },
-} as const;
+QUERY_KEYS.me;                          // ['me']
+QUERY_KEYS.collections;                 // ['collections']
+QUERY_KEYS.collection(id);              // ['collections', id]
+QUERY_KEYS.cards(id, { rarity: 'Rare' }); // ['collections', id, 'cards', { rarity: 'Rare' }]
+QUERY_KEYS.catalog(query);              // ['catalog', query]
 ```
 
-### Temps de stale (staleTime) recommandes
+### Temps de stale (staleTime) et relances
 
-Le `staleTime` determine combien de temps TanStack Query considere les donnees comme fraiches avant de refetch.
+Le `staleTime` determine combien de temps TanStack Query considere les donnees comme fraiches avant de refetch. Le cache est cree une seule fois par `createQueryClient()` (`packages/shared/src/services/queryClient.ts`) et fourni a la racine de l'app web par `QueryClientProvider` (`apps/web/src/App.tsx`).
+
+| Option | Valeur par defaut | Constante |
+|---|---|---|
+| `staleTime` | 5 min | `DEFAULT_STALE_TIME_MS` |
+| `gcTime` | 30 min | `DEFAULT_GC_TIME_MS` |
+| `refetchOnWindowFocus` | desactive | -- |
+
+Un hook peut s'ecarter du defaut quand la donnee le justifie (valeurs recommandees) :
 
 | Type de donnee | staleTime | gcTime | Justification |
 |---|---|---|---|
@@ -586,25 +542,24 @@ Le `staleTime` determine combien de temps TanStack Query considere les donnees c
 | Resultats de recherche | 2 min | 10 min | Sensibles aux changements de catalogue |
 | Detail d'une carte | 30 min | 1 h | Donnees stables |
 
-```typescript
-// config/queryClient.ts
+Relances automatiques (`shouldRetryQuery`) :
 
-import { QueryClient } from '@tanstack/react-query';
+| Erreur | Requete (`useQuery`) | Mutation (`useMutation`) |
+|---|---|---|
+| `NetworkError` (serveur injoignable, delai depasse) | 2 relances maximum | Aucune |
+| `ApiError` 5xx | 2 relances maximum | Aucune |
+| `ApiError` 4xx | Aucune : relancer ne change rien | Aucune |
+| Autre erreur (bug) | Aucune | Aucune |
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,     // 5 min par defaut
-      gcTime: 30 * 60 * 1000,       // 30 min de cache
-      retry: 2,
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
-```
+Une mutation n'est jamais relancee automatiquement : rejouer une connexion ou un ajout n'est pas sans effet (tentative comptee par la limite de debit, doublon).
+
+Hors ligne, requetes et mutations partent quand meme (`networkMode: 'always'`) : l'appel echoue aussitot et l'erreur reseau s'affiche, au lieu d'une attente sans message puis d'un envoi tardif au retour du reseau.
+
+Chaque route est protegee par `RouteErrorBoundary` (`apps/web/src/router/`) : une erreur de rendu, de chargement de la page ou d'une requete en `throwOnError` affiche un ecran d'erreur avec « Reessayer », jamais un ecran blanc. « Reessayer » relance les requetes en erreur puis rend la route a nouveau ; si c'est l'import de la page qui a echoue (fichier introuvable apres un nouveau deploiement, reseau coupe), il recharge la page, React gardant en memoire l'echec d'un `lazy()`.
+
+Regle : **chaque page gere les erreurs de ses requetes**. Aucun `throwOnError` n'est active globalement : une requete en erreur n'atteint pas `RouteErrorBoundary`, la page affiche son etat `isError` (message et bouton pour reessayer, voir « Gestion des etats loading / error / empty » plus haut).
+
+Les devtools TanStack Query sont chargees a la demande sous `npm run dev` uniquement, absentes du build de production.
 
 ### WebSocket / SSE : notifications de scan
 

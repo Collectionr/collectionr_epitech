@@ -29,6 +29,10 @@ export default defineConfig([
     },
   },
   {
+    files: ['packages/shared/src/hooks/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat['recommended-latest']],
+  },
+  {
     files: ['apps/web/vite.config.ts'],
     languageOptions: {
       globals: globals.node,
