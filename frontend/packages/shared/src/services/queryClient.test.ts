@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { MutationObserver, onlineManager } from '@tanstack/react-query';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, NetworkError } from './apiClient';
 import {
@@ -42,8 +43,31 @@ describe('createQueryClient', () => {
       gcTime: DEFAULT_GC_TIME_MS,
       retry: shouldRetryQuery,
       refetchOnWindowFocus: false,
+      networkMode: 'always',
     });
-    expect(mutations).toMatchObject({ retry: false });
+    expect(mutations).toMatchObject({ retry: false, networkMode: 'always' });
+  });
+
+  describe('hors ligne', () => {
+    afterEach(() => {
+      onlineManager.setOnline(true);
+    });
+
+    it('envoie requêtes et mutations au lieu de les mettre en pause', async () => {
+      onlineManager.setOnline(false);
+      const client = createQueryClient();
+      const queryFn = vi.fn(async () => 'données');
+      const mutationFn = vi.fn(async () => 'enregistré');
+
+      await expect(client.fetchQuery({ queryKey: ['hors-ligne'], queryFn })).resolves.toBe(
+        'données',
+      );
+      await expect(new MutationObserver(client, { mutationFn }).mutate()).resolves.toBe(
+        'enregistré',
+      );
+      expect(queryFn).toHaveBeenCalledTimes(1);
+      expect(mutationFn).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('relance une requête après une erreur réseau, mais pas après une 404', async () => {

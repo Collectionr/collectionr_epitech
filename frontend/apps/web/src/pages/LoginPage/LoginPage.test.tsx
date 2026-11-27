@@ -1,10 +1,11 @@
+import { onlineManager } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { appRoutes } from '@/router/router';
 import { createAuthHarness, TEST_USER } from '@shared/hooks/mocks/createAuthHarness';
-import { ApiError } from '@shared/services';
+import { ApiError, NetworkError } from '@shared/services';
 import type { ApiRequestOptions } from '@shared/services';
 
 const SESSION = { user: TEST_USER, accessToken: 'acces-1', refreshToken: 'renouvellement-1' };
@@ -103,6 +104,34 @@ describe('LoginPage', () => {
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Trop de tentatives. Réessayez dans 5 minutes.',
     );
+  });
+
+  describe('hors ligne', () => {
+    afterEach(() => {
+      onlineManager.setOnline(true);
+    });
+
+    it('affiche l’erreur réseau tout de suite et ne relance pas la connexion au retour du réseau', async () => {
+      onlineManager.setOnline(false);
+      // Ce que fait fetch quand le réseau est coupé.
+      const { harness } = renderLoginPage(() =>
+        Promise.reject(new NetworkError('connection', 'Failed to fetch')),
+      );
+
+      await fillAndSubmit('ash@exemple.fr', 'pikachu25');
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'Connexion au serveur impossible. Vérifiez votre connexion internet.',
+      );
+      await waitFor(() => expect(passwordInput().value).toBe(''));
+
+      act(() => {
+        onlineManager.setOnline(true);
+      });
+
+      expect(harness.client.request).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Connexion' })).toBeDefined();
+    });
   });
 
   it('passe le bouton en chargement pendant l’appel réseau', async () => {
