@@ -557,6 +557,8 @@ Hors ligne, requetes et mutations partent quand meme (`networkMode: 'always'`) :
 
 Chaque route est protegee par `RouteErrorBoundary` (`apps/web/src/router/`) : une erreur de rendu, de chargement de la page ou d'une requete en `throwOnError` affiche un ecran d'erreur avec « Reessayer », jamais un ecran blanc. « Reessayer » relance les requetes en erreur puis rend la route a nouveau ; si c'est l'import de la page qui a echoue (fichier introuvable apres un nouveau deploiement, reseau coupe), il recharge la page, React gardant en memoire l'echec d'un `lazy()`.
 
+Regle : **chaque page gere les erreurs de ses requetes**. Aucun `throwOnError` n'est active globalement : une requete en erreur n'atteint pas `RouteErrorBoundary`, la page affiche son etat `isError` (message et bouton pour reessayer, voir « Gestion des etats loading / error / empty » plus haut).
+
 Les devtools TanStack Query sont chargees a la demande sous `npm run dev` uniquement, absentes du build de production.
 
 ### WebSocket / SSE : notifications de scan

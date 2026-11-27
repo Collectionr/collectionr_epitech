@@ -74,8 +74,10 @@ class Boundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 /**
- * Error boundary d'une route : une erreur de rendu, de chargement de la page ou d'une requête
- * affiche un écran d'erreur avec « Réessayer » à la place de la route, jamais un écran blanc.
+ * Error boundary d'une route : une erreur de rendu ou de chargement de la page affiche un écran
+ * d'erreur avec « Réessayer » à la place de la route, jamais un écran blanc. Les erreurs de requête
+ * n'arrivent pas ici par défaut (pas de `throwOnError` global) : chaque page gère les erreurs de
+ * ses requêtes. Seule une requête qui active elle-même `throwOnError` remonte jusqu'ici.
  * « Réessayer » relance les requêtes en erreur puis rend la route à nouveau ; si c'est l'import de
  * la page qui a échoué, il recharge la page.
  */
