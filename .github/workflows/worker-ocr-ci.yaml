@@ -52,26 +52,24 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
-          cache-dependency-path: microservices/worker-ocr/requirements.txt
-
-      - name: Install Ruff
-        run: pip install ruff
-
-      - name: Check code with Ruff
-        run: |
-          ruff check . --exclude Models --exclude "*.ipynb"
-          ruff format --check . --exclude Models --exclude "*.ipynb"
+          cache-dependency-path: |
+            microservices/worker-ocr/requirements.txt
+            microservices/worker-ocr/requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest pytest-cov
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      # Le dossier Models (notebooks d'évaluation) est exclu dans pyproject.toml.
+      - name: Check code with Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Check types with mypy
+        run: mypy
 
       - name: Run Pytest
-        run: |
-          if [ -d "tests" ]; then
-            pytest -v --cov=. --cov-fail-under=50
-          else
-            echo "Aucun test pour le moment - étape ignorée."
-          fi
+        run: pytest -v --cov --cov-fail-under=50
