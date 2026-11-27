@@ -211,6 +211,98 @@ export function userRepositoryContract(name: string, make: () => IUserRepository
       expect(won).toBe(1);
       expect(unexpected).toHaveLength(0);
     });
+    describe('erasure of an account (RGPD Art. 17)', () => {
+      const requestedAt = new Date('2026-11-01T10:00:00.000Z');
+      // requestDeletion stores the purge date: 00:00 UTC, 30 days after the request.
+      const scheduledFor = new Date('2026-12-01T00:00:00.000Z');
+      const due = new Date('2026-12-02T10:00:00.000Z');
+      const requestedUser = (at: Date): User => newUser().requestDeletion(at);
+
+      it('round-trips deletedAt and isAnonymized', async () => {
+        const repo = make();
+        const fresh = newUser();
+        await repo.save(fresh);
+        expect((await repo.findById(fresh.id))?.deletedAt).toBeNull();
+        expect((await repo.findById(fresh.id))?.isAnonymized).toBe(false);
+
+        const stored = (await repo.findById(fresh.id)) as User;
+        await repo.save(stored.requestDeletion(requestedAt));
+        const requested = (await repo.findById(fresh.id)) as User;
+        expect(requested.deletedAt?.getTime()).toBe(scheduledFor.getTime());
+        expect(requested.isActive).toBe(false);
+
+        await repo.save(requested.anonymize(due));
+        const anonymized = (await repo.findById(fresh.id)) as User;
+        expect(anonymized.isAnonymized).toBe(true);
+        expect(anonymized.deletedAt?.getTime()).toBe(scheduledFor.getTime());
+      });
+
+      it('frees the email and the username of an anonymized account', async () => {
+        const repo = make();
+        const original = newUser();
+        await repo.save(original);
+        const requested = requestedUser(requestedAt);
+        const stored = (await repo.findById(original.id)) as User;
+        await repo.save(stored.requestDeletion(requestedAt).anonymize(due));
+
+        expect(await repo.findByEmail(original.email)).toBeNull();
+        expect(await repo.findByUsername(original.username)).toBeNull();
+        await expect(
+          repo.save(
+            User.register({
+              email: original.email,
+              passwordHash: HASH,
+              username: original.username,
+              termsAcceptedAt: new Date(),
+              termsVersion: '1',
+            }),
+          ),
+        ).resolves.toBeDefined();
+        expect(requested.deletedAt).toEqual(scheduledFor);
+      });
+
+      it('findDeletionDue returns only the accounts whose date has come and that are not anonymized', async () => {
+        const repo = make();
+        const old = requestedUser(new Date('2026-10-01T10:00:00.000Z'));
+        const exact = requestedUser(requestedAt);
+        const later = requestedUser(new Date('2026-11-02T10:00:00.000Z'));
+        const anonymized = requestedUser(new Date('2026-09-01T10:00:00.000Z'));
+        const never = newUser();
+        for (const user of [old, exact, later, anonymized, never]) {
+          await repo.save(user);
+        }
+        const stored = (await repo.findById(anonymized.id)) as User;
+        await repo.save(stored.anonymize(due));
+
+        const found = (await repo.findDeletionDue(scheduledFor, 100_000)).map((user) => user.id);
+
+        expect(found).toContain(old.id);
+        expect(found).toContain(exact.id);
+        expect(found).not.toContain(later.id);
+        expect(found).not.toContain(anonymized.id);
+        expect(found).not.toContain(never.id);
+      });
+
+      it('findDeletionDue lists the earliest date first and honours the limit', async () => {
+        const repo = make();
+        // A shared database may hold accounts from earlier runs: only the order of ours is checked.
+        const marker = new Date('1999-01-01T00:00:00.000Z');
+        const first = requestedUser(marker);
+        const second = requestedUser(new Date('1999-01-02T00:00:00.000Z'));
+        const third = requestedUser(new Date('1999-01-03T00:00:00.000Z'));
+        for (const user of [third, first, second]) {
+          await repo.save(user);
+        }
+        const until = new Date('1999-02-15T00:00:00.000Z');
+
+        const ids = (await repo.findDeletionDue(until, 100_000)).map((user) => user.id);
+
+        expect(ids.indexOf(first.id)).toBeGreaterThanOrEqual(0);
+        expect(ids.indexOf(first.id)).toBeLessThan(ids.indexOf(second.id));
+        expect(ids.indexOf(second.id)).toBeLessThan(ids.indexOf(third.id));
+        expect(await repo.findDeletionDue(until, 2)).toHaveLength(2);
+      });
+    });
   });
 }
 

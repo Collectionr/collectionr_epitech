@@ -28,4 +28,11 @@ export interface IUserRepository {
   findByEmail(email: Email): Promise<User | null>;
   /** Looks up on User.usernameKey(username): case and spacing variants find the same user. */
   findByUsername(username: string): Promise<User | null>;
+
+  /**
+   * The accounts to purge: `deletedAt` at or before `now` and not anonymized yet, earliest `deletedAt`
+   * first, at most `limit` of them. Accounts without a `deletedAt`, anonymized ones and those whose date
+   * has not come are never returned. Feeds AnonymizeDueAccountsUseCase.
+   */
+  findDeletionDue(now: Date, limit: number): Promise<User[]>;
 }

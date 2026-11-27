@@ -14,6 +14,8 @@ function buildUser(isActive = true): User {
     termsVersion: '1',
     id: 'fixed-id',
     isActive,
+    deletedAt: null,
+    isAnonymized: false,
     version: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -31,7 +33,13 @@ describe('DeactivateUserUseCase', () => {
   const revokeAllRefreshTokens = jest.fn();
 
   function build(): DeactivateUserUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const userRepository: IUserRepository = {
+      save,
+      findById,
+      findByEmail,
+      findByUsername,
+      findDeletionDue: jest.fn(),
+    };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
       rotateRefreshToken,

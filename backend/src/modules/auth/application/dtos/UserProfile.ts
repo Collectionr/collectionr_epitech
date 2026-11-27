@@ -11,6 +11,8 @@ export interface UserProfile {
   readonly email: string;
   readonly username: string;
   readonly isActive: boolean;
+  /** The date from which the account is purged (erasure requested by its holder), or null. */
+  readonly deletedAt: Date | null;
   readonly termsAcceptedAt: Date;
   readonly termsVersion: string;
   readonly createdAt: Date;
@@ -23,6 +25,7 @@ export function toUserProfile(user: User): UserProfile {
     email: user.email.value,
     username: user.username,
     isActive: user.isActive,
+    deletedAt: user.deletedAt,
     termsAcceptedAt: user.termsAcceptedAt,
     termsVersion: user.termsVersion,
     createdAt: user.createdAt,

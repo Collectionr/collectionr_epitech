@@ -19,6 +19,8 @@ function buildUser(isActive = true): User {
     termsVersion: '1',
     id: 'fixed-id',
     isActive,
+    deletedAt: null,
+    isAnonymized: false,
     version: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -44,7 +46,13 @@ describe('ChangePasswordUseCase', () => {
     passwordMinLength = DEFAULT_PASSWORD_MIN_LENGTH,
     maxPasswordBytes = 72,
   ): ChangePasswordUseCase {
-    const userRepository: IUserRepository = { save, findById, findByEmail, findByUsername };
+    const userRepository: IUserRepository = {
+      save,
+      findById,
+      findByEmail,
+      findByUsername,
+      findDeletionDue: jest.fn(),
+    };
     const passwordHasher: IPasswordHasher = { maxPasswordBytes, hash, verify, getDummyHash };
     const authTokenService: IAuthTokenService = {
       issueTokenPair,
