@@ -8,6 +8,7 @@ import { createAuthService } from '../../services/authService';
 import type { TokenStorage } from '../../services/authService';
 import type { ApiClient, ApiPath, ApiRequestOptions } from '../../services/apiClient';
 import { createQueryClient } from '../../services/queryClient';
+import { clearCacheOnSessionEnd } from '../../services/sessionCache';
 import { createAuthStore } from '../../stores';
 import type { User } from '../../types';
 import { AuthServiceContext } from '../authServiceContext';
@@ -52,6 +53,7 @@ export function createAuthHarness(
   const store = createAuthStore();
   const authService = createAuthService({ client, storage, store });
   const queryClient = createQueryClient();
+  clearCacheOnSessionEnd(store, queryClient);
 
   function wrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, {

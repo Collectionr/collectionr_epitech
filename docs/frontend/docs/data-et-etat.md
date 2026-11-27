@@ -172,7 +172,7 @@ Le store n'est jamais modifie par un composant : seul `authService` (`packages/s
 | `useSessionExpiredNotice()` | Sur la connexion : `true` si la session vient d'expirer ; acquitte la raison de fermeture |
 | `useLogin()` | Mutation : connexion, session ouverte, profil mis en cache (`QUERY_KEYS.me`) |
 | `useRegister()` | Mutation : inscription, sans ouverture de session (le back ne renvoie pas de jetons) |
-| `useLogout()` | Mutation : session fermee, puis revocation du jeton, cache vide (`queryClient.clear()`), meme si le back est injoignable |
+| `useLogout()` | Mutation : session fermee (ce qui vide le cache), puis revocation du jeton, meme si le back est injoignable |
 | `useMe()` | Requete `GET /users/me`, active en session, initialisee avec l'utilisateur de la session |
 
 Les redirections (page demandee apres connexion, `/connexion` apres deconnexion) restent dans l'application : les hooks ne dependent d'aucun routeur, pour servir aussi au mobile. Les erreurs de connexion et d'inscription sont traduites par `translateAuthError` (`@shared/utils`), et les formulaires valides par `@shared/validation` (`validateEmail`, `validateNewPassword`, `validateUsername`...).
@@ -506,7 +506,9 @@ Apres une mutation reussie, les donnees en cache peuvent etre obsoletes. L'inval
 | Retirer une carte d'une collection | Idem |
 | Modifier la quantite/etat d'une carte | `QUERY_KEYS.cards(id)` (sans filtre : toutes les listes filtrees de la collection) |
 | Scan reussi | `QUERY_KEYS.collections` (si ajout automatique) |
-| Deconnexion | Tout le cache (`queryClient.clear()`) |
+| Deconnexion | Tout le cache (`queryClient.clear()`), comme toute fin de session (voir ci-dessous) |
+
+Toute fin de session (deconnexion, expiration, renouvellement refuse) vide tout le cache, des que la session quitte `authenticated` : `clearCacheOnSessionEnd` (`packages/shared/src/services/sessionCache.ts`), branche une fois par application la ou le cache est cree (`apps/web/src/config/queryClient.ts`). Sans cela, les donnees d'un compte resteraient en memoire pour le compte connecte ensuite sans recharger la page.
 
 Les cles de requete sont centralisees dans `packages/shared/src/constants/queryKeys.ts`. Aucune cle n'est ecrite a la main dans un hook :
 

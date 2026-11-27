@@ -14,6 +14,7 @@ export {
   MAX_QUERY_RETRIES,
   shouldRetryQuery,
 } from './queryClient';
+export { clearCacheOnSessionEnd } from './sessionCache';
 export type {
   AbortControllerLike,
   ApiClient,
