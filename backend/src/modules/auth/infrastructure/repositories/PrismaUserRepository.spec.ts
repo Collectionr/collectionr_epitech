@@ -300,6 +300,7 @@ describe('PrismaUserRepository', () => {
   });
   describe('erasure fields', () => {
     const requestedAt = new Date('2026-11-01T10:00:00.000Z');
+    const scheduledFor = new Date('2026-12-01T00:00:00.000Z');
 
     it('writes deletedAt and isAnonymized when an account is saved anonymized', async () => {
       const user = buildUser().requestDeletion(requestedAt);
@@ -317,14 +318,14 @@ describe('PrismaUserRepository', () => {
             email: anonymized.email.value,
             username: anonymized.username,
             usernameKey: anonymized.username,
-            deletedAt: requestedAt,
+            deletedAt: scheduledFor,
             isAnonymized: true,
             isActive: false,
           }) as unknown,
         }),
       );
       expect(saved.isAnonymized).toBe(true);
-      expect(saved.deletedAt).toEqual(requestedAt);
+      expect(saved.deletedAt).toEqual(scheduledFor);
     });
 
     it('revokes the sessions when the erasure request deactivates an active account', async () => {
@@ -340,10 +341,10 @@ describe('PrismaUserRepository', () => {
       expect(h.revokeSessions).toHaveBeenCalledTimes(1);
     });
 
-    it('lists the due accounts, oldest request first, without the anonymized ones', async () => {
+    it('lists the due accounts, earliest date first, without the anonymized ones', async () => {
       const user = buildUser().requestDeletion(requestedAt);
       const h = harness(null);
-      h.findMany.mockResolvedValue([recordOf(user, { deletedAt: requestedAt, isActive: false })]);
+      h.findMany.mockResolvedValue([recordOf(user, { isActive: false })]);
       const cutoff = new Date('2026-11-15T10:00:00.000Z');
 
       const due = await h.repository.findDeletionDue(cutoff, 50);
@@ -354,7 +355,7 @@ describe('PrismaUserRepository', () => {
         take: 50,
       });
       expect(due.map((found) => found.id)).toEqual([user.id]);
-      expect(due[0]?.deletedAt).toEqual(requestedAt);
+      expect(due[0]?.deletedAt).toEqual(scheduledFor);
     });
   });
 });

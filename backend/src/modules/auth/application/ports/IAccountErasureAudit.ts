@@ -14,5 +14,5 @@ export interface IAccountErasureAudit {
   recordDeletionRequested(userId: string): Promise<void>;
 
   /** The account is about to be anonymized once its grace period is over. */
-  recordAnonymized(userId: string, deletionRequestedAt: Date): Promise<void>;
+  recordAnonymized(userId: string, scheduledFor: Date): Promise<void>;
 }

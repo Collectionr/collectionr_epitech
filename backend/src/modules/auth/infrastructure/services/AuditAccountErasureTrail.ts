@@ -19,13 +19,13 @@ export class AuditAccountErasureTrail implements IAccountErasureAudit {
     });
   }
 
-  async recordAnonymized(userId: string, deletionRequestedAt: Date): Promise<void> {
+  async recordAnonymized(userId: string, scheduledFor: Date): Promise<void> {
     await this.recordAuditEntry.execute({
       userId,
       action: 'auth.account.anonymized',
       targetType: TARGET_TYPE,
       targetId: userId,
-      metadata: { deletionRequestedAt: deletionRequestedAt.toISOString() },
+      metadata: { deletionScheduledFor: scheduledFor.toISOString() },
     });
   }
 }

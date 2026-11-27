@@ -22,7 +22,7 @@ describe('AuditAccountErasureTrail', () => {
     });
   });
 
-  it('records the anonymization with the date of the request only', async () => {
+  it('records the anonymization with the date it was scheduled for only', async () => {
     await trail.recordAnonymized('user-1', new Date('2026-11-01T10:00:00.000Z'));
 
     expect(execute).toHaveBeenCalledWith({
@@ -30,7 +30,7 @@ describe('AuditAccountErasureTrail', () => {
       action: 'auth.account.anonymized',
       targetType: 'user',
       targetId: 'user-1',
-      metadata: { deletionRequestedAt: '2026-11-01T10:00:00.000Z' },
+      metadata: { deletionScheduledFor: '2026-11-01T10:00:00.000Z' },
     });
   });
 

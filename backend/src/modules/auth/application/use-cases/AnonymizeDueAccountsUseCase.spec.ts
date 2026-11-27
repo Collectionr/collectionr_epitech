@@ -10,9 +10,9 @@ import type { IAccountDataEraser } from '../ports/IAccountDataEraser';
 import type { IUserRepository } from '../ports/IUserRepository';
 
 const NOW = new Date('2026-12-15T10:00:00.000Z');
-const REQUESTED_LONG_AGO = new Date('2026-11-01T10:00:00.000Z');
+const SCHEDULED_FOR = new Date('2026-12-01T00:00:00.000Z');
 
-function pendingUser(id: string, deletedAt: Date = REQUESTED_LONG_AGO): User {
+function pendingUser(id: string, deletedAt: Date = SCHEDULED_FOR): User {
   return User.restore({
     email: Email.create(`${id}@example.com`),
     passwordHash: 'hashed-password',
@@ -61,13 +61,10 @@ describe('AnonymizeDueAccountsUseCase', () => {
     recordAnonymized.mockResolvedValue(undefined);
   });
 
-  it('asks for the accounts requested 30 days ago or more, one batch at a time', async () => {
+  it('asks for the accounts whose date has come, one batch at a time', async () => {
     await build().execute(NOW);
 
-    expect(findDeletionDue).toHaveBeenCalledWith(
-      new Date('2026-11-15T10:00:00.000Z'),
-      ANONYMIZATION_BATCH_SIZE,
-    );
+    expect(findDeletionDue).toHaveBeenCalledWith(NOW, ANONYMIZATION_BATCH_SIZE);
   });
 
   it('does nothing when no account is due', async () => {
@@ -148,19 +145,19 @@ describe('AnonymizeDueAccountsUseCase', () => {
     const before = Date.now();
     await expect(build().execute()).resolves.toEqual({ anonymized: 0, failed: 1 });
 
-    const [cutoff] = findDeletionDue.mock.calls[0] as [Date];
-    expect(cutoff.getTime()).toBeLessThanOrEqual(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    expect(cutoff.getTime()).toBeGreaterThanOrEqual(before - 30 * 24 * 60 * 60 * 1000);
+    const [now] = findDeletionDue.mock.calls[0] as [Date];
+    expect(now.getTime()).toBeGreaterThanOrEqual(before);
+    expect(now.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
-  it('traces each anonymization with the id and the date of the request, nothing personal', async () => {
+  it('traces each anonymization with the id and the scheduled date, nothing personal', async () => {
     findDeletionDue.mockResolvedValue([pendingUser('a'), pendingUser('b')]);
 
     await build().execute(NOW);
 
     expect(recordAnonymized).toHaveBeenCalledTimes(2);
-    expect(recordAnonymized).toHaveBeenNthCalledWith(1, 'a', REQUESTED_LONG_AGO);
-    expect(recordAnonymized).toHaveBeenNthCalledWith(2, 'b', REQUESTED_LONG_AGO);
+    expect(recordAnonymized).toHaveBeenNthCalledWith(1, 'a', SCHEDULED_FOR);
+    expect(recordAnonymized).toHaveBeenNthCalledWith(2, 'b', SCHEDULED_FOR);
   });
 
   it('leaves the row untouched, and the account due, when the erasure cannot be traced', async () => {
