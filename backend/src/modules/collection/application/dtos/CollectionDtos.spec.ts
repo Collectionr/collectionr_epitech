@@ -76,8 +76,11 @@ describe('AddCardEntryDto', () => {
     ['variantId', { variantId: 'x' }],
     ['quantity', { quantity: '2' }],
     ['quantity', { quantity: 1.5 }],
+    ['quantity', { quantity: null }],
     ['condition', { condition: 3 }],
+    ['condition', { condition: null }],
     ['language', { language: undefined }],
+    ['language', { language: null }],
     ['gradingNote', { gradingNote: '9' }],
     ['gradingNote', { gradingNote: Number.NaN }],
     ['notes', { notes: 'a'.repeat(900_000) }],
@@ -85,6 +88,12 @@ describe('AddCardEntryDto', () => {
     await expect(
       propertiesInError(AddCardEntryDto, { ...validEntry, ...override }),
     ).resolves.toContain(property);
+  });
+
+  it('refuses missing required fields', async () => {
+    await expect(propertiesInError(AddCardEntryDto, {})).resolves.toEqual(
+      expect.arrayContaining(['cardId', 'quantity', 'condition', 'language']),
+    );
   });
 });
 

@@ -15,6 +15,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -23,6 +24,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { SWAGGER_BEARER_AUTH_NAME } from '../../../../shared/bootstrap/SetupSwagger';
@@ -199,18 +201,62 @@ export class CollectionsController {
   }
 
   @Post(':id/cards')
+  @ApiBody({
+    type: AddCardEntryDto,
+    examples: {
+      cardWithPrinting: {
+        summary: 'Add a card with a known printing',
+        value: {
+          cardId: '01c00454-accd-4024-a036-81c3402ceb2e',
+          variantId: '9a1f1e8e-2d1a-4d0c-9d0b-0f7e5b7a6c10',
+          quantity: 2,
+          condition: 'NM',
+          language: 'fr',
+          gradingNote: 9.5,
+          notes: 'Signed',
+        },
+      },
+      cardWithoutPrinting: {
+        summary: 'Add a card without a printing',
+        value: {
+          cardId: '01c00454-accd-4024-a036-81c3402ceb2e',
+          quantity: 1,
+          condition: 'LP',
+          language: 'en',
+        },
+      },
+    },
+  })
   @ApiOperation({
     summary: 'Add a card to a collection',
     description:
       'Every call adds a new entry: the same card added twice gives two entries, they are not merged.',
   })
   @ApiParam(COLLECTION_ID)
-  @ApiCreatedResponse({ description: 'Entry added', type: CardEntryResponseDto })
+  @ApiCreatedResponse({
+    description: 'Entry added',
+    type: CardEntryResponseDto,
+    example: {
+      id: 'c36fbf34-c84d-4464-a0a4-aa1839ad1add',
+      collectionId: '1de9327c-6851-4e26-b347-322d465e34f7',
+      cardId: '01c00454-accd-4024-a036-81c3402ceb2e',
+      variantId: '9a1f1e8e-2d1a-4d0c-9d0b-0f7e5b7a6c10',
+      quantity: 2,
+      condition: 'NM',
+      language: 'fr',
+      gradingNote: 9.5,
+      notes: 'Signed',
+      addedAt: '2026-11-27T12:00:00.000Z',
+      updatedAt: '2026-11-27T12:00:00.000Z',
+    },
+  })
   @ApiBadRequestResponse({ description: 'Malformed id or invalid payload' })
   @ApiNotFoundResponse({
     description:
       'No such collection (or someone else’s); card or printing unknown, or card from another licence',
   })
+  @ApiUnauthorizedResponse({ description: 'Missing, invalid or expired access token' })
+  @ApiTooManyRequestsResponse({ description: 'Too many requests; retry after the response delay' })
   async addCard(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('id') id: string,
