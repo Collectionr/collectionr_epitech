@@ -1,4 +1,10 @@
-import { createApiClient, createAuthService, createAuthSession } from '@shared/services';
+import {
+  createApiClient,
+  createAuthService,
+  createAuthSession,
+  createCatalogService,
+  createCollectionService,
+} from '@shared/services';
 import { createAuthStore } from '@shared/stores';
 
 import { createRunExclusive } from './refreshLock';
@@ -44,3 +50,9 @@ export const authService = createAuthService({
   store: authStore,
   runExclusive: createRunExclusive(navigator.locks),
 });
+
+/** Service des collections de l'application web, fourni à la racine par `CollectionServiceContext`. */
+export const collectionService = createCollectionService({ client: apiClient });
+
+/** Service du catalogue de l'application web, fourni à la racine par `CatalogServiceContext`. */
+export const catalogService = createCatalogService({ client: apiClient });

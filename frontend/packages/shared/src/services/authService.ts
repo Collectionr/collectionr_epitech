@@ -2,6 +2,7 @@ import type { AuthStore } from '../stores';
 import type { AuthTokens, LoginCredentials, RegisterInput, SessionEndReason, User } from '../types';
 import { ApiError } from './apiClient';
 import type { ApiClient, ApiSession } from './apiClient';
+import { readField, readString, unexpectedResponse } from './responseReaders';
 
 /**
  * Stockage persistant du jeton de renouvellement, fourni par l'application : `localStorage` sur web,
@@ -90,21 +91,6 @@ export class SessionClosedError extends Error {
     super('Session fermée pendant la connexion');
     this.name = 'SessionClosedError';
   }
-}
-
-/** Erreur levée quand une réponse 2xx n'a pas la forme attendue : contrat de l'API rompu. */
-function unexpectedResponse(path: string): Error {
-  return new TypeError(`Réponse inattendue de ${path}`);
-}
-
-/** Lit un champ d'une réponse non validée, sans en supposer le type. */
-function readField(value: unknown, field: string): unknown {
-  return typeof value === 'object' && value !== null ? Reflect.get(value, field) : undefined;
-}
-
-function readString(value: unknown, field: string): string | undefined {
-  const fieldValue = readField(value, field);
-  return typeof fieldValue === 'string' ? fieldValue : undefined;
 }
 
 function parseUser(value: unknown, path: string): User {

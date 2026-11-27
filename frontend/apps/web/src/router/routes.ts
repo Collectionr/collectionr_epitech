@@ -19,6 +19,14 @@ export const ROUTES = {
   addCard: '/cartes/ajouter',
   /** Profil de l'utilisateur */
   profile: '/profil',
+  /** Catalogue (page provisoire, lien de la Sidebar) */
+  catalogue: '/catalogue',
+  /** Progression par set (page provisoire, lien de la Sidebar) */
+  setProgression: '/progression',
+  /** Pré-gradage par IA (page provisoire, lien de la Sidebar) */
+  preGrading: '/pre-gradage',
+  /** Paramètres du compte (page provisoire, lien de la Sidebar) */
+  settings: '/parametres',
 } as const;
 
 /** Paramètre de `ROUTES.addCard` qui présélectionne la collection de destination. */

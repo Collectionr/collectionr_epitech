@@ -1,5 +1,5 @@
 > **Maintenu par :** François Dubois (PO / Frontend Lead)
-> **Dernière mise à jour :** 2026-11-19
+> **Dernière mise à jour :** 2026-11-26
 > **Audience :** Toute l’équipe, en particulier les nouveaux contributeurs
 
 # Design system — Collectionr, thème Écrin
@@ -66,16 +66,22 @@ Data-Mono sert aux prix, grades, quantités, identifiants et timestamps. Le web 
 
 - Espacements : `space-4`, `space-8`, `space-12`, `space-16`, `space-24`, `space-32`, `space-48`, `space-64`.
 - Arrondis : `radius.card` = 6 px, `radius.none` = 0. Avatar et Badge sont carrés ; pas de `rounded-full`.
-- Ratio : `aspectRatio.card` = 63/88.
+- Ratio : `aspectRatio.card` = 63/88. CardThumbnail l’applique à toute la largeur fixée par son parent (`aspect-card`), sur un fond `ecrin-elevated` bordé du liséré pendant le chargement.
 - Bordure fine : `borders.thin` = 1 px.
 - Hauteur de contrôle : `sizing.control` = 40 px (`h-control`), commune à Button et Input. Le preset l'ajoute aux hauteurs uniquement : l'échelle d'espacement ne change pas.
-- SearchBar utilise la variante compacte d’Input (`sizing['control-compact']`, 32 px). Sa largeur suit son conteneur. Elle affiche une loupe décorative à gauche et un bouton d’effacement à droite quand elle contient du texte.
+- Select : `<select>` natif au gabarit d’Input (`h-control`, mêmes bordures et états, place du message réservée), chevron dessiné dans l’atome au trait des icônes ; il se branche dans FormField par `renderControl`.
+- QuantityStepper : boutons − et + (`h-control`, `min-w-control`) autour d’un champ en Data-Mono à chiffres tabulaires ; bornes du back (1 à 9999, `CARD_ENTRY_QUANTITY`).
+- Toast : pile en bas à droite (`ToastProvider`, monté une fois dans `App.tsx`), 3 au plus, largeur `max-w-form` ; fond `ecrin-elevated`, liséré, radius 0. Sévérité portée par un glyphe et un libellé lu (✓ succès en Archive, i information, ! erreur en Alerte), jamais de vert. Appel hors composant : `toast.success()`, `toast.info()`, `toast.error()` (`@shared/stores`). Entrée : glissement `translate-y-space-8` et fondu en `duration-snap` ; sortie en `duration-instant`.
+- EmptyState : centré, largeur `max-w-form`, apparition en `animate-fade-in` ; variante `empty` (action suggérée facultative) ou `no-results` (« Effacer la recherche »). Affiché seulement une fois le chargement terminé.
+- SearchBar utilise la variante compacte d’Input (`sizing['control-compact']`, 32 px). Sa largeur suit son conteneur. Elle affiche une loupe décorative à gauche et un bouton d’effacement à droite quand elle contient du texte. Elle peut piloter une liste de suggestions (motif ARIA combobox : `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`), comme dans CatalogSearch.
+- CatalogSearch : suggestions de `h-space-48` (vignette de `w-space-24` et deux lignes), 8 visibles avant de défiler ; option active en `ecrin-elevated` bordée du liséré ; ouverture sans animation. Aide « Nom de la carte (2 caractères minimum) » : la recherche du back ne porte que sur le nom.
 - Libellé de chargement de Button : au plus aussi long que le libellé normal (« Créer mon compte » / « Envoi… »). Le web réserve la place du plus long (couches superposées en grille) ; React Native n'a ni grille ni `visibility` : le Button mobile superposera le libellé de chargement (`absolute inset-0`) à un contenu en `opacity-0`, dont la largeur fixe celle du bouton.
 - Messages d'erreur des champs : ils tiennent sur une ligne à la largeur minimale de la colonne formulaire. La place réservée sous Input standard et Checkbox couvre une ligne caption. Input compact affiche une ligne uniquement en cas d’erreur. Un message plus long n'est jamais tronqué : il passe à la ligne et décale le contenu, c'est une exception acceptée.
 - Badge : `sizing.badge` = 20 px (`h-badge`, `min-w-badge`), l'interligne de la variante data. Le preset génère aussi les largeurs minimales depuis `sizing`.
 - NavItem utilise la hauteur `sizing.control` et la largeur de son conteneur. L’indicateur de la page courante utilise `borders['nav-indicator']` (3 px) et la couleur Signal. Le libellé actif est en Archive.
 - Sidebar utilise `sizing.sidebar` (220 px), exposé par la classe `w-sidebar`.
-- Topbar centre SearchBar jusqu’à `sizing['topbar-search']` (548 px). Sous le seuil `desktop`, la recherche passe sur une seconde ligne.
+- Topbar centre SearchBar jusqu’à `sizing['topbar-search']` (548 px). Sous le seuil `desktop`, la recherche passe sur une seconde ligne. La recherche est facultative : sans recherche à brancher, Topbar n’affiche pas de champ. Un élément peut précéder le titre (bouton « Menu » d’AppLayout).
+- AppLayout : Sidebar à gauche (`w-sidebar`), Topbar en haut, zone de contenu qui défile seule sur la hauteur de l’écran. Sous le seuil `desktop`, la Sidebar est masquée et s’ouvre par-dessus le contenu depuis le bouton « Menu ».
 - Colonne formulaire : `sizing.form` = 480 px (`max-w-form`), largeur maximale de la colonne formulaire d'AuthLayout. Valeur provisoire (décision PO du 21/11), à confirmer dans Figma. Le preset génère aussi les largeurs maximales depuis `sizing`.
 - Disabled : `opacity.disabled` = 0,4.
 - Seuil desktop : `breakpoints.desktop` = 1280 px. Les variantes display/h1 basculent automatiquement à ce seuil.
@@ -121,11 +127,11 @@ Sur le web, passer par l'atome Icon (COLLR-577) plutôt que par Lucide directeme
 
 ## Prix et valeurs monétaires
 
-Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après le montant (exemple : `1 234,56 EUR`). Utiliser Data-Mono. Les hausses sont en Archive avec ↗, les baisses en acier-texte avec ↘ ; ni rouge/vert, ni Signal.
+Format : `X,XX EUR`, virgule décimale, espace pour les milliers, `EUR` après le montant (exemple : `1 234,56 EUR`). Utiliser Data-Mono. Sur le web, passer par l’atome Price : il formate avec `formatPrice` (`@shared/utils`, espaces insécables), affiche « — » quand aucune cote n’existe (jamais « 0 EUR ») et lit le prix en toutes lettres (« 12,40 euros, en hausse de 3,2 % »). Les hausses sont en Archive avec ↗, les baisses en acier-texte avec ↘ ; ni rouge/vert, ni Signal.
 
 ## Commandes et démonstrations
 
-Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper), **Organisms** (Sidebar, Topbar, LoginForm) et **Templates** (AuthLayout), `npm run build-storybook` pour leur compilation.
+Depuis `frontend/` : `npm run storybook` pour les exemples sous **Fondations / Tokens** et les composants sous **Atoms** (Text, Surface, Icon, Avatar, Button, Badge, ProgressBar, Counter, Input, Label, Checkbox, Price, Select), **Molecules** (NavItem, FormField, PasswordField, PasswordStrength, SearchBar, Stepper, CardThumbnail, QuantityStepper, Toast, EmptyState), **Organisms** (Sidebar, Topbar, LoginForm, CatalogSearch, CardPreviewPanel, AddCardForm) et **Templates** (AuthLayout, AppLayout), `npm run build-storybook` pour leur compilation.
 
 Mobile : renseigner `EXPO_PUBLIC_TOKENS_PREVIEW=true` dans `apps/mobile/.env` et lancer `npm run dev:mobile`. Redémarrer Metro et recharger l’application après modification de cette variable. La démonstration est désactivée par défaut et exclue des exports de production, même si la variable vaut `true`. Revenir à `false` pour retrouver l’application habituelle.
 

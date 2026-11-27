@@ -156,4 +156,43 @@ describe('Input', () => {
 
     expect(getInput().className).not.toContain('pr-space-48');
   });
+
+  it('relie un texte d’aide au champ, avec le message d’erreur quand il y en a un', () => {
+    const { rerender } = render(<Input id="carte" describedBy="carte-aide" />);
+    expect(getInput().getAttribute('aria-describedby')).toBe('carte-aide');
+
+    rerender(<Input id="carte" describedBy="carte-aide" error="Recherche refusée." />);
+
+    expect(getInput().getAttribute('aria-describedby')).toBe('carte-aide carte-error');
+  });
+
+  it('transmet le focus, les touches et la longueur maximale', () => {
+    const onFocus = vi.fn();
+    const onKeyDown = vi.fn();
+    render(<Input id="carte" onFocus={onFocus} onKeyDown={onKeyDown} maxLength={100} />);
+
+    fireEvent.focus(getInput());
+    fireEvent.keyDown(getInput(), { key: 'ArrowDown' });
+
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
+    expect(getInput().maxLength).toBe(100);
+  });
+
+  it('porte les attributs du motif combobox quand il pilote une liste', () => {
+    render(
+      <Input
+        id="carte"
+        role="combobox"
+        aria-expanded={false}
+        aria-controls="suggestions"
+        aria-autocomplete="list"
+      />,
+    );
+
+    const input = screen.getByRole('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(input.getAttribute('aria-controls')).toBe('suggestions');
+    expect(input.getAttribute('aria-autocomplete')).toBe('list');
+  });
 });

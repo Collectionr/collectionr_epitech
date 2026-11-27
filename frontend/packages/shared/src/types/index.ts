@@ -6,3 +6,13 @@ export type {
   SessionEndReason,
   User,
 } from './auth';
+export type { CardView, CatalogCard, SetView, VariantView } from './catalog';
+export type {
+  AddCardEntryInput,
+  CardCondition,
+  CardEntry,
+  CardEntryView,
+  CardLanguage,
+  Collection,
+  CollectionCardsPage,
+} from './collection';

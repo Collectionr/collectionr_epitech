@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { act, createRef } from 'react';
 import type { ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
@@ -304,5 +304,34 @@ describe('Button (interactions)', () => {
 
     expect(document.activeElement).toBe(button);
     expect(button.tabIndex).toBe(0);
+  });
+
+  it('expose l’état d’un panneau ouvert et fermé par le bouton', () => {
+    const button = render(
+      <Button variant="ghost" aria-expanded={false} aria-controls="menu">
+        Menu
+      </Button>,
+    );
+
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.getAttribute('aria-controls')).toBe('menu');
+  });
+
+  it('n’ajoute aucun attribut de panneau par défaut', () => {
+    const button = render(<Button variant="ghost">Voir</Button>);
+
+    expect(button.hasAttribute('aria-expanded')).toBe(false);
+    expect(button.hasAttribute('aria-controls')).toBe(false);
+  });
+
+  it('transmet la référence au button natif', () => {
+    const ref = createRef<HTMLButtonElement>();
+    const button = render(
+      <Button variant="ghost" ref={ref}>
+        Menu
+      </Button>,
+    );
+
+    expect(ref.current).toBe(button);
   });
 });

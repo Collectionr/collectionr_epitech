@@ -4,6 +4,7 @@ import type { ComponentType } from 'react';
 import { createBrowserRouter } from 'react-router';
 import type { RouteObject } from 'react-router';
 
+import { ConnectedLayout } from './ConnectedLayout';
 import { PageRoute } from './PageRoute';
 import { RedirectIfAuthenticated } from './RedirectIfAuthenticated';
 import { RequireAuth } from './RequireAuth';
@@ -36,6 +37,13 @@ const CollectionDetailPage = lazyPage(
 );
 const AddCardPage = lazyPage(() => import('@/pages/AddCardPage'), 'AddCardPage');
 const ProfilePage = lazyPage(() => import('@/pages/ProfilePage'), 'ProfilePage');
+const CataloguePage = lazyPage(() => import('@/pages/CataloguePage'), 'CataloguePage');
+const SetProgressionPage = lazyPage(
+  () => import('@/pages/SetProgressionPage'),
+  'SetProgressionPage',
+);
+const PreGradingPage = lazyPage(() => import('@/pages/PreGradingPage'), 'PreGradingPage');
+const SettingsPage = lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage');
 const NotFoundPage = lazyPage(() => import('@/pages/NotFoundPage'), 'NotFoundPage');
 
 /**
@@ -64,11 +72,20 @@ export const appRoutes: RouteObject[] = [
       {
         element: <RequireAuth />,
         children: [
-          pageRoute(ROUTES.dashboard, DashboardPage),
-          pageRoute(ROUTES.collections, CollectionsPage),
-          pageRoute(ROUTES.collection, CollectionDetailPage),
-          pageRoute(ROUTES.addCard, AddCardPage),
-          pageRoute(ROUTES.profile, ProfilePage),
+          {
+            element: <ConnectedLayout />,
+            children: [
+              pageRoute(ROUTES.dashboard, DashboardPage),
+              pageRoute(ROUTES.collections, CollectionsPage),
+              pageRoute(ROUTES.collection, CollectionDetailPage),
+              pageRoute(ROUTES.addCard, AddCardPage),
+              pageRoute(ROUTES.profile, ProfilePage),
+              pageRoute(ROUTES.catalogue, CataloguePage),
+              pageRoute(ROUTES.setProgression, SetProgressionPage),
+              pageRoute(ROUTES.preGrading, PreGradingPage),
+              pageRoute(ROUTES.settings, SettingsPage),
+            ],
+          },
         ],
       },
       pageRoute('*', NotFoundPage),

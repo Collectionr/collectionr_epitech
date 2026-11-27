@@ -1,4 +1,4 @@
-import type { MouseEvent, MouseEventHandler, ReactNode } from 'react';
+import type { MouseEvent, MouseEventHandler, ReactNode, Ref } from 'react';
 
 /** Variantes de Button (planche 08.1, §05.1). */
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -22,6 +22,12 @@ interface ButtonBaseProps {
   icon?: ReactNode;
   /** Appelé au clic, sauf pendant le chargement. */
   onClick?: MouseEventHandler<HTMLButtonElement>;
+  /** Bouton qui ouvre et ferme un panneau : indique s'il est ouvert. */
+  'aria-expanded'?: boolean;
+  /** Id du panneau ouvert et fermé par le bouton. */
+  'aria-controls'?: string;
+  /** Référence vers le `<button>` natif, pour y ramener le focus. */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /** Le libellé de chargement est obligatoire dès que le bouton peut charger. */
@@ -89,6 +95,9 @@ export function Button({
   disabled = false,
   icon,
   onClick,
+  'aria-expanded': ariaExpanded,
+  'aria-controls': ariaControls,
+  ref,
   loading = false,
   loadingLabel,
 }: ButtonProps) {
@@ -114,9 +123,12 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       type={type}
       className={className}
       disabled={disabled}
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}
       onClick={handleClick}

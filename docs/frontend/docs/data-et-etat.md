@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-11-25
+> **Derniere mise a jour :** 2026-11-26
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Data et Etat -- CollectionR
@@ -186,6 +186,8 @@ Renouvellement (`authService.refresh`) : un seul a la fois, sous un verrou parta
 | Renouvellement et profil acceptes | `authenticated` | Remplace par le nouveau |
 | Aucun jeton, jeton refuse (400, 401), profil refuse (401, 404) | `anonymous` | Supprime |
 | Serveur injoignable, delai depasse, 5xx, 429, reponse illisible | `unknown` + `restoreError` : ecran d'erreur avec « Reessayer » (COLLR-700) | Conserve |
+
+**toastStore** -- Notifications (`packages/shared/src/stores/toastStore.ts`, livre en COLLR-704). Store unique, appelable hors composant, en particulier dans une mutation : `toast.success(message, action?)`, `toast.info(...)`, `toast.error(...)`, `toast.dismiss(id)`. 3 notifications au plus (les plus anciennes sortent en premier). Le web les affiche par `ToastProvider` (lu via `useToasts()`) : succes et information fermes apres 4 s (`TOAST_DURATION_MS`, en pause au survol et au focus), erreur affichee jusqu'a sa fermeture.
 
 **useUIStore** -- Etat de l'interface : theme, modals, toasts, chargement global.
 
@@ -381,6 +383,7 @@ Comportement commun a toutes les requetes :
 | Statut hors 200-299 | `ApiError { status, code, message, fieldErrors?, retryAfterSeconds?, body }` |
 | Serveur injoignable, coupure | `NetworkError` de cause `connection` |
 | Pas de reponse en 15 s | Requete annulee, `NetworkError` de cause `timeout` |
+| Signal de l'appelant declenche (`signal`, celui de TanStack Query) | `fetch` interrompu, `RequestAbortedError` : une requete devenue obsolete n'est pas un echec |
 
 `code` et `message` viennent du format d'erreur du back (`{ statusCode, error, message, timestamp, path }`) : `code` reprend `error` (ex. : `Conflict`), ou vaut `HTTP_<statut>` si le corps est inexploitable. Le back n'envoie pas encore d'erreurs par champ : `fieldErrors` reste vide. `retryAfterSeconds` est lu dans l'en-tete `Retry-After` (429). Les messages du back sont en anglais et ne s'affichent jamais tels quels : ils sont traduits en francais avant affichage.
 
@@ -398,6 +401,56 @@ Le back renvoie le jeton d'acces et le jeton de renouvellement dans le corps des
 Si `localStorage` est inaccessible ou refuse une ecriture (stockage plein ou bloque), l'onglet garde le jeton de renouvellement en memoire jusqu'a la fin de la visite (`apps/web/src/config/tokenStorage.ts`) : la valeur persistee, perimee, est supprimee si possible et n'est plus jamais relue, car presenter un jeton deja utilise ferait revoquer toute la chaine de connexion. La connexion est alors redemandee au prochain chargement.
 
 Risque accepte pour l'Alpha : un script injecte (XSS) peut lire le jeton de renouvellement dans `localStorage`. La cible reste un cookie httpOnly pose par le back. Le mobile utilisera un stockage securise (Keychain / Keystore), d'ou une interface de stockage asynchrone cote `packages/shared`.
+
+### Collections (COLLR-701)
+
+`collectionService` (`packages/shared/src/services/collectionService.ts`) appelle l'API des collections et verifie chaque reponse avant de la renvoyer typee (types `Collection`, `CardEntry`, `CardEntryView`, `CollectionCardsPage` de `@shared/types`). Le service est fourni a la racine par `CollectionServiceContext` ; les composants passent par les hooks :
+
+| Hook | Role |
+|---|---|
+| `useCollections()` | `GET /collections` : collections de l'utilisateur, les plus recentes d'abord (non pagine) |
+| `useCollectionCards(id)` | `GET /collections/:id/cards` en requete infinie, 50 lignes par page. L'API ne propose ni tri ni recherche |
+| `useAddCardEntry()` | `POST /collections/:id/cards`, en optimiste (voir ci-dessous) |
+
+Ajout d'une carte : chaque appel cree une nouvelle ligne, comme le back (la meme carte, dans le meme etat et la meme langue, donne deux lignes, jamais fusionnees). La ligne apparait tout de suite en tete des cartes de la collection en cache, avec les donnees de la carte choisie dans le catalogue (`preview`), puis prend l'identifiant renvoye par l'API. Si l'API refuse, seule cette ligne est retiree : un autre ajout en cours est garde. Une fois la reponse recue, seules la collection et ses cartes sont invalidees (`QUERY_KEYS.collection(id)`).
+
+Les etats (`CARD_CONDITIONS` : NM, LP, MP, HP, DMG), les langues (`CARD_LANGUAGES` : fr, en) et les bornes de quantite (`CARD_ENTRY_QUANTITY` : 1 a 9999) ne sont exposes par aucun endpoint : ce sont les enumerations du Swagger, recopiees dans `@shared/constants` et a tenir alignees sur le back. Fraicheur : 2 min, conservation : 15 min (`COLLECTION_STALE_TIME_MS`, `COLLECTION_GC_TIME_MS`).
+
+Ajout manuel (`AddCardPage`, COLLR-713) : la collection est presélectionnee depuis `?collection=<id>`, sinon la derniere utilisee, sinon la plus recente. La collection choisie est reverifiee contre la liste actuelle a chaque rendu : si elle en a disparu (supprimee ailleurs, liste rechargee), la meme regle de preselection s'applique ; `AddCardForm` signale sur le champ Collection une valeur absente de la liste, au lieu d'abandonner l'envoi sans message. La derniere collection utilisee n'est pas fournie par l'API : elle est gardee par utilisateur dans `localStorage` (`apps/web/src/config/lastCollectionStorage.ts`, lecture et ecriture protegees, simple preference). Un echec d'ajout est traduit par `translateAddCardError` (`@shared/utils`) et affiche en toast d'erreur ; la saisie est conservee.
+
+Reste a livrer avec Ma Collection (COLLR-764) : detail, creation, renommage et suppression d'une collection, modification et retrait d'une carte.
+
+### Recherche dans le catalogue (COLLR-702)
+
+**Aucun endpoint de recherche n'existe encore cote back (COLLR-459).** `catalogService` (`packages/shared/src/services/catalogService.ts`) appelle un contrat suppose, a valider avec le back : `GET /catalogue/cards/search?q=<terme>&limit=20`, qui renvoie une liste de `{ card, set, variants }` (type `CatalogCard`), reprenant les vues deja exposees par l'API (`CardViewDto`, `SetViewDto`, `VariantViewDto`). Le comportement suppose est celui du depot du back (`searchByName`) : nom francais ou anglais contenant le terme, sans tenir compte de la casse mais des accents, tri par nom anglais, 2 a 100 caracteres. La recherche par extension ou par numero n'existe pas cote back. Quand le vrai contrat sera livre, seuls `catalogService` et son handler simule sont a adapter.
+
+`useSearchCatalog(texte)` porte l'autocompletion :
+
+| Regle | Valeur |
+|---|---|
+| Declenchement | 200 ms apres la derniere frappe, a partir de 2 caracteres (espaces de debut et de fin ignores) ; rien au-dela de 100 |
+| Requetes obsoletes | Annulees : le signal de TanStack Query interrompt la requete (`RequestAbortedError`) |
+| Pendant la frappe | Les resultats precedents restent affiches (`keepPreviousData`) : la liste ne clignote pas |
+| Meme recherche retapee | Servie par le cache pendant 5 min, sans nouvel appel |
+| Renvoie | `canSearch`, `results`, `searchedTerm` (terme des resultats affiches), `isSearching`, `error`, `retry` |
+
+### Donnees simulees (MSW)
+
+En dev, le front peut travailler sur des donnees simulees par [MSW 2](https://mswjs.io) (`apps/web/src/mocks/`), alignees sur les DTO et les erreurs du back. Un seul reglage, `VITE_API_MOCKS`, dans `apps/web/.env.local` (documente dans `.env.example`) :
+
+| Valeur | Effet |
+|---|---|
+| vide (defaut) | Aucune simulation : toutes les requetes vont a l'API |
+| `catalogue` | Seule la recherche dans le catalogue, absente du back, est simulee ; le reste va a l'API |
+| `all` | Toute l'API utilisee par le front est simulee (catalogue et collections) : travail sans back |
+
+Demo de l'Ajout manuel : tant que la recherche du catalogue n'existe pas cote back, le parcours complet se montre avec `VITE_API_MOCKS=all`. Avec `catalogue`, les cartes simulees n'existent pas dans la vraie base : l'ajout reel repond 404.
+
+- **Dev uniquement** : `main.tsx` demarre le service worker de MSW avant le premier rendu, sous `npm run dev` seulement. Le build de production n'embarque ni MSW ni les handlers, et `vite.config.ts` retire le worker (`public/mockServiceWorker.js`) du build. Une valeur inconnue bloque le demarrage.
+- **Contrat** : memes chemins, memes reponses, memes erreurs que le back (`{ statusCode, error, message, timestamp, path }`, messages en anglais). Les cartes simulees reprennent les fixtures TCGdex du back (`backend/prisma/fixtures/tcgdex`) avec des UUID fixes : elles n'existent pas dans une vraie base.
+- **Requetes sans handler** : envoyees a la vraie API (`onUnhandledRequest: 'bypass'`).
+- **Etat** : les ajouts sont gardes en memoire jusqu'au rechargement de la page.
+- **Tests** : les handlers sont verifies avec `msw/node` contre les vrais services (`collectionHandlers.test.ts`, `catalogueHandlers.test.ts`) ; les hooks de `shared` gardent leurs faux clients injectes.
 
 ### Template : Hook TanStack Query
 

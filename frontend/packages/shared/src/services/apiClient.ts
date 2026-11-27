@@ -1,3 +1,5 @@
+import { runtimeTimers } from '../utils/runtimeTimers';
+
 /**
  * Sous-ensemble des options de `fetch` utilisé par le client API.
  * @typeParam TSignal - Type du signal d'annulation, celui du contrôleur fourni par l'application
@@ -58,12 +60,30 @@ export type ApiPath = `/${string}`;
 /** Méthodes HTTP acceptées par le client API. */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/**
+ * Signal d'annulation fourni par l'appelant (celui de TanStack Query, `AbortSignal` sur web et
+ * mobile) : seul le sous-ensemble lu par le client est typé, `packages/shared` compilant sans DOM.
+ */
+export interface AbortSignalLike {
+  /** Vrai si l'annulation est déjà demandée */
+  readonly aborted: boolean;
+  /** Abonne une fonction à l'annulation */
+  addEventListener(type: 'abort', listener: () => void): void;
+  /** Désabonne une fonction de l'annulation */
+  removeEventListener(type: 'abort', listener: () => void): void;
+}
+
 /** Options d'une requête envoyée par le client API. */
 export interface ApiRequestOptions {
   /** Méthode HTTP, `GET` par défaut */
   method?: HttpMethod;
   /** Corps de la requête, sérialisé en JSON s'il est différent de `undefined` (`null` est envoyé tel quel) */
   body?: unknown;
+  /**
+   * Annule la requête quand il est déclenché (recherche devenue obsolète) : `fetch` est interrompu
+   * et la requête lève une `RequestAbortedError`.
+   */
+  signal?: AbortSignalLike;
 }
 
 /**
@@ -190,16 +210,19 @@ export class NetworkError extends Error {
 }
 
 /**
- * Minuteries de l'environnement d'exécution : navigateurs et React Native les exposent, mais
- * `packages/shared` compile sans les types DOM et Node. Seul le sous-ensemble utilisé est typé ici ;
- * elles sont lues à chaque appel pour suivre un éventuel remplacement (minuteries simulées des tests).
+ * Erreur levée quand l'appelant annule la requête par son signal (recherche devenue obsolète).
+ * Ce n'est pas un échec : TanStack Query ignore une requête qu'il a lui-même annulée.
  */
-interface RuntimeTimers {
-  setTimeout(callback: () => void, delayMs: number): unknown;
-  clearTimeout(handle: unknown): void;
+export class RequestAbortedError extends Error {
+  /**
+   * @param method - Méthode de la requête annulée
+   * @param path - Chemin de la requête annulée
+   */
+  constructor(method: HttpMethod, path: ApiPath) {
+    super(`Requête ${method} ${path} annulée`);
+    this.name = 'RequestAbortedError';
+  }
 }
-
-const timers = globalThis as unknown as RuntimeTimers;
 
 const HTTP_NO_CONTENT = 204;
 const HTTP_UNAUTHORIZED = 401;
@@ -384,13 +407,21 @@ export function createApiClient<TSignal>(options: ApiClientOptions<TSignal>): Ap
     return { ok: true, body: await readJsonBody(response, method, path) };
   }
 
-  /** Envoie la requête et lit sa réponse dans le délai maximal, sinon l'annule. */
+  /**
+   * Envoie la requête et lit sa réponse dans le délai maximal, sinon l'annule. Elle est aussi
+   * annulée quand le signal de l'appelant est déclenché.
+   */
   async function send(
     path: ApiPath,
     method: HttpMethod,
     body: unknown,
     accessToken: string | null,
+    signal: AbortSignalLike | undefined,
   ): Promise<ReceivedResponse> {
+    if (signal?.aborted) {
+      throw new RequestAbortedError(method, path);
+    }
+    const timers = runtimeTimers();
     const controller = createAbortController();
     let timer: unknown;
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -404,21 +435,33 @@ export function createApiClient<TSignal>(options: ApiClientOptions<TSignal>): Ap
         );
       }, timeoutMs);
     });
+    // Affectée tout de suite : l'exécuteur d'une promesse s'exécute dès sa création.
+    let rejectAborted!: (error: RequestAbortedError) => void;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAborted = reject;
+    });
+    const onAbort = () => {
+      controller.abort();
+      rejectAborted(new RequestAbortedError(method, path));
+    };
+    signal?.addEventListener('abort', onAbort);
 
     try {
       return await Promise.race([
         exchange(path, method, body, accessToken, controller.signal),
         timeout,
+        aborted,
       ]);
     } finally {
       timers.clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
     }
   }
 
   return {
-    async request(path, { method = 'GET', body } = {}) {
+    async request(path, { method = 'GET', body, signal } = {}) {
       const accessToken = session?.getAccessToken() ?? null;
-      const response = await send(path, method, body, accessToken);
+      const response = await send(path, method, body, accessToken, signal);
       if (response.ok) {
         return response.body;
       }
@@ -441,7 +484,7 @@ export function createApiClient<TSignal>(options: ApiClientOptions<TSignal>): Ap
         throw toApiError(response, method, path);
       }
 
-      const retried = await send(path, method, body, session.getAccessToken());
+      const retried = await send(path, method, body, session.getAccessToken(), signal);
       if (retried.ok) {
         return retried.body;
       }

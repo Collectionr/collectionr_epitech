@@ -2,4 +2,6 @@
 interface ImportMetaEnv {
   /** URL de base de l'API, `/api/v1` par défaut : chemin du même domaine ou URL http(s) absolue, vérifiée dans config/api.ts */
   readonly VITE_API_BASE_URL?: string;
+  /** Données simulées en dev (`catalogue` ou `all`), vide par défaut ; vérifiée dans config/apiMocks.ts, ignorée au build */
+  readonly VITE_API_MOCKS?: string;
 }

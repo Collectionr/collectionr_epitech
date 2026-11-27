@@ -4,10 +4,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 // Pas react-router/dom : sous Vitest il charge un second build (double contexte), et flushSync est inutilisé.
 import { RouterProvider } from 'react-router';
 
-import { authService } from '@/config/api';
+import { authService, catalogService, collectionService } from '@/config/api';
+import { ToastProvider } from '@/components/molecules';
 import { queryClient } from '@/config/queryClient';
 import { router } from '@/router/router';
-import { AuthServiceContext } from '@shared/hooks';
+import { AuthServiceContext, CatalogServiceContext, CollectionServiceContext } from '@shared/hooks';
 
 /**
  * Devtools de TanStack Query, chargées à la demande sous `vite dev` uniquement : le build de
@@ -22,12 +23,17 @@ const QueryDevtools =
       )
     : null;
 
-/** Racine de l'application web : cache des appels API, service d'authentification et routeur. */
+/** Racine de l'application web : cache des appels API, services de l'API, routeur et notifications. */
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthServiceContext.Provider value={authService}>
-        <RouterProvider router={router} />
+        <CollectionServiceContext.Provider value={collectionService}>
+          <CatalogServiceContext.Provider value={catalogService}>
+            <RouterProvider router={router} />
+            <ToastProvider />
+          </CatalogServiceContext.Provider>
+        </CollectionServiceContext.Provider>
       </AuthServiceContext.Provider>
       {QueryDevtools && (
         <Suspense fallback={null}>

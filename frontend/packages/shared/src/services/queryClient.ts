@@ -6,6 +6,13 @@ import { ApiError, NetworkError } from './apiClient';
 export const DEFAULT_STALE_TIME_MS = 5 * 60 * 1000;
 /** Durée de conservation en cache d'une donnée qui n'est plus affichée (30 min). */
 export const DEFAULT_GC_TIME_MS = 30 * 60 * 1000;
+/**
+ * Fraîcheur des collections de l'utilisateur et de leurs cartes (2 min) : il peut les modifier
+ * depuis un autre appareil (data-et-etat.md).
+ */
+export const COLLECTION_STALE_TIME_MS = 2 * 60 * 1000;
+/** Conservation en cache des collections et de leurs cartes plus affichées (15 min). */
+export const COLLECTION_GC_TIME_MS = 15 * 60 * 1000;
 /** Nombre maximal de relances d'une requête après un échec temporaire. */
 export const MAX_QUERY_RETRIES = 2;
 

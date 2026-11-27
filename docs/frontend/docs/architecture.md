@@ -1,5 +1,5 @@
 > **Maintenu par :** Francois Dubois (PO / Frontend Lead)
-> **Derniere mise a jour :** 2026-11-25
+> **Derniere mise a jour :** 2026-11-26
 > **Audience :** Toute l'equipe, en particulier les nouveaux contributeurs
 
 # Architecture Frontend -- CollectionR
@@ -282,12 +282,14 @@ Le web utilise **React Router 7.18** en mode data (`createBrowserRouter` + `Rout
 | `routes.ts` | Seul endroit ou les chemins sont ecrits (`ROUTES`), plus `collectionPath(id)` et `addCardPath(collectionId)` pour les chemins a parametre. Aucun composant n'ecrit d'URL en dur |
 | `router.tsx` | Declaration des routes (`appRoutes`, reutilisees par les tests sur un routeur en memoire) et routeur du navigateur |
 | `RootLayout.tsx` | Racine de toutes les routes : lance la restauration de la session et la navigation des liens internes |
-| `RequireAuth.tsx` | Garde des pages connectees (Dashboard, collections, ajout, profil) |
+| `RequireAuth.tsx` | Garde des pages connectees (Dashboard, collections, ajout, profil, pages provisoires de la Sidebar) |
+| `ConnectedLayout.tsx` | Cadre des pages connectees (AppLayout), sous `RequireAuth` : Sidebar, Topbar et zone de contenu (voir ci-dessous) |
 | `RedirectIfAuthenticated.tsx` | Garde des pages visiteurs (connexion, inscription, mot de passe oublie) |
 | `StartupScreen.tsx` | Ecran de demarrage, et ecran d'erreur de la restauration |
 | `RootErrorScreen.tsx` | Ecran d'erreur de la route racine (`errorElement`), pour les erreurs qui sortent des pages |
 | `PageRoute.tsx` | Enveloppe de chaque page : `RouteErrorBoundary` puis `Suspense` |
-| `useDocumentTitle.ts` | Titre de l'onglet, fixe par chaque page : « Ma Collection · Collectionr » |
+| `usePageTitle.ts` | Titre fourni par chaque page : onglet (« Ma Collection · Collectionr ») et, dans le cadre, Topbar |
+| `useDocumentTitle.ts` | Titre de l'onglet seul, pour les pages hors cadre (connexion, inscription, 404) |
 | `internalLinks.ts` | Navigation des liens internes en `<a href>` natif (voir ci-dessous) |
 
 Regles :
@@ -296,8 +298,17 @@ Regles :
 - **Attente** : seule la zone de la page attend. Le fallback de `Suspense` n'affiche rien pendant 400 ms, puis « Chargement… » en caption `acier-texte`, jamais de spinner.
 - **Erreurs** : une page qui ne charge pas ou dont le rendu echoue affiche l'ecran d'erreur de `RouteErrorBoundary`, avec « Reessayer » (voir data-et-etat.md). Apres un echec d'import de la page (`isDynamicImportError`, `dynamicImportError.ts`), « Reessayer » recharge la page. Une erreur qui sort des pages (gardes, restauration, navigation refusee par le routeur) affiche `RootErrorScreen`, en francais, jamais l'ecran technique de React Router : « Recharger la page » et un lien vers le Dashboard, qui rechargent tous deux l'application.
 - **404** : la route `*` affiche « Page introuvable » et un lien vers le Dashboard.
-- **Pages provisoires** : une page pas encore construite affiche son titre et une phrase (`PlaceholderPage`), sans faux contenu.
+- **Pages provisoires** : une page pas encore construite affiche son titre et une phrase (`PlaceholderPage`), sans faux contenu. Les liens de la Sidebar sans ecran dans l'Alpha (Catalogue, Set Progression, Pre-Gradage IA, Parametres) menent a une page provisoire, jamais a la 404.
 - Dans une page, un lien interne utilise `<Link>` de React Router.
+
+### Cadre des pages connectees (COLLR-604)
+
+Les pages connectees sont des enfants de `ConnectedLayout`, route de mise en page placee sous `RequireAuth`. Il affiche le template `AppLayout` (Sidebar a gauche, Topbar en haut, zone de contenu `<main>` qui defile seule) autour de la page. Le cadre reste affiche pendant le chargement d'une page et sur son ecran d'erreur : seule la zone de contenu attend.
+
+- **Titre** : chaque page appelle `usePageTitle('Ajouter une carte')`. Le titre est fourni par la page, jamais deduit du chemin ; `AppLayout` le recoit en propriete et reste un template pur. Tant que la page affichee n'a pas fourni le sien (chargement, erreur), la Topbar affiche le nom de l'application, jamais le titre de la page precedente.
+- **Un seul `h1`, un seul `<main>`** : dans le cadre, le `h1` est celui de la Topbar et `<main>` celui d'`AppLayout`. Une page connectee ne les repete pas (`usePageTitle` renvoie `true` dans le cadre).
+- **Topbar** : ni recherche globale (aucune fonction a brancher dans l'Alpha), ni pastille (aucune API de notifications) ; l'avatar affiche le pseudo de la session.
+- **Sous le seuil desktop** (1280 px) : la Sidebar est masquee. Le bouton « Menu » de la Topbar l'ouvre par-dessus le contenu, focus sur le premier lien ; Echap la referme et rend le focus a « Menu ». Le choix d'un lien ou la sortie du focus la referment aussi ; un lien vers la page deja affichee (marque `aria-current` par la Sidebar) rend lui aussi le focus a « Menu », puisque la page ne change pas.
 
 ### Gardes et restauration de session (COLLR-700)
 
