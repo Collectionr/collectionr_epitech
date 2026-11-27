@@ -308,7 +308,7 @@ Les pages connectees sont des enfants de `ConnectedLayout`, route de mise en pag
 - **Titre** : chaque page appelle `usePageTitle('Ajouter une carte')`. Le titre est fourni par la page, jamais deduit du chemin ; `AppLayout` le recoit en propriete et reste un template pur. Tant que la page affichee n'a pas fourni le sien (chargement, erreur), la Topbar affiche le nom de l'application, jamais le titre de la page precedente.
 - **Un seul `h1`, un seul `<main>`** : dans le cadre, le `h1` est celui de la Topbar et `<main>` celui d'`AppLayout`. Une page connectee ne les repete pas (`usePageTitle` renvoie `true` dans le cadre).
 - **Topbar** : ni recherche globale (aucune fonction a brancher dans l'Alpha), ni pastille (aucune API de notifications) ; l'avatar affiche le pseudo de la session.
-- **Sous le seuil desktop** (1280 px) : la Sidebar est masquee. Le bouton « Menu » de la Topbar l'ouvre par-dessus le contenu, focus sur le premier lien ; Echap la referme et rend le focus a « Menu », comme le choix d'un lien ou la sortie du focus.
+- **Sous le seuil desktop** (1280 px) : la Sidebar est masquee. Le bouton « Menu » de la Topbar l'ouvre par-dessus le contenu, focus sur le premier lien ; Echap la referme et rend le focus a « Menu ». Le choix d'un lien ou la sortie du focus la referment aussi ; un lien vers la page deja affichee (marque `aria-current` par la Sidebar) rend lui aussi le focus a « Menu », puisque la page ne change pas.
 
 ### Gardes et restauration de session (COLLR-700)
 

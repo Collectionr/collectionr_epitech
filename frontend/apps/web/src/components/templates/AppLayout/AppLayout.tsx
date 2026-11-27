@@ -51,8 +51,8 @@ const MENU_BUTTON_SLOT_CLASSES = 'desktop:hidden';
  * le titre et la page courante sont fournis par l'application.
  *
  * Sous le seuil desktop (1280 px), la Sidebar est masquée ; le bouton « Menu » l'ouvre par-dessus
- * le contenu. Elle se referme avec Échap (le focus revient sur « Menu »), au choix d'un lien ou
- * quand le focus la quitte.
+ * le contenu. Elle se referme avec Échap (le focus revient sur « Menu »), au choix d'un lien (vers
+ * la page déjà affichée, le focus revient aussi sur « Menu ») ou quand le focus la quitte.
  */
 export function AppLayout({
   title,
@@ -90,8 +90,16 @@ export function AppLayout({
   }, [menuOpen]);
 
   function closeOnLinkClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target instanceof Element && event.target.closest('a') !== null) {
-      setMenuOpen(false);
+    const link = event.target instanceof Element ? event.target.closest('a') : null;
+    if (link === null) {
+      return;
+    }
+    setMenuOpen(false);
+    // Lien de la page déjà affichée (celui que la Sidebar marque `aria-current`) : la page ne
+    // change pas et le lien disparaît avec le panneau ; le focus revient sur « Menu » au lieu de
+    // se perdre.
+    if (link.getAttribute('aria-current') === 'page') {
+      menuButtonRef.current?.focus();
     }
   }
 

@@ -159,6 +159,18 @@ describe('AppLayout', () => {
     expect(menuButton.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('rend le focus au bouton Menu au choix du lien de la page déjà affichée', () => {
+    const { menuButton, panel } = renderLayout();
+    openMenu(menuButton);
+    const currentPageLink = navigationLink(panel, 'Ajouter une carte');
+    act(() => currentPageLink.focus());
+
+    fireEvent.click(currentPageLink);
+
+    expect(menuButton.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(menuButton);
+  });
+
   it('reste ouverte quand le focus passe d’un lien à l’autre', () => {
     const { menuButton, panel } = renderLayout();
     openMenu(menuButton);
