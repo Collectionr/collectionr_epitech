@@ -1,19 +1,16 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { useAuthService } from './authServiceContext';
 
 /**
- * Déconnexion : révocation du jeton auprès du back, fermeture de la session, puis cache vidé,
- * même si l'appel au back échoue. La redirection revient à l'application.
+ * Déconnexion : fermeture de la session, puis révocation du jeton auprès du back, même si cet appel
+ * échoue. La fin de session vide le cache (`clearCacheOnSessionEnd`, branché par l'application),
+ * sans attendre la réponse du back. La redirection revient à l'application.
  */
 export function useLogout() {
   const authService = useAuthService();
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: () => authService.logout(),
-    onSettled: () => {
-      queryClient.clear();
-    },
   });
 }
