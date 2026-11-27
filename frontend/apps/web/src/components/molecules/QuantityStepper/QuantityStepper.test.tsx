@@ -137,4 +137,56 @@ describe('QuantityStepper', () => {
     expect(decrease.hasAttribute('disabled')).toBe(true);
     expect(increase.hasAttribute('disabled')).toBe(true);
   });
+
+  it('à Entrée, ramène une saisie hors bornes dans les bornes puis soumet la valeur affichée', () => {
+    const submitted: number[] = [];
+    function FormHarness() {
+      const [value, setValue] = useState(3);
+      return (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitted.push(value);
+          }}
+        >
+          <QuantityStepper value={value} onChange={setValue} />
+        </form>
+      );
+    }
+    render(<FormHarness />);
+    const input = screen.getByRole<HTMLInputElement>('spinbutton');
+
+    fireEvent.change(input, { target: { value: '12000' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(submitted).toEqual([9999]);
+    expect(input.value).toBe('9999');
+  });
+
+  it('à Entrée sans saisie en cours, soumet directement la valeur', () => {
+    const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <QuantityStepper value={2} onChange={() => {}} />
+      </form>,
+    );
+
+    fireEvent.keyDown(screen.getByRole('spinbutton'), { key: 'Enter' });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('remplace la saisie en cours quand le parent remet la valeur à 1 (après un ajout)', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<QuantityStepper value={3} onChange={onChange} />);
+    const input = screen.getByRole<HTMLInputElement>('spinbutton');
+    fireEvent.change(input, { target: { value: '0' } });
+    expect(input.value).toBe('0');
+
+    rerender(<QuantityStepper value={1} onChange={onChange} />);
+
+    expect(input.value).toBe('1');
+    fireEvent.blur(input);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

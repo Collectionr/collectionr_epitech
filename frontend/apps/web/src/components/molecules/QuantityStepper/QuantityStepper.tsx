@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { flushSync } from 'react-dom';
 
 import { CARD_ENTRY_QUANTITY } from '@shared/constants';
 
@@ -38,7 +39,8 @@ const DIGITS_ONLY = /\D/g;
 /**
  * Quantité réglable en un clic ou au clavier : − et + de part et d'autre d'un champ saisissable.
  * Les flèches ↑ ↓ ajoutent ou retirent un exemplaire ; une saisie hors bornes est ramenée à la
- * borne à la sortie du champ. − est désactivé au minimum, + au maximum.
+ * borne à la sortie du champ ou à Entrée, avant l'envoi du formulaire. − est désactivé au minimum,
+ * + au maximum.
  */
 export function QuantityStepper({
   id,
@@ -49,8 +51,13 @@ export function QuantityStepper({
   disabled = false,
   required = false,
 }: QuantityStepperProps) {
-  /** Texte en cours de saisie, `null` hors saisie (le champ affiche alors `value`). */
-  const [draft, setDraft] = useState<string | null>(null);
+  /**
+   * Texte en cours de saisie, rattaché à la valeur sur laquelle il a été tapé. Dès que la valeur
+   * change (saisie dans les bornes, remise à 1 par le parent après un ajout), il est périmé : le
+   * champ affiche toujours la valeur réelle, celle qui sera envoyée.
+   */
+  const [draft, setDraft] = useState<{ text: string; base: number } | null>(null);
+  const activeDraft = draft !== null && draft.base === value ? draft.text : null;
 
   function clamp(quantity: number): number {
     return Math.min(max, Math.max(min, quantity));
@@ -61,14 +68,18 @@ export function QuantityStepper({
     onChange(clamp(quantity));
   }
 
+  /** Valeur de la saisie en cours, ramenée dans les bornes (vide : le minimum). */
+  function normalizedDraft(text: string): number {
+    return clamp(text === '' ? min : Number(text));
+  }
+
   function step(delta: number) {
-    const typed = draft === null ? Number.NaN : Number(draft);
-    commit((Number.isInteger(typed) && draft !== '' ? typed : value) + delta);
+    commit((activeDraft === null ? value : normalizedDraft(activeDraft)) + delta);
   }
 
   function handleChange(text: string) {
     const digits = text.replace(DIGITS_ONLY, '');
-    setDraft(digits);
+    setDraft({ text: digits, base: value });
     const typed = Number(digits);
     if (digits !== '' && typed >= min && typed <= max) {
       onChange(typed);
@@ -76,8 +87,8 @@ export function QuantityStepper({
   }
 
   function handleBlur() {
-    if (draft !== null) {
-      commit(draft === '' ? min : Number(draft));
+    if (activeDraft !== null) {
+      commit(normalizedDraft(activeDraft));
     }
   }
 
@@ -85,6 +96,18 @@ export function QuantityStepper({
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault();
       step(event.key === 'ArrowUp' ? 1 : -1);
+      return;
+    }
+    if (event.key === 'Enter') {
+      // Entrée envoie la valeur affichée : la saisie est d'abord ramenée dans les bornes et le
+      // formulaire rendu avec elle (flushSync), puis il est soumis.
+      event.preventDefault();
+      const { form } = event.currentTarget;
+      if (activeDraft !== null) {
+        const quantity = normalizedDraft(activeDraft);
+        flushSync(() => commit(quantity));
+      }
+      form?.requestSubmit();
     }
   }
 
@@ -111,7 +134,7 @@ export function QuantityStepper({
         aria-valuenow={value}
         required={required}
         disabled={disabled}
-        value={draft ?? String(value)}
+        value={activeDraft ?? String(value)}
         onChange={(event) => handleChange(event.currentTarget.value)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}

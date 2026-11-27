@@ -236,6 +236,24 @@ describe('AddCardPage', () => {
     expect(screen.queryByText(/carte ajoutée/)).toBeNull();
   });
 
+  it('envoie la quantité affichée à Entrée, puis la remet à 1 après le succès', async () => {
+    const { collectionService } = await renderPage();
+    await collectionField();
+    await chooseCharizard();
+    fireEvent.change(screen.getByRole('combobox', { name: /^État/ }), { target: { value: 'NM' } });
+    const quantity = screen.getByRole<HTMLInputElement>('spinbutton');
+
+    fireEvent.change(quantity, { target: { value: '12000' } });
+    fireEvent.keyDown(quantity, { key: 'Enter' });
+
+    await waitFor(() => expect(screen.getByText('1 carte ajoutée')).toBeTruthy());
+    expect(collectionService.addCard).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ quantity: 9999 }),
+    );
+    expect(screen.getByRole<HTMLInputElement>('spinbutton').value).toBe('1');
+  });
+
   it.each([
     ['modifié', 'Dracaufeu V'],
     ['effacé', ''],
