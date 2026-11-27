@@ -236,6 +236,28 @@ describe('AddCardPage', () => {
     expect(screen.queryByText(/carte ajoutée/)).toBeNull();
   });
 
+  it.each([
+    ['modifié', 'Dracaufeu V'],
+    ['effacé', ''],
+  ])('annule la carte choisie quand le texte de la recherche est %s', async (_case, nextText) => {
+    const { collectionService } = await renderPage();
+    await collectionField();
+    const input = await chooseCharizard();
+    fireEvent.change(screen.getByRole('combobox', { name: /^État/ }), { target: { value: 'NM' } });
+    expect(screen.getByRole('button', { name: /Enregistrer/ }).hasAttribute('disabled')).toBe(
+      false,
+    );
+
+    fireEvent.change(input, { target: { value: nextText } });
+
+    const preview = screen.getByRole('region', { name: 'Aperçu de la carte' });
+    expect(preview.textContent).toContain('Choisissez une carte');
+    const save = screen.getByRole('button', { name: /Enregistrer/ });
+    expect(save.hasAttribute('disabled')).toBe(true);
+    fireEvent.submit(save.closest('form') as HTMLFormElement);
+    expect(collectionService.addCard).not.toHaveBeenCalled();
+  });
+
   it('revient à la page précédente avec « Annuler »', async () => {
     const { router } = await renderPage();
     await collectionField();

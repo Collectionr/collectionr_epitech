@@ -115,6 +115,12 @@ export function AddCardPage() {
     setText(cardName(card));
   }
 
+  /** Le texte saisi ne désigne plus la carte choisie : elle est annulée, rien ne s'enregistre par erreur. */
+  function changeSearchText(nextText: string) {
+    setText(nextText);
+    setSelected(null);
+  }
+
   function handleSubmit({ collectionId, condition, language, quantity }: AddCardFormSubmission) {
     const card = selected;
     const collection = collections.find((item) => item.id === collectionId);
@@ -162,7 +168,7 @@ export function AddCardPage() {
         </div>
         <CatalogSearch
           value={text}
-          onValueChange={setText}
+          onValueChange={changeSearchText}
           search={search}
           onSelect={selectCard}
           inputRef={searchInput}
