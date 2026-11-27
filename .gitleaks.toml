@@ -1,0 +1,5 @@
+[allowlist]
+path = [
+    '''devops/scripts/verify-gitleaks-failfast\.sh''',
+    '''docs/CONTRIBUTING\.md''',
+]

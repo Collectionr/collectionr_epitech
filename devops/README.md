@@ -338,6 +338,37 @@ seul le Backend écrit en **JSON** (`{"level":"info","service":"backend",…}`).
 > **Pour tester, utilise une route `/api/v1/...`** (ex. `curl -s -H "Host: api.collectionr.localhost" http://localhost/api/v1/nope`) :
 > chaque requête y produit une ligne JSON. `/health` n'est **volontairement pas journalisé** (il est hors de `/api/v1`) :
 > les sondes de K3s l'appellent toutes les quelques secondes et noieraient les logs.
+## Sécurité CI/CD — Gitleaks et Fail-Fast
+    
+Afin de garantir qu'aucun secret ne puisse être mergé dans le dépôt (GitHub public temporaire pour l'Alpha), la sécurité repose sur deux niveaux :
+1. **Workflow global `security-ci.yaml`** : exécuté sur **toutes les Pull Requests** sans restriction de chemin (couvre `devops/`, `docs/` et la racine).
+2. **Workflows applicatifs** (`backend-ci.yaml`, `frontend-ci.yaml`, `worker-ocr-ci.yaml`, `worker-tcg-ci.yaml`) : exécutent Gitleaks en premier job
+(`fetch-depth: 0`) et déclarent une dépendance `needs: [gitleaks]` sur les jobs suivants.
+
+### Principe Fail-Fast
+
+Tous les jobs de lint, build et tests déclarent formellement une dépendance :
+```yaml
+needs: [gitleaks]
+```
+En cas de détection d'un secret dans les commits de la Pull Request :
+1. Le job `gitleaks` échoue immédiatement (`exit code: 1`).
+2. GitHub Actions annule/ignore (`SKIPPED`) les jobs applicatifs dépendants.
+3. Aucune ressource de calcul n'est gaspillée (pas de lint, pas de build, pas de tests).
+
+### Script de test et validation locale
+
+Un script dédié permet de valider le comportement et le fail-fast à tout moment :
+
+```bash
+./devops/scripts/verify-gitleaks-failfast.sh
+```
+
+Ce script effectue 4 contrôles automatisés :
+1. Vérification de la configuration YAML des 4 pipelines (`fetch-depth: 0`, `needs: [gitleaks]`).
+2. Vérification du baseline historique du dépôt avec les règles `.gitleaksignore`.
+3. Injection d'un secret factice (GitHub PAT) et confirmation de l'interception par Gitleaks.
+4. Validation de l'arrêt immédiat de la chaîne CI et du statut `SKIPPED` des jobs aval.
 
 ---
 
