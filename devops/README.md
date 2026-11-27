@@ -358,17 +358,3 @@ En cas de détection d'un secret dans les commits de la Pull Request :
 1. Le job `gitleaks` échoue immédiatement (`exit code: 1`).
 2. GitHub Actions annule/ignore (`SKIPPED`) les jobs applicatifs dépendants.
 3. Aucune ressource de calcul n'est gaspillée (pas de lint, pas de build, pas de tests).
-
-### Script de test et validation locale
-
-Un script dédié permet de valider le comportement et le fail-fast à tout moment :
-
-```bash
-./devops/scripts/verify-gitleaks-failfast.sh
-```
-
-Ce script effectue 4 contrôles automatisés :
-1. Vérification de la configuration YAML des 4 pipelines (`fetch-depth: 0`, `needs: [gitleaks]`).
-2. Vérification du baseline historique du dépôt avec les règles `.gitleaksignore`.
-3. Injection d'un secret factice (GitHub PAT) et confirmation de l'interception par Gitleaks.
-4. Validation de l'arrêt immédiat de la chaîne CI et du statut `SKIPPED` des jobs aval.
