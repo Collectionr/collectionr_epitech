@@ -1,0 +1,133 @@
+name: Infra CI - K3s (k3d)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - dev
+      - main
+    paths:
+      - 'devops/**'
+      - '.github/workflows/infra-ci.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs: 
+  gitleaks:
+    name: Security - Gitleaks Scan
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  k3d-infra-test:
+    name: Infra - K3s Manifests & Integration Tests
+    needs: [gitleaks]
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps: 
+        - name: Checkout code
+          uses: actions/checkout@v4
+        
+        - name: Install k3d
+          run: |
+            curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+        - name: Create ephemeral k3d cluster
+          run: |
+            k3d cluster create ci-test --wait
+            kubectl cluster-info
+
+        - name: Validate manifests (clients & server dry-run)
+          run: |
+            kubectl apply --dry-run=client -f devops/k3s/namespace.yaml
+            kubectl apply --dry-run=client -R -f devops/k3s
+            kubectl apply -f devops/k3s/namespace.yaml
+            kubectl apply --dry-run=server -f devops/k3s/
+        
+        - name: Create ephemeral CI secrets in development namespace
+          run: |
+            kubectl create secret generic postgresql-credentials -n development \
+              --from-literal=POSTGRES_USER=collectionr \
+              --from-literal=POSTGRES_PASSWORD=ci-test-pg-password \
+              --from-literal=POSTGRES_DB=collectionr_ci 
+            kubectl create secret generic redis-ocr-credentials -n development \
+              --from-literal=password=ci-test-redis-ocr-password
+            kubectl create secret generic redis-tcg-credentials -n development \
+              --from-literal=password=ci-test-redis-tcg-password
+            
+        - name: Deploy base infrastructure manifests
+          run: |
+            kubectl apply -f devops/k3s/backend-config.yaml
+            kubectl apply -f devops/k3s/shared-volume-ocr.yaml
+            kubectl apply -f devops/k3s/postgresql.yaml
+            kubectl apply -f devops/k3s/redis-ocr.yaml
+            kubectl apply -f devops/k3s/redis-tcg.yaml
+            if ls devops/k3s/*network-polic*.yaml 1> /dev/null 2>&1; then
+              kubectl apply -f devops/k3s/*network-polic*.yaml
+            fi
+
+        - name: Wait for StatefulSets and Pods to be ready
+          run: |
+            kubectl rollout status statefulset/postgresql -n development --timeout=120s
+            kubectl rollout status statefulset/redis-ocr -n development --timeout=120s
+            kubectl rollout status statefulset/redis-tcg -n development --timeout=120s
+            kubectl get all,pvc -n development
+
+        - name: Test shared volume OCR (PVC write/read)
+          run: |
+            kubectl apply -f devops/k3s/tests/test-shared-volume-ocr.yaml
+            kubectl wait -ffot=condition=Ready pod/test-ocr-writer pod/test-ocr-reader -n development --timeout=120s
+            kubectl exec -n development test-ocr-writer -- sh -c 'echo "ci-ocr-ok" > /data/ocr/ci-probe.txt'
+            kubectl exec -n development test-ocr-reader -- grep -qx  "ci-ocr-ok" /data/ocr/ci-probe.txt
+            kubectl delete -f devops/k3s/tests/test-shared-volume-ocr.yaml
+
+        - name: Test inter-service DNS and TCP connectivity
+          run: |
+            kubectl run ci-net-probe -n development --rm -i --restart=Never
+            --image=busybox:1.36 -- sh -c '
+              set -e
+              nc -zv -w 5 postgresql.development.svc.cluster.local 5432
+              nc -zv -w 5 redis-ocr.development.svc.cluster.local 6379
+              nc -zv -w 5 redis-tcg.development.svc.cluster.local 6379
+              '
+    
+        - name: Dump cluster diagnostics on failure
+          if: failure()
+          run: |
+            kubectl get all,pvc,events -n development --sort-by='.lastTimestamp' || true
+            kubectl describe pods -n development || true
+  
+        - name: Notify Discord on failure (if webhook configured)
+          if: failure()
+          env:
+            DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          run: |
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d "{\"content\": \"Echec Infra CI (k3d) sur la PR #${{
+                github.event.pull_request.number }} (${{ github.head_ref }}) par ${{
+                github.actor }}\"}"
+            else
+              echo "DISCORD_WEBHOOK_URL non configuré — notification ignorée."
+            fi
+  
+        - name: Destroy k3d cluster
+          if: always()
+          run: |
+            k3d cluster delete ci-test
