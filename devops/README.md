@@ -19,6 +19,7 @@ Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installati
 8. [Volume partagé OCR](#volume-partagé-ocr-shared-volume-ocr)
 9. [Convention de labels Kubernetes](#convention-de-labels-kubernetes)
 10. [Debug : suivre les logs avec Stern](#debug--suivre-les-logs-avec-stern)
+11. [Sécurité CI/CD — Gitleaks et Fail-Fast](#sécurité-cicd--gitleaks-et-fail-fast)
 
 ---
 
@@ -338,3 +339,22 @@ seul le Backend écrit en **JSON** (`{"level":"info","service":"backend",…}`).
 > chaque requête y produit une ligne JSON. `/health` n'est **volontairement pas journalisé** (il est hors de `/api/v1`) :
 > les sondes de K3s l'appellent toutes les quelques secondes et noieraient les logs.
 
+---
+
+## Sécurité CI/CD — Gitleaks et Fail-Fast
+    
+Afin de garantir qu'aucun secret ne puisse être mergé dans le dépôt (GitHub public temporaire pour l'Alpha), la sécurité repose sur deux niveaux :
+1. **Workflow global `security-ci.yaml`** : exécuté sur **toutes les Pull Requests** sans restriction de chemin (couvre `devops/`, `docs/` et la racine).
+2. **Workflows applicatifs** (`backend-ci.yaml`, `frontend-ci.yaml`, `worker-ocr-ci.yaml`, `worker-tcg-ci.yaml`) : exécutent Gitleaks en premier job
+(`fetch-depth: 0`) et déclarent une dépendance `needs: [gitleaks]` sur les jobs suivants.
+
+### Principe Fail-Fast
+
+Tous les jobs de lint, build et tests déclarent formellement une dépendance :
+```yaml
+needs: [gitleaks]
+```
+En cas de détection d'un secret dans les commits de la Pull Request :
+1. Le job `gitleaks` échoue immédiatement (`exit code: 1`).
+2. GitHub Actions annule/ignore (`SKIPPED`) les jobs applicatifs dépendants.
+3. Aucune ressource de calcul n'est gaspillée (pas de lint, pas de build, pas de tests).
