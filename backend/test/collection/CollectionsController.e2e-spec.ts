@@ -398,10 +398,21 @@ describe('CollectionsController (e2e)', () => {
 
     it.each([
       ['a quantity of 0', { quantity: 0 }],
+      ['a negative quantity', { quantity: -1 }],
       ['a fractional quantity', { quantity: 1.5 }],
       ['a quantity above 9999', { quantity: 10_000 }],
+      ['a quantity supplied as a string', { quantity: '2' }],
+      ['a null quantity', { quantity: null }],
+      ['a missing quantity', { quantity: undefined }],
       ['an unknown condition', { condition: 'MINT' }],
+      ['an empty condition', { condition: '' }],
+      ['a null condition', { condition: null }],
+      ['a missing condition', { condition: undefined }],
       ['an unknown language', { language: 'jp' }],
+      ['an empty language', { language: '' }],
+      ['a null language', { language: null }],
+      ['a missing language', { language: undefined }],
+      ['a missing card id', { cardId: undefined }],
       ['a grading note above 10', { gradingNote: 10.5 }],
       ['a grading note with two decimals', { gradingNote: 9.25 }],
       ['notes of 501 characters', { notes: 'a'.repeat(501) }],
@@ -418,6 +429,23 @@ describe('CollectionsController (e2e)', () => {
         .send(validEntry(override));
 
       expect(response.status).toBe(400);
+    });
+
+    it('rejects an injected owner or user id in the add-card body', async () => {
+      const { auth } = await account();
+      const collection = await createCollection(auth);
+
+      const ownerResponse = await http()
+        .post(`/api/v1/collections/${collection.id}/cards`)
+        .set(...auth)
+        .send(validEntry({ ownerId: randomUUID() }));
+      const userResponse = await http()
+        .post(`/api/v1/collections/${collection.id}/cards`)
+        .set(...auth)
+        .send(validEntry({ userId: randomUUID() }));
+
+      expect(ownerResponse.status).toBe(400);
+      expect(userResponse.status).toBe(400);
     });
 
     it.each([

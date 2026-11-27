@@ -212,6 +212,29 @@ describe('PrismaCollectionRepository - what only the real store proves (COLLR-41
     expect(stored.gradingNote).toBe(9.5);
   });
 
+  it('creates two distinct entries under two simultaneous valid adds', async () => {
+    const { collection, catalogue: seeded } = await newCollection();
+    const createEntry = (): CardEntry =>
+      CardEntry.create({
+        collectionId: collection.id,
+        cardId: seeded.cardId,
+        quantity: 2,
+        condition: 'NM',
+        language: 'fr',
+      });
+
+    const entries = await Promise.all([
+      repository.addCardEntry(createEntry()),
+      repository.addCardEntry(createEntry()),
+    ]);
+
+    expect(entries[0].id).not.toBe(entries[1].id);
+    const stored = await prisma.cardEntry.findMany({
+      where: { collectionId: collection.id, cardId: seeded.cardId },
+    });
+    expect(stored).toHaveLength(2);
+  });
+
   it('reports CardNotFoundError (not a database error) for a card of another licence', async () => {
     const { collection, catalogue: seeded } = await newCollection();
     const entry = CardEntry.create({

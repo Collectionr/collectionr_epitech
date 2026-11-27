@@ -105,4 +105,24 @@ describe('Collections OpenAPI document (e2e)', () => {
       ].sort(),
     );
   });
+
+  it('documents the add-card route with bearer auth, request examples and response examples', () => {
+    const operation = document.paths['/api/v1/collections/{id}/cards']?.post;
+
+    expect(operation).toBeDefined();
+    expect(operation?.security).toEqual([{ 'access-token': [] }]);
+    expect(operation?.responses?.[201]).toBeDefined();
+    expect(operation?.responses?.[400]).toBeDefined();
+    expect(operation?.responses?.[401]).toBeDefined();
+    expect(operation?.responses?.[404]).toBeDefined();
+    expect(operation?.responses?.[429]).toBeDefined();
+    expect(operation?.requestBody).toBeDefined();
+
+    const requestBody = operation?.requestBody as
+      { content?: Record<string, { examples?: Record<string, unknown> }> } | undefined;
+    expect(requestBody?.content?.['application/json']?.examples).toHaveProperty('cardWithPrinting');
+    expect(requestBody?.content?.['application/json']?.examples).toHaveProperty(
+      'cardWithoutPrinting',
+    );
+  });
 });
