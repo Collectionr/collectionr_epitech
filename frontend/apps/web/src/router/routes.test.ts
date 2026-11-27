@@ -2,6 +2,33 @@ import { describe, expect, it } from 'vitest';
 
 import { addCardPath, collectionPath, getSafeRedirect, loginPath, ROUTES } from './routes';
 
+/** Origine de référence pour relire une valeur renvoyée par `getSafeRedirect`. */
+const SITE_ORIGIN = 'https://site.test';
+
+const ACCEPTED_REDIRECTS = ['/profil', '/collections/c1?tri=nom#haut', '/%2F/pirate.example'];
+
+const REFUSED_REDIRECTS = [
+  null,
+  '',
+  'profil',
+  'https://pirate.example',
+  '//pirate.example',
+  '/\\pirate.example',
+  '/\t/pirate.example',
+  '/\n/pirate.example',
+  '/\r\n/pirate.example',
+  '//[',
+  '/..//pirate.example',
+  '/.//pirate.example',
+  '/%2e%2e//pirate.example',
+  '/a/..//pirate.example',
+  '/..\\/pirate.example',
+  '/.%2e//pirate.example',
+  '/connexion',
+  '/inscription?redirect=%2F',
+  '/mot-de-passe-oublie',
+];
+
 describe('chemins', () => {
   it('déclare les routes de l’Alpha', () => {
     expect(ROUTES).toEqual({
@@ -34,28 +61,21 @@ describe('chemins', () => {
     );
   });
 
-  it.each(['/profil', '/collections/c1?tri=nom#haut'])(
-    'accepte la redirection interne %s',
-    (path) => {
-      expect(getSafeRedirect(path)).toBe(path);
-    },
-  );
+  it.each(ACCEPTED_REDIRECTS)('accepte la redirection interne %s', (path) => {
+    expect(getSafeRedirect(path)).toBe(path);
+  });
 
-  it.each([
-    null,
-    '',
-    'profil',
-    'https://pirate.example',
-    '//pirate.example',
-    '/\\pirate.example',
-    '/\t/pirate.example',
-    '/\n/pirate.example',
-    '/\r\n/pirate.example',
-    '//[',
-    '/connexion',
-    '/inscription?redirect=%2F',
-    '/mot-de-passe-oublie',
-  ])('refuse la redirection %o', (value) => {
+  it.each(REFUSED_REDIRECTS)('refuse la redirection %o', (value) => {
     expect(getSafeRedirect(value)).toBeNull();
   });
+
+  it.each([...ACCEPTED_REDIRECTS, ...REFUSED_REDIRECTS])(
+    'ne renvoie jamais pour %o une valeur qui, relue, sort du site',
+    (value) => {
+      const result = getSafeRedirect(value);
+      if (result !== null) {
+        expect(new URL(result, SITE_ORIGIN).origin).toBe(SITE_ORIGIN);
+      }
+    },
+  );
 });

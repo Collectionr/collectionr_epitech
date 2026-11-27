@@ -310,7 +310,7 @@ Regles :
 
 - Ecran d'erreur : apres un « Reessayer » qui echoue, le focus revient sur « Reessayer » (le bouton est demonte pendant l'essai) ; au premier affichage, le focus n'est pas deplace.
 - C'est `RedirectIfAuthenticated` qui redirige juste apres une connexion reussie : la page de connexion ne navigue pas elle-meme.
-- `redirect` n'est suivi que s'il designe une page interne (`getSafeRedirect`) : un chemin qui, resolu par `new URL` comme le ferait le navigateur, garde la meme origine (ce qui ecarte `//hote`, `/\hote` et `/<tabulation>/hote`), et jamais une page visiteur, qui bouclerait. C'est le chemin resolu qui est suivi.
+- `redirect` n'est suivi que s'il designe une page interne (`getSafeRedirect`) : un chemin qui, resolu par `new URL` comme le ferait le navigateur, garde la meme origine (ce qui ecarte `//hote`, `/\hote` et `/<tabulation>/hote`), dont le chemin resolu ne commence pas par `//` (`/..//hote`, `/.//hote`, `/%2e%2e//hote` gardent l'origine mais deviennent `//hote`), et jamais une page visiteur, qui bouclerait. C'est le chemin resolu qui est suivi ; en dernier filet, il est relu par `new URL` et refuse s'il sortait du site.
 - Session expiree en cours d'usage : redirection vers la connexion, qui affiche « Votre session a expire, reconnectez-vous. ».
 - Ecran de demarrage : fond Ecrin, nom Collectionr en fondu `duration-signature`, « Connexion… » au-dela d'1 s, jamais de spinner. La page 404 n'a pas de garde.
 
