@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/PrismaModule';
 import { CARD_REPOSITORY } from './application/ports/ICardRepository';
 import { PrismaCardRepository } from './infrastructure/repositories/PrismaCardRepository';
+import { SearchCardsUseCase } from './application/use-cases/SearchCardsUseCase';
+import { CatalogueController } from './interface/controllers/CatalogueController';
 
 /**
  * Card catalogue (licences, sets, cards, printings), read only. It exposes the card repository
@@ -10,7 +12,8 @@ import { PrismaCardRepository } from './infrastructure/repositories/PrismaCardRe
  */
 @Module({
   imports: [PrismaModule],
-  providers: [{ provide: CARD_REPOSITORY, useClass: PrismaCardRepository }],
+  controllers: [CatalogueController],
+  providers: [SearchCardsUseCase, { provide: CARD_REPOSITORY, useClass: PrismaCardRepository }],
   exports: [CARD_REPOSITORY],
 })
 export class CatalogueModule {}

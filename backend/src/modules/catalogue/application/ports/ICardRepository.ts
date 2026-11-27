@@ -1,5 +1,7 @@
 import type { Card } from '../../domain/entities/Card';
 import type { CardNameSearch } from '../../domain/value-objects/CardNameSearch';
+import type { CardCatalogueSearch } from '../../domain/value-objects/CardCatalogueSearch';
+import type { CardSearchResult } from '../../domain/entities/CardSearchResult';
 
 export const CARD_REPOSITORY = 'CARD_REPOSITORY';
 
@@ -28,4 +30,7 @@ export interface ICardRepository {
    * then TCGdex id so two identical searches give the same page.
    */
   searchByName(search: CardNameSearch): Promise<readonly Card[]>;
+
+  /** Search cards by a general term or by name, set and/or printed number. */
+  search(search: CardCatalogueSearch): Promise<readonly CardSearchResult[]>;
 }
