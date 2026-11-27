@@ -175,6 +175,19 @@ export function CatalogSearch({
   }
 
   const activeOptionId = activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined;
+  const activeVisibleId = open ? activeOptionId : undefined;
+
+  // L'option active au clavier reste visible quand la liste défile (au-delà de 8 suggestions).
+  // `scrollIntoView` manque dans certains environnements (jsdom) : l'appel est alors ignoré.
+  useEffect(() => {
+    if (activeVisibleId === undefined) {
+      return;
+    }
+    const option = document.getElementById(activeVisibleId);
+    if (typeof option?.scrollIntoView === 'function') {
+      option.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeVisibleId]);
 
   return (
     <div

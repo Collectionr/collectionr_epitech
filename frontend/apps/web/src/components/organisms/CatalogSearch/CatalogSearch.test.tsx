@@ -279,4 +279,31 @@ describe('CatalogSearch', () => {
     expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('listbox')).toBeNull();
   });
+
+  it('fait défiler la liste jusqu’à l’option active au clavier', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      const { input } = renderSearch(FOUND);
+      const options = within(openSuggestions(input)).getAllByRole('option');
+
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' });
+      expect(scrollIntoView.mock.contexts.at(-1)).toBe(options[1]);
+    } finally {
+      // jsdom ne fournit pas la méthode : les autres tests vérifient l'appel protégé.
+      Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    }
+  });
+
+  it('ignore le défilement quand la méthode n’existe pas (jsdom)', () => {
+    const { input } = renderSearch(FOUND);
+    openSuggestions(input);
+
+    expect('scrollIntoView' in Element.prototype).toBe(false);
+    expect(() => fireEvent.keyDown(input, { key: 'ArrowDown' })).not.toThrow();
+    expect(input.hasAttribute('aria-activedescendant')).toBe(true);
+  });
 });
