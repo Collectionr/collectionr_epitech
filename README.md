@@ -62,6 +62,7 @@ Les rapports HTML sont écrits dans `frontend/coverage/` (ignoré par Git) :
 | Installer l'environnement local (nouveau membre) | [devops/ONBOARDING.md](./devops/ONBOARDING.md) |
 | Contribuer : branches, commits, PR, CI | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) |
 | Cacher une fonctionnalité pas finie | [docs/conventions/feature-flags.md](./docs/conventions/feature-flags.md) |
+| Format des logs et `job_id` | [docs/conventions/logs.md](./docs/conventions/logs.md) |
 
 ## Licence
 
