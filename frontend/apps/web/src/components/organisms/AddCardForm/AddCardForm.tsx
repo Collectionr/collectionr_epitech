@@ -80,8 +80,9 @@ function isLanguage(value: string): value is CardLanguage {
 /**
  * Formulaire de l'Ajout manuel : collection, état, langue et quantité, alignés sur la validation
  * du back. Il reçoit tout par props, sans appel de données. « Enregistrer » reste désactivé tant
- * qu'aucune carte n'est choisie ; Entrée dans le dernier champ (quantité) enregistre. Un état
- * manquant est signalé à l'envoi, focus sur le champ.
+ * qu'aucune carte n'est choisie ; Entrée dans le dernier champ (quantité) enregistre. Une
+ * collection absente de la liste proposée ou un état manquant est signalé à l'envoi, focus sur le
+ * champ : l'envoi n'est jamais abandonné sans message.
  */
 export function AddCardForm({
   collections,
@@ -106,8 +107,9 @@ export function AddCardForm({
       return;
     }
     const { condition } = values;
+    const collectionListed = collections.some(({ id }) => id === values.collectionId);
     const nextErrors: FieldErrors = {
-      ...(values.collectionId === '' && { collection: MESSAGES.collection }),
+      ...(!collectionListed && { collection: MESSAGES.collection }),
       ...(condition === '' && { condition: MESSAGES.condition }),
     };
     setErrors(nextErrors);

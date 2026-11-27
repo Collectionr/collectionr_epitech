@@ -121,6 +121,22 @@ describe('AddCardForm', () => {
     expect(screen.queryByText('Choisissez une collection.')).toBeNull();
   });
 
+  it('signale une collection absente de la liste au lieu d’abandonner l’envoi sans message', () => {
+    const onSubmit = vi.fn();
+    render(
+      <Controlled
+        initial={{ ...INITIAL, collectionId: 'supprimee', condition: 'NM' }}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.click(submitButton());
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Choisissez une collection.')).toBeTruthy();
+    expect(document.activeElement).toBe(field('Collection'));
+  });
+
   it('enregistre avec Entrée depuis le dernier champ (envoi natif du formulaire)', () => {
     const onSubmit = vi.fn();
     render(<Controlled initial={{ ...INITIAL, condition: 'NM' }} onSubmit={onSubmit} />);

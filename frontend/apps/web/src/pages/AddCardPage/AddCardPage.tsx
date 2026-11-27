@@ -23,6 +23,11 @@ const INITIAL_VALUES: AddCardFormValues = {
   quantity: 1,
 };
 
+/** La collection fait partie de celles de l'utilisateur, dans la liste chargée en dernier. */
+function isOwned(collections: readonly Collection[], id: string | null): id is string {
+  return id !== null && collections.some((item) => item.id === id);
+}
+
 /**
  * Collection présélectionnée : celle de `?collection=<id>`, sinon la dernière utilisée, sinon la
  * plus récente (première de la liste) ; seulement si elle fait partie des collections de l'utilisateur.
@@ -32,12 +37,11 @@ function preselectedCollection(
   requested: string | null,
   lastUsed: string | null,
 ): string {
-  const owned = (id: string | null) => id !== null && collections.some((item) => item.id === id);
-  if (owned(requested)) {
-    return requested ?? '';
+  if (isOwned(collections, requested)) {
+    return requested;
   }
-  if (owned(lastUsed)) {
-    return lastUsed ?? '';
+  if (isOwned(collections, lastUsed)) {
+    return lastUsed;
   }
   return collections[0]?.id ?? '';
 }
@@ -111,15 +115,17 @@ export function AddCardPage() {
     );
   }
 
+  // La collection choisie est revérifiée contre la liste actuelle à chaque rendu : si elle en a
+  // disparu (supprimée ailleurs, liste rechargée), la règle de présélection s'applique de nouveau.
   const formValues: AddCardFormValues = {
     ...values,
-    collectionId:
-      values.collectionId ||
-      preselectedCollection(
-        collections,
-        searchParams.get(ADD_CARD_COLLECTION_PARAM),
-        lastUsedCollection,
-      ),
+    collectionId: isOwned(collections, values.collectionId)
+      ? values.collectionId
+      : preselectedCollection(
+          collections,
+          searchParams.get(ADD_CARD_COLLECTION_PARAM),
+          lastUsedCollection,
+        ),
   };
 
   function selectCard(card: CatalogCard) {
@@ -136,6 +142,8 @@ export function AddCardPage() {
   function handleSubmit({ collectionId, condition, language, quantity }: AddCardFormSubmission) {
     const card = selected;
     const collection = collections.find((item) => item.id === collectionId);
+    // Inatteignable depuis le formulaire : « Enregistrer » est désactivé sans carte, et une
+    // collection absente de cette même liste est signalée sur son champ avant l'envoi.
     if (card === null || collection === undefined) {
       return;
     }

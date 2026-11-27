@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readLastCollection, writeLastCollection } from '@/config/lastCollectionStorage';
 import { MOCK_CATALOGUE } from '@/mocks/data/catalogue';
 import { addCardPath, ROUTES } from '@/router/routes';
+import { QUERY_KEYS } from '@shared/constants';
 import { CatalogServiceContext, CollectionServiceContext } from '@shared/hooks';
 import { createAuthHarness, TEST_USER } from '@shared/hooks/mocks/createAuthHarness';
 import { ApiError } from '@shared/services';
@@ -94,7 +95,7 @@ async function renderPage({
     });
   }
   render(<RouterProvider router={router} />, { wrapper: Services });
-  return { router, collectionService, catalogService };
+  return { router, collectionService, catalogService, queryClient: harness.queryClient };
 }
 
 function collectionField() {
@@ -212,6 +213,23 @@ describe('AddCardPage', () => {
 
     act(() => notification?.action?.onAction());
     await waitFor(() => expect(router.state.location.pathname).toBe('/collections/c2'));
+  });
+
+  it('se replie sur une collection valide quand la collection choisie disparaît de la liste', async () => {
+    const { collectionService, queryClient } = await renderPage();
+    fireEvent.change(await collectionField(), { target: { value: 'c2' } });
+    await chooseCharizard();
+    fireEvent.change(screen.getByRole('combobox', { name: /^État/ }), { target: { value: 'NM' } });
+
+    act(() => queryClient.setQueryData(QUERY_KEYS.collections, [CLASSEUR]));
+
+    expect((await collectionField()).value).toBe('c1');
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await waitFor(() => expect(collectionService.addCard).toHaveBeenCalledTimes(1));
+    expect(collectionService.addCard).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ cardId: CHARIZARD?.card.id, condition: 'NM' }),
+    );
   });
 
   it('garde la saisie et explique l’échec quand l’ajout est refusé', async () => {
