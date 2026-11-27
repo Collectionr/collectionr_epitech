@@ -47,6 +47,9 @@ export function addCardPath(collectionId?: string): string {
 /** Paramètre de `ROUTES.login` qui porte la page demandée avant la connexion. */
 export const REDIRECT_PARAM = 'redirect';
 
+/** Origine fictive, pour vérifier qu'un `redirect` résolu reste sur le site. */
+const REDIRECT_CHECK_ORIGIN = 'https://collectionr.invalid';
+
 /** Pages réservées aux visiteurs : y renvoyer un utilisateur connecté bouclerait. */
 const PUBLIC_ONLY_PATHS: ReadonlySet<string> = new Set([
   ROUTES.login,
@@ -68,20 +71,26 @@ export function loginPath(redirectTo?: string): string {
 }
 
 /**
- * Page de retour après connexion, si elle est sûre : un chemin interne (pas d'URL d'une autre
- * origine, ni `//hôte`, ni `/\\hôte`), hors pages réservées aux visiteurs.
+ * Page de retour après connexion, si elle est sûre : un chemin (commençant par `/`) qui, résolu
+ * comme le fait le navigateur, reste sur le site, hors pages réservées aux visiteurs. La
+ * résolution par `URL` écarte aussi les formes que le navigateur réécrit vers un autre site :
+ * `//hôte`, `/\\hôte`, ou `/<tabulation>/hôte` (tabulations et sauts de ligne sont retirés).
  * @param value - Valeur du paramètre `redirect`
- * @returns Le chemin, ou `null` s'il est absent ou refusé
+ * @returns Le chemin résolu (chemin, paramètres et ancre), ou `null` s'il est absent ou refusé
  */
 export function getSafeRedirect(value: string | null): string | null {
-  if (
-    value === null ||
-    !value.startsWith('/') ||
-    value.startsWith('//') ||
-    value.startsWith('/\\')
-  ) {
+  if (value === null || !value.startsWith('/')) {
     return null;
   }
-  const pathname = value.replace(/[?#].*$/, '');
-  return PUBLIC_ONLY_PATHS.has(pathname) ? null : value;
+  let url: URL;
+  try {
+    url = new URL(value, REDIRECT_CHECK_ORIGIN);
+  } catch {
+    // `//[` et autres hôtes illisibles.
+    return null;
+  }
+  if (url.origin !== REDIRECT_CHECK_ORIGIN || PUBLIC_ONLY_PATHS.has(url.pathname)) {
+    return null;
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
 }
