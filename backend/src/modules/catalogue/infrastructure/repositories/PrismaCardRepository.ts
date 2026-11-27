@@ -1,10 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { PrismaClient } from '../../../../generated/prisma/client.js';
+import type { Prisma, PrismaClient } from '../../../../generated/prisma/client.js';
 import { PRISMA_CLIENT } from '../../../../shared/infrastructure/database/PrismaModule';
 import { isUuid } from '../../../../shared/infrastructure/IsUuid';
 import type { ICardRepository } from '../../application/ports/ICardRepository';
 import { Card } from '../../domain/entities/Card';
 import type { CardNameSearch } from '../../domain/value-objects/CardNameSearch';
+import type { CardCatalogueSearch } from '../../domain/value-objects/CardCatalogueSearch';
+import type { CardSearchResult } from '../../domain/entities/CardSearchResult';
 import { CARD_INCLUDE, toCard } from './CardMapper';
 
 // In a LIKE pattern, backslash is the escape character and % and _ are wildcards.
@@ -65,5 +67,89 @@ export class PrismaCardRepository implements ICardRepository {
     });
 
     return records.map(toCard);
+  }
+
+  async search(search: CardCatalogueSearch): Promise<readonly CardSearchResult[]> {
+    const where: Prisma.CardWhereInput = {};
+
+    if (search.query !== null) {
+      const term = escapeLikeTerm(search.query);
+      where.OR = [
+        { nameEn: { contains: term, mode: 'insensitive' } },
+        { nameFr: { contains: term, mode: 'insensitive' } },
+        { number: { contains: term, mode: 'insensitive' } },
+        { tcgdexId: { contains: term, mode: 'insensitive' } },
+        {
+          set: {
+            OR: [
+              { nameEn: { contains: term, mode: 'insensitive' } },
+              { nameFr: { contains: term, mode: 'insensitive' } },
+              { abbreviationOfficial: { contains: term, mode: 'insensitive' } },
+              { abbreviationFr: { contains: term, mode: 'insensitive' } },
+              { tcgdexId: { contains: term, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+    }
+
+    const filters: Prisma.CardWhereInput[] = [];
+    if (search.name !== null) {
+      const term = escapeLikeTerm(search.name);
+      filters.push({
+        OR: [
+          { nameEn: { contains: term, mode: 'insensitive' } },
+          { nameFr: { contains: term, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (search.set !== null) {
+      const term = escapeLikeTerm(search.set);
+      filters.push({
+        set: {
+          OR: [
+            { nameEn: { contains: term, mode: 'insensitive' } },
+            { nameFr: { contains: term, mode: 'insensitive' } },
+            { abbreviationOfficial: { contains: term, mode: 'insensitive' } },
+            { abbreviationFr: { contains: term, mode: 'insensitive' } },
+            { tcgdexId: { contains: term, mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
+    if (search.number !== null) {
+      const term = escapeLikeTerm(search.number);
+      filters.push({ number: { contains: term, mode: 'insensitive' } });
+    }
+    if (filters.length > 0) {
+      where.AND = filters;
+    }
+
+    const records = await this.prismaClient.card.findMany({
+      where,
+      select: {
+        id: true,
+        tcgdexId: true,
+        number: true,
+        nameEn: true,
+        nameFr: true,
+        imageUrlEn: true,
+        imageUrlFr: true,
+        set: {
+          select: {
+            id: true,
+            tcgdexId: true,
+            nameEn: true,
+            nameFr: true,
+            abbreviationOfficial: true,
+            abbreviationFr: true,
+          },
+        },
+      },
+      orderBy: [{ nameEn: 'asc' }, { tcgdexId: 'asc' }],
+      take: search.limit,
+    });
+
+    return records;
   }
 }

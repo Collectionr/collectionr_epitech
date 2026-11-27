@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../../../generated/prisma/client.js';
 import { CardNameSearch } from '../../domain/value-objects/CardNameSearch';
+import { CardCatalogueSearch } from '../../domain/value-objects/CardCatalogueSearch';
 import { CARD_INCLUDE, type CardRecord } from './CardMapper';
 import { PrismaCardRepository } from './PrismaCardRepository';
 
@@ -393,6 +394,75 @@ describe('PrismaCardRepository', () => {
       await expect(
         repository.searchByName(CardNameSearch.create({ term: 'pika' })),
       ).rejects.toThrow('ECONNREFUSED');
+    });
+  });
+
+  describe('search', () => {
+    it('builds a general autocomplete query across names, number and set', async () => {
+      const { repository, findMany } = buildRepository();
+
+      await repository.search(CardCatalogueSearch.create({ query: 'chariz', limit: 8 }));
+
+      expect(findMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { nameEn: { contains: 'chariz', mode: 'insensitive' } },
+            { nameFr: { contains: 'chariz', mode: 'insensitive' } },
+            { number: { contains: 'chariz', mode: 'insensitive' } },
+            { tcgdexId: { contains: 'chariz', mode: 'insensitive' } },
+            {
+              set: {
+                OR: [
+                  { nameEn: { contains: 'chariz', mode: 'insensitive' } },
+                  { nameFr: { contains: 'chariz', mode: 'insensitive' } },
+                  { abbreviationOfficial: { contains: 'chariz', mode: 'insensitive' } },
+                  { abbreviationFr: { contains: 'chariz', mode: 'insensitive' } },
+                  { tcgdexId: { contains: 'chariz', mode: 'insensitive' } },
+                ],
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          tcgdexId: true,
+          number: true,
+          nameEn: true,
+          nameFr: true,
+          imageUrlEn: true,
+          imageUrlFr: true,
+          set: {
+            select: {
+              id: true,
+              tcgdexId: true,
+              nameEn: true,
+              nameFr: true,
+              abbreviationOfficial: true,
+              abbreviationFr: true,
+            },
+          },
+        },
+        take: 8,
+        orderBy: [{ nameEn: 'asc' }, { tcgdexId: 'asc' }],
+      });
+    });
+
+    it('combines name, set and number filters directly in PostgreSQL', async () => {
+      const { repository, findMany } = buildRepository();
+
+      await repository.search(
+        CardCatalogueSearch.create({ name: 'Pikachu', set: 'Base', number: '006' }),
+      );
+
+      expect(findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns an empty list when no card matches', async () => {
+      const { repository } = buildRepository();
+
+      await expect(
+        repository.search(CardCatalogueSearch.create({ query: 'zzzz' })),
+      ).resolves.toEqual([]);
     });
   });
 });
