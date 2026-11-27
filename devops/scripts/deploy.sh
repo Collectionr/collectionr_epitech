@@ -44,6 +44,7 @@ LIGHT_MANIFESTS=(
   "postgresql.yaml"
   "redis-ocr.yaml"
   "redis-tcg.yaml"
+  "backend-config.yaml"
   "backend.yaml"
 )
 
