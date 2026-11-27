@@ -4,7 +4,10 @@ import { RecordAuditEntryUseCase } from '../modules/audit/application/use-cases/
 import { AnonymizeDueAccountsUseCase } from '../modules/auth/application/use-cases/AnonymizeDueAccountsUseCase';
 import { RequestAccountDeletionUseCase } from '../modules/auth/application/use-cases/RequestAccountDeletionUseCase';
 import { User } from '../modules/auth/domain/entities/User';
-import { ACCOUNT_DELETION_GRACE_DAYS } from '../modules/auth/domain/rules/AccountDeletionPolicy';
+import {
+  ACCOUNT_DELETION_GRACE_DAYS,
+  accountDeletionDueAt,
+} from '../modules/auth/domain/rules/AccountDeletionPolicy';
 import { Email } from '../modules/auth/domain/value-objects/Email';
 import { PrismaAccountDataEraser } from '../modules/auth/infrastructure/repositories/PrismaAccountDataEraser';
 import { PrismaUserRepository } from '../modules/auth/infrastructure/repositories/PrismaUserRepository';
@@ -62,11 +65,11 @@ async function registerWithData(): Promise<User> {
   return user;
 }
 
-/** Moves the erasure request back in time, as if the grace period had run. */
+/** As if the account had been deactivated `days` days ago: `deletedAt` is that date + 30 days. */
 async function ageRequest(userId: string, days: number): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
-    data: { deletedAt: new Date(Date.now() - days * DAY) },
+    data: { deletedAt: accountDeletionDueAt(new Date(Date.now() - days * DAY)) },
   });
 }
 

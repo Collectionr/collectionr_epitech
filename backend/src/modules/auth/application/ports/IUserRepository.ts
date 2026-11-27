@@ -30,9 +30,9 @@ export interface IUserRepository {
   findByUsername(username: string): Promise<User | null>;
 
   /**
-   * The accounts whose erasure was requested at or before `cutoff` and that are not anonymized yet,
-   * oldest request first, at most `limit` of them. Accounts without a request, anonymized ones and
-   * those requested after `cutoff` are never returned. Feeds AnonymizeDueAccountsUseCase.
+   * The accounts to purge: `deletedAt` at or before `now` and not anonymized yet, earliest `deletedAt`
+   * first, at most `limit` of them. Accounts without a `deletedAt`, anonymized ones and those whose date
+   * has not come are never returned. Feeds AnonymizeDueAccountsUseCase.
    */
-  findDeletionDue(cutoff: Date, limit: number): Promise<User[]>;
+  findDeletionDue(now: Date, limit: number): Promise<User[]>;
 }

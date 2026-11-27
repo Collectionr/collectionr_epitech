@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { accountDeletionCutoff } from '../../domain/rules/AccountDeletionPolicy';
 import { ACCOUNT_ERASURE_AUDIT } from '../ports/IAccountErasureAudit';
 import type { IAccountErasureAudit } from '../ports/IAccountErasureAudit';
 import { ACCOUNT_DATA_ERASER } from '../ports/IAccountDataEraser';
@@ -17,8 +16,8 @@ export interface AnonymizeDueAccountsResult {
 }
 
 /**
- * Anonymizes the accounts whose erasure was requested more than ACCOUNT_DELETION_GRACE_DAYS ago.
- * Nothing calls it on its own: the K3s CronJob of COLLR-544 does, like PurgeExpiredSessionsUseCase.
+ * Anonymizes the accounts whose `deletedAt` (deactivation + ACCOUNT_DELETION_GRACE_DAYS) has come.
+ * Nothing calls it on its own: `npm run purge:accounts` does, run daily by the CronJob of COLLR-544.
  *
  * For each account the data it owns is erased, the erasure is written to the audit trail
  * (IAccountErasureAudit: before the change, so a failed write stops it), and only then is the row anonymized. A failure between the two
@@ -37,10 +36,7 @@ export class AnonymizeDueAccountsUseCase {
   ) {}
 
   async execute(now: Date = new Date()): Promise<AnonymizeDueAccountsResult> {
-    const due = await this.userRepository.findDeletionDue(
-      accountDeletionCutoff(now),
-      ANONYMIZATION_BATCH_SIZE,
-    );
+    const due = await this.userRepository.findDeletionDue(now, ANONYMIZATION_BATCH_SIZE);
 
     let anonymized = 0;
     let failed = 0;

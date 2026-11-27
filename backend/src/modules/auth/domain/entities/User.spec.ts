@@ -160,13 +160,13 @@ describe('User', () => {
   describe('requestDeletion', () => {
     const requestedAt = new Date('2026-11-01T10:00:00.000Z');
 
-    it('deactivates the account and records when the erasure was requested', () => {
+    it('deactivates the account and schedules its purge 30 days later, from the start of the day', () => {
       const user = User.register(buildProps());
 
       const requested = user.requestDeletion(requestedAt);
 
       expect(requested.isActive).toBe(false);
-      expect(requested.deletedAt).toEqual(requestedAt);
+      expect(requested.deletedAt).toEqual(new Date('2026-12-01T00:00:00.000Z'));
       expect(requested.isAnonymized).toBe(false);
       expect(user.deletedAt).toBeNull();
       expect(user.isActive).toBe(true);
@@ -178,7 +178,7 @@ describe('User', () => {
       const again = requested.requestDeletion(new Date('2026-11-20T10:00:00.000Z'));
 
       expect(again).toBe(requested);
-      expect(again.deletedAt).toEqual(requestedAt);
+      expect(again.deletedAt).toEqual(new Date('2026-12-01T00:00:00.000Z'));
     });
 
     it('is not what an admin deactivation does: that one leaves deletedAt empty', () => {
@@ -202,11 +202,9 @@ describe('User', () => {
       expect(User.register(buildProps()).isDeletionDueAt(new Date('2030-01-01'))).toBe(false);
     });
 
-    it('is false one millisecond before day 30 and true at the exact instant', () => {
-      const dueAt = new Date('2026-12-01T10:00:00.000Z');
-
-      expect(requested.isDeletionDueAt(new Date(dueAt.getTime() - 1))).toBe(false);
-      expect(requested.isDeletionDueAt(dueAt)).toBe(true);
+    it('is false until the end of day 29 and true from the start of day 30, whatever the hour of the request', () => {
+      expect(requested.isDeletionDueAt(new Date('2026-11-30T23:59:59.999Z'))).toBe(false);
+      expect(requested.isDeletionDueAt(new Date('2026-12-01T00:00:00.000Z'))).toBe(true);
     });
   });
 
@@ -225,7 +223,7 @@ describe('User', () => {
       expect(anonymized.passwordHash).not.toBe('hashed-password');
       expect(anonymized.isAnonymized).toBe(true);
       expect(anonymized.isActive).toBe(false);
-      expect(anonymized.deletedAt).toEqual(requestedAt);
+      expect(anonymized.deletedAt).toEqual(new Date('2026-12-01T00:00:00.000Z'));
       expect(anonymized.updatedAt).toEqual(due);
     });
 
@@ -256,7 +254,7 @@ describe('User', () => {
     it('refuses an account still inside its grace period', () => {
       const user = User.register(buildProps()).requestDeletion(requestedAt);
 
-      expect(() => user.anonymize(new Date(due.getTime() - 1))).toThrow('grace period');
+      expect(() => user.anonymize(new Date('2026-11-30T23:59:59.999Z'))).toThrow('grace period');
     });
 
     it('returns an already anonymized account unchanged', () => {

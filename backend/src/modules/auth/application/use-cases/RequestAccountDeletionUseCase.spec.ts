@@ -1,6 +1,7 @@
 import { RequestAccountDeletionUseCase } from './RequestAccountDeletionUseCase';
 import { User } from '../../domain/entities/User';
 import { Email } from '../../domain/value-objects/Email';
+import { accountDeletionDueAt } from '../../domain/rules/AccountDeletionPolicy';
 import { UserNotFoundError } from '../errors/AuthErrors';
 import type { IAccountErasureAudit } from '../ports/IAccountErasureAudit';
 import type { IAuthTokenService } from '../ports/IAuthTokenService';
@@ -60,7 +61,7 @@ describe('RequestAccountDeletionUseCase', () => {
   });
 
   it('deactivates the account, records the request and revokes every session', async () => {
-    const before = Date.now();
+    const before = accountDeletionDueAt(new Date());
 
     const profile = await build().execute({ userId: 'fixed-id' });
 
@@ -72,7 +73,10 @@ describe('RequestAccountDeletionUseCase', () => {
     );
     expect(revokeAllRefreshTokens).toHaveBeenCalledWith('fixed-id');
     expect(profile.isActive).toBe(false);
-    expect(profile.deletedAt?.getTime()).toBeGreaterThanOrEqual(before);
+    expect(profile.deletedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(profile.deletedAt?.getTime()).toBeLessThanOrEqual(
+      accountDeletionDueAt(new Date()).getTime(),
+    );
   });
 
   it('saves before revoking, so no new session can open in between', async () => {

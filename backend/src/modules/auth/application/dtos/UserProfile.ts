@@ -11,7 +11,7 @@ export interface UserProfile {
   readonly email: string;
   readonly username: string;
   readonly isActive: boolean;
-  /** When the user asked for the erasure of their account, or null. */
+  /** The date from which the account is purged (erasure requested by its holder), or null. */
   readonly deletedAt: Date | null;
   readonly termsAcceptedAt: Date;
   readonly termsVersion: string;

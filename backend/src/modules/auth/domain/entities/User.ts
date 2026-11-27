@@ -37,8 +37,9 @@ export interface UserProps extends NewUserProps {
   /** A deactivated account (admin action, CDC §3.5, or erasure request) must not be able to log in. */
   readonly isActive: boolean;
   /**
-   * When the user asked for the erasure of their account (RGPD Art. 17), or null. Distinct from an
-   * admin deactivation, which blocks an account without erasing it and leaves this null.
+   * The date from which the account is purged: its deactivation at its holder's request + 30 days
+   * (RGPD Art. 17, accountDeletionDueAt), or null. Distinct from an admin deactivation, which blocks an
+   * account without erasing it and leaves this null.
    */
   readonly deletedAt: Date | null;
   /** The personal data was replaced (see `anonymize`): the account is gone, only the row remains. */
@@ -150,7 +151,7 @@ export class User {
 
   /**
    * The user asks for the erasure of their account (RGPD Art. 17): the account is deactivated now and
-   * becomes eligible for anonymization once the grace period is over (see `isDeletionDueAt`).
+   * is anonymized from `deletedAt` on, once the grace period is over (see `isDeletionDueAt`).
    * Asking again does not restart the clock: the first request stands, so repeating the call cannot
    * be used to keep the data longer than the law allows. Whoever calls this must also revoke the
    * account's sessions (see RequestAccountDeletionUseCase).
@@ -162,14 +163,12 @@ export class User {
     if (this.deletedAt !== null) {
       return this;
     }
-    return this.copy({ isActive: false, deletedAt: now, updatedAt: now });
+    return this.copy({ isActive: false, deletedAt: accountDeletionDueAt(now), updatedAt: now });
   }
 
-  /** Whether the grace period that started with the erasure request is over at `now`. */
+  /** Whether the date the account is purged from has come at `now`. */
   isDeletionDueAt(now: Date): boolean {
-    return (
-      this.deletedAt !== null && !this.isAnonymized && accountDeletionDueAt(this.deletedAt) <= now
-    );
+    return this.deletedAt !== null && !this.isAnonymized && this.deletedAt <= now;
   }
 
   /**
