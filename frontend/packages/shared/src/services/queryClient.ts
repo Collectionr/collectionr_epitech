@@ -31,6 +31,11 @@ export function shouldRetryQuery(failureCount: number, error: unknown): boolean 
  * Crée le cache des appels API, configuré une seule fois pour toute l'application. Les mutations
  * ne sont jamais relancées automatiquement : une connexion ou un ajout rejoué en double n'est pas
  * sans effet (tentative comptée par la limite de débit, doublon).
+ *
+ * Requêtes et mutations partent même quand le navigateur se dit hors ligne (`networkMode:
+ * 'always'`) : l'appel échoue aussitôt et l'erreur réseau s'affiche. Sinon TanStack Query les met
+ * en pause, sans message, puis les envoie seules au retour du réseau (une connexion partirait
+ * longtemps après le clic).
  * @returns Le `QueryClient` à fournir à `QueryClientProvider`
  */
 export function createQueryClient(): QueryClient {
@@ -41,9 +46,11 @@ export function createQueryClient(): QueryClient {
         gcTime: DEFAULT_GC_TIME_MS,
         retry: shouldRetryQuery,
         refetchOnWindowFocus: false,
+        networkMode: 'always',
       },
       mutations: {
         retry: false,
+        networkMode: 'always',
       },
     },
   });
