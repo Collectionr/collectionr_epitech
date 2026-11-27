@@ -69,6 +69,18 @@ describe('LoginPage', () => {
     expect(router.state.location.pathname).toBe('/profil');
   });
 
+  it('ignore une page demandée qui mène hors du site et ouvre le Dashboard', async () => {
+    const { router } = renderLoginPage(
+      async () => SESSION,
+      '/connexion?redirect=%2F%09%2Fpirate.example',
+    );
+
+    await fillAndSubmit('ash@exemple.fr', 'pikachu25');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeDefined();
+    expect(router.state.location.pathname).toBe('/');
+  });
+
   it('affiche une erreur explicite, vide le mot de passe et garde l’e-mail en cas d’échec', async () => {
     renderLoginPage(() =>
       Promise.reject(
