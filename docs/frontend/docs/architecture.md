@@ -285,6 +285,7 @@ Le web utilise **React Router 7.18** en mode data (`createBrowserRouter` + `Rout
 | `RequireAuth.tsx` | Garde des pages connectees (Dashboard, collections, ajout, profil) |
 | `RedirectIfAuthenticated.tsx` | Garde des pages visiteurs (connexion, inscription, mot de passe oublie) |
 | `StartupScreen.tsx` | Ecran de demarrage, et ecran d'erreur de la restauration |
+| `RootErrorScreen.tsx` | Ecran d'erreur de la route racine (`errorElement`), pour les erreurs qui sortent des pages |
 | `PageRoute.tsx` | Enveloppe de chaque page : `RouteErrorBoundary` puis `Suspense` |
 | `useDocumentTitle.ts` | Titre de l'onglet, fixe par chaque page : « Ma Collection · Collectionr » |
 | `internalLinks.ts` | Navigation des liens internes en `<a href>` natif (voir ci-dessous) |
@@ -293,7 +294,7 @@ Regles :
 
 - **Pages chargees a la demande** : chaque page est importee avec `lazy()` depuis son propre dossier (`@/pages/DashboardPage`), jamais depuis un barrel commun a toutes les pages, qui les regrouperait dans le meme fichier JavaScript.
 - **Attente** : seule la zone de la page attend. Le fallback de `Suspense` n'affiche rien pendant 400 ms, puis « Chargement… » en caption `acier-texte`, jamais de spinner.
-- **Erreurs** : une page qui ne charge pas ou dont le rendu echoue affiche l'ecran d'erreur de `RouteErrorBoundary`, avec « Reessayer » (voir data-et-etat.md). Apres un echec d'import de la page (`isDynamicImportError`, `dynamicImportError.ts`), « Reessayer » recharge la page.
+- **Erreurs** : une page qui ne charge pas ou dont le rendu echoue affiche l'ecran d'erreur de `RouteErrorBoundary`, avec « Reessayer » (voir data-et-etat.md). Apres un echec d'import de la page (`isDynamicImportError`, `dynamicImportError.ts`), « Reessayer » recharge la page. Une erreur qui sort des pages (gardes, restauration, navigation refusee par le routeur) affiche `RootErrorScreen`, en francais, jamais l'ecran technique de React Router : « Recharger la page » et un lien vers le Dashboard, qui rechargent tous deux l'application.
 - **404** : la route `*` affiche « Page introuvable » et un lien vers le Dashboard.
 - **Pages provisoires** : une page pas encore construite affiche son titre et une phrase (`PlaceholderPage`), sans faux contenu.
 - Dans une page, un lien interne utilise `<Link>` de React Router.

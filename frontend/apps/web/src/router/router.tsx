@@ -7,6 +7,7 @@ import type { RouteObject } from 'react-router';
 import { PageRoute } from './PageRoute';
 import { RedirectIfAuthenticated } from './RedirectIfAuthenticated';
 import { RequireAuth } from './RequireAuth';
+import { RootErrorScreen } from './RootErrorScreen';
 import { RootLayout } from './RootLayout';
 import { ROUTES } from './routes';
 
@@ -49,6 +50,8 @@ function pageRoute(path: string, page: ComponentType): RouteObject {
 export const appRoutes: RouteObject[] = [
   {
     element: <RootLayout />,
+    // Erreur hors des pages (gardes comprises) : écran en français, pas celui de React Router.
+    errorElement: <RootErrorScreen />,
     children: [
       {
         element: <RedirectIfAuthenticated />,
