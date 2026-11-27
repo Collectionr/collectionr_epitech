@@ -276,6 +276,52 @@ describe('AddCardPage', () => {
     expect(collectionService.addCard).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['réussi', true],
+    ['refusé', false],
+  ])(
+    'désactive la recherche et les champs pendant l’envoi, puis les réactive (ajout %s)',
+    async (_case, succeeds) => {
+      let settle: (outcome: 'ok' | 'ko') => void = () => {};
+      await renderPage({
+        addCard: () =>
+          new Promise<CardEntry>((resolve, reject) => {
+            settle = (outcome) =>
+              outcome === 'ok'
+                ? resolve(createdEntry())
+                : reject(new ApiError({ status: 400, code: 'Bad Request', message: 'Invalid' }));
+          }),
+      });
+      await collectionField();
+      const search = await chooseCharizard();
+      fireEvent.change(screen.getByRole('combobox', { name: /^État/ }), {
+        target: { value: 'NM' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Enregistrer/ }));
+
+      await waitFor(() => expect((search as HTMLInputElement).disabled).toBe(true));
+      const selects = screen
+        .getAllByRole<HTMLSelectElement>('combobox')
+        .filter((element) => element.tagName === 'SELECT');
+      expect(selects).toHaveLength(3);
+      expect(selects.every((select) => select.disabled)).toBe(true);
+      expect(screen.getByRole<HTMLInputElement>('spinbutton').disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /Enregistrer/ }).getAttribute('aria-busy')).toBe(
+        'true',
+      );
+
+      await act(async () => settle(succeeds ? 'ok' : 'ko'));
+
+      await waitFor(() => expect((search as HTMLInputElement).disabled).toBe(false));
+      expect(selects.every((select) => !select.disabled)).toBe(true);
+      expect(screen.getByRole<HTMLInputElement>('spinbutton').disabled).toBe(false);
+      if (succeeds) {
+        await waitFor(() => expect(document.activeElement).toBe(search));
+      }
+    },
+  );
+
   it('revient à la page précédente avec « Annuler »', async () => {
     const { router } = await renderPage();
     await collectionField();

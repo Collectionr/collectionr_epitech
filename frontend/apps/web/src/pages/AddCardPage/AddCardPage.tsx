@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
@@ -48,8 +48,9 @@ function cardName({ card }: CatalogCard): string {
 
 /**
  * Ajout manuel d'une carte (UC-11, WF-D14) : recherche dans le catalogue et formulaire au centre,
- * aperçu à droite (au-dessus sous le seuil desktop). Après un ajout réussi, la saisie en série
- * reprend au champ de recherche, collection, état et langue conservés.
+ * aperçu à droite (au-dessus sous le seuil desktop). Pendant l'envoi, la recherche et les champs
+ * sont désactivés. Après un ajout réussi, la saisie en série reprend au champ de recherche,
+ * collection, état et langue conservés.
  */
 export function AddCardPage() {
   usePageTitle('Ajouter une carte');
@@ -65,6 +66,17 @@ export function AddCardPage() {
   const [values, setValues] = useState<AddCardFormValues>(INITIAL_VALUES);
   const [addedCount, setAddedCount] = useState(0);
   const searchInput = useRef<HTMLInputElement>(null);
+  /** Un ajout vient de réussir : le focus revient à la recherche dès qu'elle est réactivée. */
+  const focusSearchAfterAdd = useRef(false);
+
+  // Pendant l'envoi, la recherche est désactivée et ne peut pas recevoir le focus : il lui est
+  // rendu une fois l'envoi terminé, que la fin de l'envoi ou le succès arrive en premier.
+  useEffect(() => {
+    if (!addCard.isPending && focusSearchAfterAdd.current) {
+      focusSearchAfterAdd.current = false;
+      searchInput.current?.focus();
+    }
+  }, [addCard.isPending, addedCount]);
 
   if (collectionsQuery.isPending) {
     return <DelayedLoadingLabel />;
@@ -147,7 +159,7 @@ export function AddCardPage() {
           setSelected(null);
           setText('');
           setValues({ collectionId, condition, language, quantity: INITIAL_VALUES.quantity });
-          searchInput.current?.focus();
+          focusSearchAfterAdd.current = true;
         },
         onError: (error) => {
           toast.error(translateAddCardError(error));
@@ -173,6 +185,7 @@ export function AddCardPage() {
           onSelect={selectCard}
           inputRef={searchInput}
           autoFocus
+          disabled={addCard.isPending}
         />
         <AddCardForm
           collections={collections}

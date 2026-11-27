@@ -24,6 +24,8 @@ export interface CatalogSearchProps {
   inputRef?: Ref<HTMLInputElement>;
   /** Place le focus dans le champ à l'affichage. */
   autoFocus?: boolean;
+  /** Désactive la recherche (envoi en cours) : champ inactif, suggestions fermées. */
+  disabled?: boolean;
 }
 
 /** Suggestions visibles avant de faire défiler la liste. */
@@ -86,6 +88,7 @@ export function CatalogSearch({
   onSelect,
   inputRef,
   autoFocus = false,
+  disabled = false,
 }: CatalogSearchProps) {
   const baseId = useId();
   const listboxId = `${baseId}-suggestions`;
@@ -99,7 +102,7 @@ export function CatalogSearch({
   const activeIndex = results.findIndex(({ card }) => card.id === activeCardId);
   const noResults = searchedTerm !== '' && results.length === 0 && !isSearching && error === null;
   const hasContent = results.length > 0 || noResults || error !== null || isSearching;
-  const open = focused && !closed && canSearch && hasContent;
+  const open = focused && !closed && !disabled && canSearch && hasContent;
 
   useEffect(() => {
     if (autoFocus) {
@@ -187,6 +190,7 @@ export function CatalogSearch({
         inputRef={setInput}
         onKeyDown={handleKeyDown}
         maxLength={CATALOG_SEARCH.maxLength}
+        disabled={disabled}
         describedBy={canSearch ? undefined : helpId}
         combobox={{
           listboxId,

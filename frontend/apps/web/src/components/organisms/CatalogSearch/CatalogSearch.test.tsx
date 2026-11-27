@@ -259,4 +259,24 @@ describe('CatalogSearch', () => {
     expect(reserved?.getAttribute('aria-hidden')).toBe('true');
     expect(reserved?.textContent).toBe('\u00A0');
   });
+
+  it('se désactive pendant un envoi : champ inactif et suggestions fermées', () => {
+    const onValueChange = vi.fn();
+    render(
+      <CatalogSearch
+        value="drac"
+        onValueChange={onValueChange}
+        search={FOUND}
+        onSelect={() => {}}
+        disabled
+      />,
+    );
+    const input = screen.getByRole<HTMLInputElement>('combobox', { name: 'Chercher une carte' });
+
+    fireEvent.focus(input);
+
+    expect(input.disabled).toBe(true);
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
 });

@@ -133,12 +133,16 @@ describe('AddCardForm', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it('affiche « Ajout… » pendant l’envoi, sans renvoyer', () => {
+  it('affiche « Ajout… » et désactive les champs pendant l’envoi, sans renvoyer', () => {
     const onSubmit = vi.fn();
     render(<Controlled initial={{ ...INITIAL, condition: 'NM' }} submitting onSubmit={onSubmit} />);
 
     expect(submitButton().getAttribute('aria-busy')).toBe('true');
     expect(screen.getByText('Ajout…')).toBeTruthy();
+    for (const name of ['Collection', 'État', 'Langue']) {
+      expect((field(name) as HTMLSelectElement).disabled).toBe(true);
+    }
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).disabled).toBe(true);
     fireEvent.submit(submitButton().closest('form') as HTMLFormElement);
     expect(onSubmit).not.toHaveBeenCalled();
   });

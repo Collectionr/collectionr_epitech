@@ -100,4 +100,13 @@ describe('SearchBar', () => {
 
     expect(document.activeElement).toBe(received[0]);
   });
+
+  it('se désactive sans croix d’effacement', () => {
+    render(<SearchBar value="dra" onChange={() => {}} disabled />);
+
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Rechercher' }).disabled).toBe(
+      true,
+    );
+    expect(screen.queryByRole('button', { name: 'Effacer la recherche' })).toBeNull();
+  });
 });

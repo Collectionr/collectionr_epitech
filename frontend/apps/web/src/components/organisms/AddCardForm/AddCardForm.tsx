@@ -37,7 +37,7 @@ export interface AddCardFormProps {
   onChange: (values: AddCardFormValues) => void;
   /** Une carte est choisie : sans elle, « Enregistrer » reste désactivé. */
   cardSelected: boolean;
-  /** Envoi en cours : « Enregistrer » affiche « Ajout… ». */
+  /** Envoi en cours : champs désactivés, « Enregistrer » affiche « Ajout… ». */
   submitting?: boolean;
   /** Reçoit les valeurs validées. */
   onSubmit: (values: AddCardFormSubmission) => void;
@@ -132,6 +132,7 @@ export function AddCardForm({
           <Select
             {...control}
             ref={collectionRef}
+            disabled={submitting}
             value={values.collectionId}
             placeholder="Choisir une collection"
             options={collections.map(({ id, name }) => ({ value: id, label: name }))}
@@ -150,6 +151,7 @@ export function AddCardForm({
           <Select
             {...control}
             ref={conditionRef}
+            disabled={submitting}
             value={values.condition}
             placeholder="Choisir un état"
             options={CONDITION_OPTIONS}
@@ -169,6 +171,7 @@ export function AddCardForm({
           <Select
             {...control}
             value={values.language}
+            disabled={submitting}
             options={LANGUAGE_OPTIONS}
             onChange={(language) => {
               if (isLanguage(language)) {
@@ -185,6 +188,7 @@ export function AddCardForm({
           <QuantityStepper
             id={control.id}
             required={control.required}
+            disabled={submitting}
             value={values.quantity}
             onChange={(quantity) => update({ quantity })}
           />

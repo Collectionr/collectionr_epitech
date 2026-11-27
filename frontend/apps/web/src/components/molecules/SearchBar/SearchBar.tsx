@@ -38,6 +38,8 @@ export interface SearchBarProps {
   describedBy?: string;
   /** Liste de suggestions pilotée par le champ ; sans elle, simple champ de recherche. */
   combobox?: SearchBarCombobox;
+  /** Désactive le champ (envoi en cours) ; la croix d'effacement disparaît. */
+  disabled?: boolean;
 }
 
 /** Champ de recherche réutilisable à la largeur de son conteneur. */
@@ -53,6 +55,7 @@ export function SearchBar({
   maxLength,
   describedBy,
   combobox,
+  disabled = false,
 }: SearchBarProps) {
   const id = useId();
   const ownRef = useRef<HTMLInputElement>(null);
@@ -82,6 +85,7 @@ export function SearchBar({
       onBlur={onBlur}
       maxLength={maxLength}
       describedBy={describedBy}
+      disabled={disabled}
       {...(combobox && {
         role: 'combobox' as const,
         'aria-expanded': combobox.expanded,
@@ -91,7 +95,7 @@ export function SearchBar({
       })}
       leading={<Icon name="search" size="sm" />}
       trailing={
-        value !== '' ? (
+        value !== '' && !disabled ? (
           <button
             type="button"
             aria-label="Effacer la recherche"
