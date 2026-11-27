@@ -53,11 +53,17 @@ export function QuantityStepper({
 }: QuantityStepperProps) {
   /**
    * Texte en cours de saisie, rattaché à la valeur sur laquelle il a été tapé. Dès que la valeur
-   * change (saisie dans les bornes, remise à 1 par le parent après un ajout), il est périmé : le
-   * champ affiche toujours la valeur réelle, celle qui sera envoyée.
+   * change (saisie dans les bornes, remise à 1 par le parent après un ajout), il est périmé et
+   * supprimé pendant ce rendu même : s'il était seulement masqué, il réapparaîtrait quand la valeur
+   * revient à sa base (5 tapé sur 1, puis remise à 1). Le champ affiche toujours la valeur réelle,
+   * celle qui sera envoyée.
    */
   const [draft, setDraft] = useState<{ text: string; base: number } | null>(null);
-  const activeDraft = draft !== null && draft.base === value ? draft.text : null;
+  const stale = draft !== null && draft.base !== value;
+  if (stale) {
+    setDraft(null);
+  }
+  const activeDraft = draft === null || stale ? null : draft.text;
 
   function clamp(quantity: number): number {
     return Math.min(max, Math.max(min, quantity));

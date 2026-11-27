@@ -189,4 +189,19 @@ describe('QuantityStepper', () => {
     fireEvent.blur(input);
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it('n’affiche jamais une saisie déjà prise en compte après la remise à 1 par le parent', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<QuantityStepper value={1} onChange={onChange} />);
+    const input = screen.getByRole<HTMLInputElement>('spinbutton');
+    fireEvent.change(input, { target: { value: '5' } });
+    expect(onChange).toHaveBeenLastCalledWith(5);
+    rerender(<QuantityStepper value={5} onChange={onChange} />);
+    fireEvent.blur(input);
+
+    rerender(<QuantityStepper value={1} onChange={onChange} />);
+
+    expect(input.value).toBe('1');
+    expect(input.getAttribute('aria-valuenow')).toBe('1');
+  });
 });
