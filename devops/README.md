@@ -18,7 +18,8 @@ Documentation opérationnelle pour l'équipe Cloud/DevOps : scripts d'installati
 7. [Microservice TCG](#microservice-tcg-tcg)
 8. [Volume partagé OCR](#volume-partagé-ocr-shared-volume-ocr)
 9. [Convention de labels Kubernetes](#convention-de-labels-kubernetes)
-10. [Sécurité CI/CD — Gitleaks et Fail-Fast](#sécurité-cicd--gitleaks-et-fail-fast)
+10. [Debug : suivre les logs avec Stern](#debug--suivre-les-logs-avec-stern)
+11. [Sécurité CI/CD — Gitleaks et Fail-Fast](#sécurité-cicd--gitleaks-et-fail-fast)
 
 ---
 
@@ -103,6 +104,10 @@ kubectl apply -f devops/k3s/backend.yaml
 - Test : `curl -H "Host: api.collectionr.localhost" http://localhost/health`
 - ⚠️ `NODE_ENV=production` dans le conteneur : sinon le Backend cherche `pino-pretty` (dépendance de dev absente de l'image) et plante. Le niveau de logs reste réglé par `LOG_LEVEL`.
 - Tag `:dev` (pas `:latest`), pour que K3s utilise l'image locale au lieu de la chercher sur Internet.
+- **Réglages non secrets** (niveau de logs, CORS, limites…) : ConfigMap `backend-config`, dans `devops/k3s/backend-config.yaml`.
+  Pour en changer un : modifier le fichier, `kubectl apply -f devops/k3s/backend-config.yaml`, puis
+  `kubectl rollout restart deployment/backend --namespace development` (un Pod ne relit pas son ConfigMap tout seul).
+  `deploy.sh` l'applique automatiquement. Les mots de passe restent dans les Secrets.
 - Le Pod tourne en utilisateur non-root (`runAsUser: 1000`) avec `fsGroup: 1000`, pour garder le droit d'écrire dans le volume partagé OCR sur tout type de stockage.
 
 ---
@@ -256,7 +261,7 @@ Toutes les ressources Kubernetes du projet appliquent la convention standard
 
 | Label | Valeur | Usage |
 |---|---|---|
-| `app.kubernetes.io/name` | `collectionr` | Nom du projet |
+| `app.kubernetes.io/name` | Nom du composant : `backend`, `postgresql`, `redis-ocr`… (`collectionr` pour le namespace) | Identifie un composant précis (Stern, NetworkPolicies) |
 | `app.kubernetes.io/part-of` | `collectionr` | Regroupement logique |
 | `app.kubernetes.io/managed-by` | `kubectl` | Outil de déploiement utilisé |
 | `app.kubernetes.io/component` | *(variable selon la ressource)* | Type de ressource — ex: `database` pour PostgreSQL, `backend` pour l'API. Non appliqué au namespace lui-même. |
@@ -273,6 +278,66 @@ metadata:
     app.kubernetes.io/component: api
     app.kubernetes.io/managed-by: kubectl
 ```
+
+---
+
+## Debug : suivre les logs avec Stern
+
+Stern affiche en direct les logs de **plusieurs Pods à la fois**, et **suit automatiquement les Pods recréés**
+(redémarrage, nouvelle image), ce que `kubectl logs` ne fait pas. C'est l'outil léger retenu pour le poste local :
+pas de Prometheus/Grafana/Loki en développement (`docs/devops/D04-observabilité-slo.md`).
+
+### Installer
+
+**Linux / Windows (WSL2)** : version écrite en toutes lettres (une variable vide donnerait un `404` au téléchargement) :
+```bash
+cd /tmp
+curl -fsSLO https://github.com/stern/stern/releases/download/v1.35.0/stern_1.35.0_linux_amd64.tar.gz
+curl -fsSLO https://github.com/stern/stern/releases/download/v1.35.0/checksums.txt
+grep stern_1.35.0_linux_amd64.tar.gz checksums.txt | sha256sum -c -
+tar -xzf stern_1.35.0_linux_amd64.tar.gz stern
+sudo install -m 755 stern /usr/local/bin/stern
+rm stern stern_1.35.0_linux_amd64.tar.gz checksums.txt
+cd ~/collectionr
+stern --version
+```
+✅ `stern_1.35.0_linux_amd64.tar.gz: OK` (empreinte vérifiée), puis `version: 1.35.0`.
+Processeur ARM (`uname -m` affiche `aarch64`) : remplace `amd64` par `arm64` dans les 3 noms de fichier.
+
+**macOS** : `brew install stern`.
+
+### Commandes types
+
+> ⚠️ **Stern occupe son terminal** jusqu'à `Ctrl+C` : tape tes autres commandes (`curl`, `kubectl`…) dans un **2e terminal**.
+> Vérifie d'abord le cluster : `kubectl config current-context` → Linux / Windows (WSL2) : `default` · macOS : `rancher-desktop`.
+
+| Je veux… | Commande |
+|---|---|
+| Suivre le Backend en direct | `stern --namespace development backend` |
+| Suivre tous les Pods du projet | `stern --namespace development --selector app.kubernetes.io/part-of=collectionr` |
+| Revoir les 10 dernières minutes, sans suivre | `stern --namespace development backend --since 10m --no-follow` |
+| Cibler un composant par son label | `stern --namespace development --selector app.kubernetes.io/name=postgresql` |
+
+`backend` est une **recherche dans le nom des Pods** : inutile de taper le nom complet (`backend-xxxxx`), et la complétion Tab n'est pas fiable ici.
+
+Démonstration : dans le terminal 1, `stern --namespace development backend` ; dans le terminal 2,
+`kubectl rollout restart deployment/backend --namespace development`. Le terminal 1 affiche `+ backend-<nouveau-nom>`, puis les logs de démarrage du nouveau Pod.
+
+### Lire la sortie
+
+| Ligne | Signification |
+|---|---|
+| `+ postgresql-0 › postgresql` | Stern **commence** à suivre ce Pod (puis son conteneur) |
+| `postgresql-0 postgresql <message>` | Une ligne de log : Pod, conteneur, puis message (une couleur par Pod) |
+| `- postgresql-0 › postgresql` | Stern **arrête** de suivre ce Pod (Pod supprimé, ou fin d'un `--no-follow`) |
+
+Les lignes de plusieurs Pods s'entremêlent : c'est normal, Stern les lit en parallèle. Chaque logiciel garde **son propre format** :
+Redis (`… * Ready to accept connections`), PostgreSQL (`… UTC [1] LOG: …`), nginx pour le Frontend (`… [notice] …`) ;
+seul le Backend écrit en **JSON** (`{"level":"info","service":"backend",…}`).
+
+> **Pour tester, utilise une route `/api/v1/...`** (ex. `curl -s -H "Host: api.collectionr.localhost" http://localhost/api/v1/nope`) :
+> chaque requête y produit une ligne JSON. `/health` n'est **volontairement pas journalisé** (il est hors de `/api/v1`) :
+> les sondes de K3s l'appellent toutes les quelques secondes et noieraient les logs.
 
 ---
 
@@ -307,4 +372,3 @@ Ce script effectue 4 contrôles automatisés :
 2. Vérification du baseline historique du dépôt avec les règles `.gitleaksignore`.
 3. Injection d'un secret factice (GitHub PAT) et confirmation de l'interception par Gitleaks.
 4. Validation de l'arrêt immédiat de la chaîne CI et du statut `SKIPPED` des jobs aval.
-
