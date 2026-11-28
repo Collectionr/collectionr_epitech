@@ -91,9 +91,10 @@ jobs:
         - name: Test shared volume OCR (PVC write/read)
           run: |
             kubectl apply -f devops/k3s/tests/test-shared-volume-ocr.yaml
-            kubectl wait -ffot=condition=Ready pod/test-ocr-writer pod/test-ocr-reader -n development --timeout=120s
+            kubectl wait --for=condition=Ready pod/test-ocr-writer -n development --timeout=120s
+            kubectl wait --for=condition=Ready pod/test-ocr-reader -n development --timeout=120s
             kubectl exec -n development test-ocr-writer -- sh -c 'echo "ci-ocr-ok" > /data/ocr/ci-probe.txt'
-            kubectl exec -n development test-ocr-reader -- grep -qx  "ci-ocr-ok" /data/ocr/ci-probe.txt
+            kubectl exec -n development test-ocr-reader -- grep -qx "ci-ocr-ok" /data/ocr/ci-probe.txt
             kubectl delete -f devops/k3s/tests/test-shared-volume-ocr.yaml
 
         - name: Test inter-service DNS and TCP connectivity
